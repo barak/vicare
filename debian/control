@@ -1,4 +1,4 @@
-Source: ikarus
+Source: vicare
 Section: lisp
 Priority: extra
 Maintainer: Barak A. Pearlmutter <bap@debian.org>
@@ -6,15 +6,16 @@ Build-Depends: debhelper (>= 8),
 	       autotools-dev (>= 20100122.1~),
 	       libgmp3-dev
 Standards-Version: 3.9.1
-Homepage: http://ikarus-scheme.org/
-Vcs-Git: git://git.debian.org/git/collab-maint/ikarus.git
-Vcs-Browser: http://git.debian.org/?p=collab-maint/ikarus.git
+Homepage: http://marcomaggi.github.com/vicare.html
+Vcs-Git: git://github.com/barak/vicare
+Vcs-Browser: http://github.com/vicare
 
-Package: ikarus
-Architecture: i386
+Package: vicare
+Architecture: i386 amd64
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Scheme compiler and interpreter
- Ikarus is a compiler-based implementation of the Scheme programming
- language which targets the i386 (with sse2) architecture.  It has
- good performance, is rather light weight, is case-sensitive, and
- implements a substantial portion of the language described in R6RS.
+ Vicare, a fork of Ikarus, is a compiler-based implementation of the
+ Scheme programming language, which targets the i386 (with sse2) and
+ AMD64 architectures.  It has good performance, is rather light
+ weight, is case-sensitive, and implements a substantial portion of
+ the language described in R6RS.

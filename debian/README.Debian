@@ -1,16 +1,13 @@
-ikarus for Debian
+vicare for Debian
 -----------------
 
-The main unusual feature of this system is that its compiler can emit
-code only for the i386/amd64 architecture and requires the SSE2
-extensions.  These are, to my knowledge, available on all amd64 CPUs
-by both Intel and AMD, but not on PIII or earlier (Intel) or k7 or
-earlier (AMD) i386 CPUs.  The availability of SSE2 is tested at both
-build and install time.
+Vicare is a fork of Ikarus Scheme.
 
-Rebuilding the manual requires xelatex, which is in the texlive-xetex
-package, and fonts in ttf-sil-charis, and the Geneva font which is not
-in Debian and would require a substitute.  The debian build process is
-set up to use the pre-built manual instead of regenerating it.
+The main unusual feature of Ikarus Scheme system is that its compiler
+can emit code only for the i386/amd64 architecture and requires the
+SSE2 extensions.  These are, to my knowledge, available on all amd64
+CPUs by both Intel and AMD, but not on PIII or earlier (Intel) or k7
+or earlier (AMD) i386 CPUs.  The availability of SSE2 is tested at
+both build and install time.
 
- -- Barak A. Pearlmutter <bap@debian.org>, Fri, 19 Sep 2008 13:08:52 +0100
+ -- Barak A. Pearlmutter <bap@debian.org>, Mon, 21 Feb 2011 08:47:37 +0000

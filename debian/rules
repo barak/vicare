@@ -5,18 +5,23 @@ build clean binary-indep binary-arch binary install:
 
 .PHONY: build clean binary-indep binary-arch binary install
 
+override_dh_auto_configure:
+	automake --add-missing
+	autoconf
+	dh_auto_configure
+
 override_dh_auto_build:
 	egrep -q '^flags[[:space:]]*:.*\bsse2\b' /proc/cpuinfo \
 	 || (echo "error: CPU instruction set extension sse2 not found."; \
 	     echo "   aborting build process"; \
 	     exit 1)
-	dh_auto_build -- -C src
-	dh_auto_build -- -C scheme
+	dh_auto_build
 
-override_dh_install:
-	dh_install
-	rm debian/ikarus/usr/share/doc/ikarus/COPYING
-	rm debian/ikarus/usr/share/doc/ikarus/GPL-3
+override_dh_auto_test:
+	@echo testing disabled
 
-override_dh_compress:
-	dh_compress -Xikarus-scheme-users-guide.pdf
+override_dh_auto_install:
+	dh_auto_install
+	rm debian/vicare/usr/share/doc/vicare/COPYING
+	rm debian/vicare/usr/share/doc/vicare/GPL-3
+	rm debian/vicare/usr/share/info/dir

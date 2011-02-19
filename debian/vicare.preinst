@@ -1,5 +1,5 @@
 #!/bin/sh
-# preinst script for ikarus
+# preinst script for vicare
 #
 # see: dh_installdeb(1)
 

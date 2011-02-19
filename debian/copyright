@@ -9,6 +9,11 @@ It was downloaded from
     main bzr repository: http://ikarus-scheme.org/ikarus.dev
     mirror: http://bazaar.launchpad.net/~aghuloum/ikarus/ikarus.dev
 
+  This package is tracking a fork of Ikarus Scheme named Vicare,
+    http://marcomaggi.github.com/vicare.html
+    git://github.com/marcomaggi/vicare
+  which has modifications by Marco Maggi and others.
+
 Upstream Author: Abdulaziz Ghuloum <aghuloum@cs.indiana.edu>
 
 Copyright: 2007, Abdulaziz Ghuloum
