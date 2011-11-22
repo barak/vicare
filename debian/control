@@ -3,12 +3,13 @@ Section: lisp
 Priority: extra
 Maintainer: Barak A. Pearlmutter <bap@debian.org>
 Build-Depends: debhelper (>= 8),
-	       autotools-dev (>= 20100122.1~),
-	       libgmp3-dev
-Standards-Version: 3.9.1
+	       dh-autoreconf,
+	       libgmp3-dev,
+	       libffi-dev
+Standards-Version: 3.9.2
 Homepage: http://marcomaggi.github.com/vicare.html
 Vcs-Git: git://github.com/barak/vicare
-Vcs-Browser: http://github.com/vicare
+Vcs-Browser: http://github.com/barak/vicare
 
 Package: vicare
 Architecture: i386 amd64
