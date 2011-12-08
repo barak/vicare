@@ -48,8 +48,8 @@ case "$target_os" in
     LDFLAGS="-Wl,-E -Wl,--export-all-symbols $LDFLAGS"
     ;;
   *darwin*)
-    AC_DEFINE(HACK_FFI, 1,
-              [Mark code returned by libffi executable because
+    AC_DEFINE([LIBFFI_ON_DARWIN],[1],
+              [Mark code returned by Libffi executable because
                libffi does not do that yet.  This so far is only
                important on Snow Leopard in 64-bit mode but we
                mark it on all darwins anyways.])
@@ -609,19 +609,22 @@ AC_DEFINE_UNQUOTED([UNSETENV_HAS_RETURN_VALUE],
   $vicare_cv_UNSETENV_HAS_RETURN_VALUE,
   [whether the function unsetenv has a return value])
 
-AC_CACHE_CHECK([the size of 'size_t'],
-  [vicare_cv_sizeof_size_t],
-  [AC_COMPUTE_INT([vicare_cv_sizeof_size_t],
-    [sizeof(size_t)],[AC_INCLUDES_DEFAULT],[vicare_cv_sizeof_size_t="#f"])])
-SIZEOF_SIZE_T="$vicare_cv_sizeof_size_t"
-AC_SUBST([SIZEOF_SIZE_T])
+AC_DEFUN([VICARE_SIZEOF],
+  [AC_CACHE_CHECK([the size of '$1'],
+    [$2],
+    [AC_COMPUTE_INT([$2],
+      [sizeof($1)],[AC_INCLUDES_DEFAULT],[$2="#f"])])
+  $3="$$2"
+  AC_SUBST([$3])])
 
-AC_CACHE_CHECK([the size of 'ssize_t'],
-  [vicare_cv_sizeof_ssize_t],
-  [AC_COMPUTE_INT([vicare_cv_sizeof_ssize_t],
-    [sizeof(ssize_t)],[AC_INCLUDES_DEFAULT],[vicare_cv_sizeof_ssize_t="#f"])])
-SIZEOF_SSIZE_T="$vicare_cv_sizeof_ssize_t"
-AC_SUBST([SIZEOF_SSIZE_T])
+VICARE_SIZEOF([char],[vicare_cv_sizeof_char],[SIZEOF_CHAR])
+VICARE_SIZEOF([short],[vicare_cv_sizeof_short],[SIZEOF_SHORT])
+VICARE_SIZEOF([int],[vicare_cv_sizeof_int],[SIZEOF_INT])
+VICARE_SIZEOF([long],[vicare_cv_sizeof_long],[SIZEOF_LONG])
+VICARE_SIZEOF([long long],[vicare_cv_sizeof_long_long],[SIZEOF_LONG_LONG])
+
+VICARE_SIZEOF([size_t],[vicare_cv_sizeof_size_t],[SIZEOF_SIZE_T])
+VICARE_SIZEOF([ssize_t],[vicare_cv_sizeof_ssize_t],[SIZEOF_SSIZE_T])
 
 AC_CACHE_SAVE
 
@@ -685,7 +688,7 @@ AC_CACHE_SAVE
 #### finish
 
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_FILES(Makefile src/Makefile scheme/Makefile doc/Makefile lib/Makefile tests/Makefile lib/vicare/installation-configuration.sls lib/vicare/platform-constants.sls)
+AC_CONFIG_FILES(Makefile src/Makefile scheme/Makefile doc/Makefile lib/Makefile tests/Makefile lib/vicare/installation-configuration.sls lib/vicare/platform-constants.sls lib/vicare/words.sls)
 AC_OUTPUT #(Makefile src/Makefile scheme/Makefile doc/Makefile)
 
 ### end of file

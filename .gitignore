@@ -18,9 +18,12 @@
 .emacs.*
 .gdb_history
 .vimview
+/Makefile
+/Makefile.in
 /aclocal.m4
 /autom4te*/
 /compile
+/config.cache
 /config.guess
 /config.h
 /config.h.in
@@ -45,5 +48,3 @@
 /src/vicare
 /stamp-h1
 =*
-Makefile
-Makefile.in

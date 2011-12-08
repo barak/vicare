@@ -188,6 +188,8 @@
      (else #f)))
 
  (define-primop eqv? safe
+   ;;Notice  that at  the Scheme  level the  EQV? predicate  is  the one
+   ;;exported by (ikarus predicates).
    ((P x y)
     (if (or (equable-constant? x)
 	    (equable-constant? y))
@@ -2716,6 +2718,43 @@
     (prm 'mset (T x)
 	 (K (- disp-port-attrs vector-tag))
 	 (prm 'logor (prm 'sll (T i) (K port-attrs-shift)) (K port-tag)))))
+
+ /section)
+
+
+;;;; pointers
+;;
+;;A pointer is  a fixed length memory block,  two words wide, referenced
+;;by  machine words  tagged as  vectors.  The  first machine  word  of a
+;;pointer block is tagged has  pointer in its least significant bits and
+;;it has the most significant bits set to zero.  The second machine word
+;;of a pointer block holds the actual pointer value.
+;;
+;;  |------------------------|-------------| reference to pointer
+;;        heap offset          vector tag
+;;
+;;  |------------------------|-------------| pointer first word
+;;     all set to zero         pointer tag
+;;
+;;  |--------------------------------------| pointer second word
+;;              pointer value
+;;
+(section
+
+ (define-primop $pointer? safe
+   ((P x)
+    (sec-tag-test (T x) vector-mask vector-tag #f pointer-tag))
+   ((E x) (nop)))
+
+ (define-primop $pointer= unsafe
+   ((V x y)
+    ;;This is  a predicate but a  forcall is currently  not supported by
+    ;;the P function (Marco Maggi; Nov 30, 2011).
+    (with-tmp ((arg1 (T x)))
+      (with-tmp ((arg2 (T y)))
+	(make-forcall "ikrt_pointer_eq" (list arg1 arg2)))))
+   ((E x y)
+    (nop)))
 
  /section)
 

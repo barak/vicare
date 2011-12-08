@@ -445,8 +445,9 @@
 
 		  ;; miscellaneous functions
 		  file-descriptor?)
-    (only (ikarus.pointers)
-	  pointer?)
+    (rename (only (ikarus system $pointers)
+		  $pointer?)
+	    ($pointer? pointer?))
     (vicare syntactic-extensions)
     (vicare platform-constants)
     (prefix (vicare unsafe-capi)
@@ -534,6 +535,10 @@
 (define-argument-validation (fixnum/false who obj)
   (or (not obj) (fixnum? obj))
   (assertion-violation who "expected false or fixnum as argument" obj))
+
+(define-argument-validation (boolean/fixnum who obj)
+  (or (fixnum? obj) (boolean? obj))
+  (assertion-violation who "expected boolean or fixnum as argument" obj))
 
 (define-argument-validation (fixnum/pointer/false who obj)
   (or (not obj) (fixnum? obj) (pointer? obj))
@@ -675,11 +680,15 @@
 (define (strerror errno)
   (define who 'strerror)
   (with-arguments-validation (who)
-      ((fixnum  errno))
-    (let ((msg (capi.posix-strerror errno)))
-      (if msg
-	  (string-append (errno->string errno) ": " (utf8->string msg))
-	(string-append "unknown errno code " (number->string (- errno)))))))
+      ((boolean/fixnum  errno))
+    (if errno
+	(if (boolean? errno)
+	    "unknown errno code (#t)"
+	  (let ((msg (capi.posix-strerror errno)))
+	    (if msg
+		(string-append (errno->string errno) ": " (utf8->string msg))
+	      (string-append "unknown errno code " (number->string (- errno))))))
+      "no error")))
 
 (define (raise-errno-error who errno . irritants)
   (raise (condition

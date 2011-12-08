@@ -3,9 +3,10 @@
 libvicaredir		= $(pkglibdir)/vicare
 
 EXTRA_DIST		= vicare/platform-constants.sls.in	\
+			  vicare/words.sls.in			\
 			  vicare/installation-configuration.sls.in
 
-dist_libvicare_DATA	= vicare/foreign.sls			\
+dist_libvicare_DATA	= vicare/ffi.sls			\
 			  vicare/platform-constants.sls		\
 			  vicare/ipc.sls			\
 			  vicare/include.sls			\
@@ -16,6 +17,7 @@ dist_libvicare_DATA	= vicare/foreign.sls			\
 			  vicare/unsafe-unicode.sls		\
 			  vicare/unsafe-capi.sls		\
 			  vicare/words.sls			\
-			  vicare/installation-configuration.sls
+			  vicare/installation-configuration.sls	\
+			  vicare/gcc.sls
 
 ### end of file

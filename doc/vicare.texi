@@ -126,6 +126,14 @@ Revised^6 Report on the algorithmic language Scheme
 @acronym{ASCII}
 @end macro
 
+@macro asciiz{}
+@acronym{ASCIIZ}
+@end macro
+
+@macro cif{}
+@acronym{CIF}
+@end macro
+
 @macro cpu{}
 @acronym{CPU}
 @end macro
@@ -606,11 +614,13 @@ Trademarks used herein are the property of their respective owners.
 * overview::                    Overview of Vicare Scheme.
 * using::                       Using the program.
 * iklib::                       Extensions library.
+* ffi::                         Foreign functions interface.
 * posix::                       The @posix{} interface.
 * glibc::                       The @gnu{} C Library interface.
 * linux::                       The @gnu{}+Linux interface.
 * syslib::                      Low level, fast, unsafe operations.
 * capi::                        C language programming interface.
+* gcc::                         A toy library interface to @gcc{}.
 
 Internals
 
@@ -1824,7 +1834,6 @@ of @rnrs{6}; @library{vicare} exports the same bindings of
 * iklib timing::                Timing.
 * iklib guardians::             Guardians and garbage collection.
 * iklib io::                    Input/output library.
-* iklib foreign::               Foreign interface library.
 * iklib misc::                  Miscellaneous functions.
 @end menu
 
@@ -2833,6 +2842,43 @@ Copy @var{count} items from @var{src.vec} starting at @var{src.start}
 (inclusive) to @var{dst.vec} starting at @var{dst.start}.  Return
 unspecified values.
 @end defun
+
+
+@deffn Procedure vector-for-all @var{proc} @vari{vec} @varii{vec} @dots{} @varn{vec}
+@deffnx Procedure vector-exists @var{proc} @vari{vec} @varii{vec} @dots{} @varn{vec}
+The @var{vec}s should all have the same length, and @var{proc} should
+accept @math{N} arguments and return a single value.  @var{proc} should
+not mutate the @var{vec} arguments.
+
+For natural numbers @math{i = 0, 1, @dots{}}, the @func{vector-for-all}
+procedure successively applies @var{proc} to arguments @math{x_i^1
+@dots{} x_i^N}, where @math{x_i^j} is the @math{i}-th element of
+@var{vecj}, until @false{} is returned.
+
+If @var{proc} returns true values for all but the last element of
+@vari{vec}, @func{vector-for-all} performs a tail call of @var{proc} on
+the @math{k}-th elements, where @math{k} is the length of @vari{vec}.
+If @var{proc} returns @false{} on any set of elements,
+@func{vector-for-all} returns @false{} after the first such application
+of @var{proc}.  If the @var{vec}s are all empty, @func{vector-for-all}
+returns @true{}.
+
+For natural numbers @math{i = 0, 1, @dots{}}, the @func{vector-exists}
+procedure applies @var{proc} successively to arguments @math{x_i^1
+@dots{} x_i^n}, where @math{x_i^j} is the @math{i}-th element of
+@var{vecj}, until a true value is returned.
+
+If @var{proc} returns @false{} for all but the last elements of the
+@var{vec}s, @func{vector-exists} performs a tail call of @var{proc} on
+the @math{k}-th elements, where @math{k} is the length of @vari{vec}.
+If @var{proc} returns a true value on any set of elements,
+@func{vector-exists} returns that value after the first such application
+of @var{proc}.  If the @var{vec}s are all empty, @func{vector-exists}
+returns @false{}.
+
+@var{proc} is always called in the same dynamic environment as
+@func{vector-for-all} or, respectively, @func{vector-exists} itself.
+@end deffn
 
 @c page
 @node iklib symbols
@@ -4253,10 +4299,10 @@ registered, they are run.  This binding is exported by the
 
 
 Let's say that we use the @value{PRJNAME} @ffi{} to handle some memory
-block (@ref{iklib foreign} for details on the @ffi{}); memory blocks
-allocated with @func{malloc} are not released by the @value{PRJNAME}
-garbage collector: we have to explicitly apply @func{free} to the
-pointer value referencing them.
+block (@ref{ffi} for details on the @ffi{}); memory blocks allocated
+with @func{malloc} are not released by the @value{PRJNAME} garbage
+collector: we have to explicitly apply @func{free} to the pointer value
+referencing them.
 
 If we use the blocks synchronously with the evaluation of forms, we do
 (assuming we do not use continuations, so this use of
@@ -4264,7 +4310,7 @@ If we use the blocks synchronously with the evaluation of forms, we do
 
 @example
 (import (ikarus)
-  (ikarus foreign))
+  (vicare ffi))
 
 (define (do-something-with . args)
   (display args)
@@ -4287,7 +4333,7 @@ and we can define a syntax for it:
 
 @example
 (import (ikarus)
-  (ikarus foreign))
+  (vicare ffi))
 
 (define (do-something-with . args)
   (display args)
@@ -4323,7 +4369,7 @@ that takes no arguments):
 
 @example
 (import (ikarus)
-  (ikarus foreign))
+  (vicare ffi))
 
 (define *event-source* '())
 
@@ -4369,7 +4415,7 @@ block:
 
 @example
 (import (ikarus)
-  (ikarus foreign))
+  (vicare ffi))
 
 (define g (make-guardian))
 
@@ -4394,7 +4440,7 @@ guardian:
 
 @example
 (import (ikarus)
-  (ikarus foreign))
+  (vicare ffi))
 
 ;; Event source handling.
 
@@ -4453,41 +4499,42 @@ guardian:
 @defun make-guardian
 Build and return a new guardian object: a closure that can be called
 with one or zero arguments, and that is interfaced with the garbage
-collector of the Scheme implementation (in a non--portable way).
+collector of @value{PRJNAME} in a non--portable way.
 
-The guardian works like this:
+The guardian work like this:
 
 @itemize
 @item
-when the closure is called with one argument: it adds the argument to an
+When the closure is called with one argument: it adds the argument to an
 internal set of ``guarded values'', accessible to the garbage collector;
+the return value if the argument itself.
 
 @item
-when the garbage collector detects no other references to a value in the
+When the garbage collector detects no other references to a value in the
 set of guarded values: the guardian removes it from the set and appends
-it to an internal queue (@acronym{FIFO});
+it to an internal queue (@acronym{FIFO}).
 
 @item
-when the closure is called with zero arguments: it removes the first
+When the closure is called with zero arguments: it removes the first
 value from the internal queue and returns it; if no values are in the
 queue it returns @false{}.
 @end itemize
 
 After an object has been returned by the guardian, it is no more
 ``guarded'' so it will be garbage collected when it will become
-inaccessible (unsless it is registered in a guardian).
+inaccessible (unless it is again registered in a guardian).
 
 @quotation
-@emph{Note:} it is possible to register an object in more than one
-guardian, when the object is found inaccessible all the guardian
+@strong{NOTE} It is possible to register an object in more than one
+guardian; when the object is found inaccessible all the guardian
 closures that have it will return it to the caller.  This may lead to
 invalid finalisation operations, it is the responsibility of the
 programmer to avoid this.
 @end quotation
 
 @quotation
-@emph{Note:} it is possible to register an object multiple times in the
-same guardian, when the object is found inaccessible the guardian
+@strong{NOTE} It is possible to register an object multiple times in the
+same guardian; when the object is found inaccessible the guardian
 closure that has it will return it to the caller multiple times.  This
 may lead to invalid finalisation operations, it is the responsibility of
 the programmer to avoid this.
@@ -5043,820 +5090,6 @@ informations on the internals of @var{port}.
 @end defun
 
 @c page
-@node iklib foreign
-@section The @library{vicare foreign} library
-
-
-This chapter describes the facilities through which @value{PRJNAME}
-interfaces with the host operating system and other external libraries.
-The facilities of the @library{vicare foreign} library give the Scheme
-program unrestricted access to the computer memory, allowing one to
-allocate, access, modify, and free memory as needed.  The facilities
-also allow the Scheme program to @emph{call out} to system procedures as
-well as allow the native procedures to @emph{call back} into Scheme.
-
-@ignore
-An original paragraph giving an overview of this chapter contents was
-omitted because with the menu above it is useless, and because it looked
-outdated.
-@end ignore
-
-@quotation
-@emph{Note:} @value{PRJNAME} version @code{0.0.4} is the first version
-of @value{PRJNAME} to support the described foreign interfaces.
-@end quotation
-
-@quotation
-@emph{Caveat emptor:} Preparing each call out and call back procedure
-leaks a small amount of memory.  This is because the system cannot track
-such pointers that go into native code (which may retain such pointers
-indefinitely).  Use judiciously.
-@end quotation
-
-@menu
-* iklib foreign overview::  Overview of the foreign functions
-                                interface.
-* iklib foreign memory::    Memory management.
-* iklib foreign memops::    Memory operations.
-* iklib foreign dl::        Accessing foreign objects from Scheme.
-* iklib foreign call out::  Calling out to foreign procedures.
-* iklib foreign call back:: Calling back to Scheme.
-@end menu
-
-@c page
-@node iklib foreign overview
-@subsection Overview of the foreign functions interface
-
-
-In order to make full use of the computer, it is important for a
-programming environment (e.g., @value{PRJNAME} Scheme) to facilitate
-access to the underlying architecture on which it runs.  The underlying
-architecture includes the @api{} provided by the host operating system
-kernel (e.g., Linux), the system libraries (e.g., @code{libc}), and
-other site--installed libraries (e.g., @code{sqlite3}).
-
-Providing direct access to such @api{} from within Scheme allows the
-programmer to write Scheme libraries that have few or no dependencies on
-external programs (such as @code{C} development toolchain).  When
-dealing with system libraries, the programmer must have a thorough
-understanding of many aspects of the targeted system.  This section
-attempts to provide answers to many questions that are frequently
-encountered when interfacing to external libraries.
-
-@c ------------------------------------------------------------
-
-@subsubheading Libffi
-
-
-Currently (Sat May 1, 2010) @value{PRJNAME} implements the foreign
-functions interface (@ffi{}) using an extenal library: Libffi,
-originally by Anthony Green.  Libffi can be found at:
-
-@center @url{http://sourceware.org/libffi/}
-
-@noindent
-and it is distributed under a liberal license (look for it at the site,
-basically we can do everything but remove the original copyright
-notice).
-
-On Unix--like systems, we can install Libffi with the traditional
-sequence:
-
-@example
-$ ./configure [options]
-$ make
-$ make install
-@end example
-
-@noindent
-and the makefile supports the @env{DESTDIR} environment variable for
-installation under a different directory prefix.
-
-@quotation
-@emph{Note:} Libffi version 3.0.6 installs its header files under:
-
-@example
-$@{prefix@}/lib/libffi-3.0.6/include
-@end example
-
-@noindent
-and trying to use the @option{--includedir} option to
-@command{configure} will @strong{not} work in changing this.  It means
-that when configuring @value{PRJNAME} for installation we have to specify where
-the Libffi headers are to be found; @ref{overview install} for details.
-@end quotation
-
-@c page
-@node iklib foreign memory
-@subsection Memory management
-
-
-@value{PRJNAME} Scheme is a managed environment.  Like in many
-programming environments, @value{PRJNAME} manages its own memory.
-Scheme objects are allocated in a special memory region (the Scheme
-heap) and have type--specific object layouts; this allows the run time
-system to distinguish object types and the garbage collector to locate
-all potentially live objects, and reclaim the memory of dead objects.
-Scheme objects are also @emph{opaque} in the sense that the data
-structures used to represent Scheme objects (e.g., pairs) are not
-exposed to the programmer, who can only interact with objects through an
-interface (e.g., @code{car}, @code{cdr}).
-
-Unmanaged environments, such as the operating system on which
-@value{PRJNAME} runs, require that the programmer manages the allocation
-and deallocation of system resources herself.  Memory regions, file
-handles, external devices, the screen, etc., are all examples of
-resources whose management must be coordinated among the different parts
-of the system, and this becomes the responsibility of the programmer who
-is wiring the different subsystems together.
-
-Memory, from a system's point of view, is @emph{transparent}.  A pointer
-is an integer denoting an address of memory.  This memory address may
-contain a value that requires interpretation.  At the lowest--level,
-each byte of memory contains eight bits, each of which may be toggled on
-or off.  A level higher, contiguous sequences of bytes are grouped
-together and are interpreted as integers, floating point numbers, or
-pointers to other memory addresses.  These are the basic data types that
-are often interpreted atomically.  Yet a level higher, groups of basic
-types form data structures such as arrays, linked lists, trees, and so
-on.  Objects, as found in object--oriented programming languages, are at
-an even higher level of abstraction since they are treated as opaque
-references that retain state and know how to respond to messages.
-
-The procedures in the @library{vicare foreign} library are meant to
-provide a way to interface with the low level memory operations such as
-setting and getting bytes from specific locations in memory.  Although
-they do not provide high--level operations, the basic procedures make
-implementing high--level operations (such as the Objective--C system)
-possible.  Programmers are encouraged to define their own abstractions
-that are most suitable for the specific target library rather than using
-the low--level operations directly.  This results in writing more robust
-and more easily maintainable libraries.  To put it more boldly:
-@strong{Do not sprinkle your code with low--level memory operations}.
-
-@c page
-@node iklib foreign memops
-@subsection Memory operations
-
-
-@menu
-* iklib foreign memops alloc::    Allocating and freeing memory.
-* iklib foreign memops pointer::  Handling pointer values.
-* iklib foreign memops poke::     Poking values.
-* iklib foreign memops peek::     Peeking values.
-@end menu
-
-@c page
-@node iklib foreign memops alloc
-@subsubsection Allocating and freeing memory
-
-
-@deffn Procedure malloc @var{number-of-bytes}
-Allocate a block of memory and return a pointer to it.  The
-@func{malloc} Scheme procedure is implemented using the host--provided
-@cfunc{malloc} system procedure (often found in @code{libc}).  The
-number of bytes must be a positive exact integer.
-
-@example
-> (malloc 10)
-#<pointer #x00300320>
-> (malloc 10000)
-#<pointer #x01800400>
-@end example
-
-In case of failure allocating memory: the return value is @false{}.
-@end deffn
-
-
-@deffn Procedure free @var{pointer-to-memory-block}
-Release the memory region at the given address.  The memory region must
-have been allocated with @cfunc{malloc}, @cfunc{calloc}, or a similar
-system procedure.  Once freed, memory operations on the given address
-are invalid and may cause the system to crash at unpredictable times.
-@value{PRJNAME} cannot check for such errors since the memory may be freed by
-procedures that are external to @value{PRJNAME}.
-@end deffn
-
-@c page
-@node iklib foreign memops pointer
-@subsubsection Handling pointer values
-
-
-The result of calling the procedures @func{eq?}, @func{eqv?} and
-@func{equal?} on pointer values is unspecified.
-
-
-@deffn Procedure pointer->integer @var{pointer}
-Convert the value of @var{pointer} to an exact integer value.  The
-result may be a fixnum or a bignum depending on the pointer.
-@end deffn
-
-
-@deffn Procedure integer->pointer @var{exact-integer}
-Convert @var{exact-integer} to a pointer value.  The lower 32 bits (or
-64 bits on 64-bit systems) of the argument are significant in computing
-the pointer value.  It is guaranteed that @code{(integer->pointer
-(pointer->integer p))} points to the same address as @var{p}.
-@end deffn
-
-
-@deffn Procedure pointer? @var{x}
-Return @true{} if the value of @var{x} is a pointer, return @false{}
-otherwise.
-@end deffn
-
-
-@deffn Procedure pointer-size
-Return the number of bytes required to hold a pointer on the underlying
-platform.
-@end deffn
-
-@c page
-@node iklib foreign memops poke
-@subsubsection Poking values
-
-
-With all the following functions: the @var{pointer} argument must be a
-valid pointer; the @var{offset} and @var{value} arguments must be exact
-integers.  When adding an offset to a pointer: all the following
-functions @strong{do not} scale the offset to the size of the poked
-value.  Pointer arithmetics is performed with byte offsets.
-
-
-@macro poker{BYTENUM,BITNUM}
-Set to @var{value} the \BYTENUM\ of memory located at @var{offset} from
-@var{pointer}.  Only the \BITNUM\ lowermost bits of @var{value} are used
-in the operation and the remaining bits are ignored.
-@end macro
-
-
-@c ------------------------------------------------------------
-
-@subsubheading Poking exact integers
-
-
-@deffn Procedure pointer-set-c-char! @var{pointer} @var{offset} @var{value}
-@poker{single byte,8}
-@end deffn
-
-
-@deffn Procedure pointer-set-c-short! @var{pointer} @var{offset} @var{value}
-@poker{two bytes,16}
-@end deffn
-
-
-@deffn Procedure pointer-set-c-int! @var{pointer} @var{offset} @var{value}
-@poker{four bytes,32}
-@end deffn
-
-
-@deffn Procedure pointer-set-c-long! @var{pointer} @var{offset} @var{value}
-On 64-bit systems: @poker{eight bytes,64}
-
-On 32-bit systems: perform the same task as @func{pointer-set-c-int!}.
-@end deffn
-
-
-@deffn Procedure pointer-set-c-long-long! @var{pointer} @var{offset} @var{value}
-Set to @var{value} a number of bytes corresponding to the @code{long
-long} type located at @var{offset} from @var{pointer}.
-@end deffn
-
-
-@c ------------------------------------------------------------
-
-@subsubheading Poking floating point numbers
-
-
-@deffn Procedure pointer-set-c-float! @var{pointer} @var{offset} @var{flonum}
-Convert the Scheme floating point number @var{flonum} (represented in
-@value{PRJNAME} as an @ieee{} 754 double precision floating point number) to a
-float (an @ieee{} 754 single precision floating point number) and store
-the result in the four bytes at @var{offset} from @var{pointer}.
-@end deffn
-
-
-@deffn Procedure pointer-set-c-double! @var{pointer} @var{offset} @var{flonum}
-Store the double precision @ieee{} 754 floating point value of the
-Scheme @var{flonum} in the eight bytes at @var{offset} from
-@var{pointer}.
-@end deffn
-
-
-@c ------------------------------------------------------------
-
-@subsubheading Poking pointers
-
-
-@deffn Procedure pointer-set-c-pointer! @var{pointer} @var{offset} @var{value}
-On 64-bit systems: set the eight bytes at @var{offset} from
-@var{pointer} to the 64-bit pointer @var{value}.
-
-On 32-bit systems: set the four bytes at @var{offset} from @var{pointer}
-to the 32-bit pointer @var{value}.
-@end deffn
-
-@c page
-@node iklib foreign memops peek
-@subsubsection Peeking values
-
-
-With all the following functions: the @var{pointer} argument must be a
-valid pointer; the @var{offset} argument must be an exact integer.  When
-adding an offset to a pointer: all the following functions @strong{do
-not} scale the offset to the size of the poked value.  Pointer
-arithmetics is performed with byte offsets.
-
-
-@c ------------------------------------------------------------
-
-@subsubheading Peeking exact integers
-
-
-@deffn Procedure pointer-ref-c-signed-char @var{pointer} @var{offset}
-Peek the single byte located at @var{offset} from @var{pointer} and
-return an exact integer representing the sign--extended integer value of
-that byte. The resulting value is in the inclusive range @code{[-128,
-127]}.
-@end deffn
-
-
-@deffn Procedure pointer-ref-c-unsigned-char @var{pointer} @var{offset}
-Peek the single byte located at @var{offset} from @var{pointer} and
-return an exact integer representing the unsigned integer value of that
-byte.  The resulting value is in the inclusive range @code{[0, 255]}.
-@end deffn
-
-
-The following example shows the difference between the two functions
-above:
-
-@example
-> (let ([p (malloc 3)])
-    (pointer-set-c-char! p 0 #b01111111)
-    (pointer-set-c-char! p 1 #b10000000)
-    (pointer-set-c-char! p 2 #b11111111)
-    (let ([result
-           (list (pointer-ref-c-signed-char p 0)
-                 (pointer-ref-c-signed-char p 1)
-                 (pointer-ref-c-signed-char p 2)
-                 (pointer-ref-c-unsigned-char p 0)
-                 (pointer-ref-c-unsigned-char p 1)
-                 (pointer-ref-c-unsigned-char p 2))])
-      (free p)
-      result))
-(127 -128 -1 127 128 255)
-@end example
-
-
-@deffn Procedure pointer-ref-c-signed-short @var{pointer} @var{offset}
-Peek two bytes at @var{offset} from @var{pointer} and return an exact
-integer representing the sign--extended integer value of the sequence.
-The resulting value is in the inclusive range @code{[-32768, 32767]}.
-@end deffn
-
-
-@deffn Procedure pointer-ref-c-unsigned-short @var{pointer} @var{offset}
-Peek two bytes at @var{offset} from @var{pointer} and return an exact
-integer representing the unsigned integer value of the sequence.  The
-resulting value is in the inclusive range @code{[0, 65535]}.
-@end deffn
-
-
-@deffn Procedure pointer-ref-c-signed-int @var{pointer} @var{offset}
-Peek four bytes at @var{offset} from @var{pointer} and return an exact
-integer in the inclusive range @code{[-2^31, 2^31-1]}.
-@end deffn
-
-
-@deffn Procedure pointer-ref-c-unsigned-int @var{pointer} @var{offset}
-Peek four bytes at @var{offset} from @var{pointer} and return an exact
-integer in the inclusive range @code{[0, 2^32-1]}.
-@end deffn
-
-
-@deffn Procedure pointer-ref-c-signed-long @var{pointer} @var{offset}
-On 64-bit systems: peek eight bytes at @var{offset} from @var{pointer}
-and return an integer in the inclusive range @code{[-2^63, 2^63-1]}.
-
-On 32-bit systems, perform the same task as
-@func{pointer-ref-c-signed-int}.
-@end deffn
-
-
-@deffn Procedure pointer-ref-c-unsigned-long @var{pointer} @var{offset}
-On 64-bit systems: peek eight bytes at @var{offset} from @var{pointer}
-and return an integer in the inclusive range @code{[0, 2^64-1]}.
-
-On 32-bit systems: perform the same task as
-@func{pointer-ref-c-unsigned-int}.
-@end deffn
-
-
-@deffn Procedure pointer-ref-c-signed-long-long @var{pointer} @var{offset}
-Peek a number of bytes corresponding to the native @code{long long} type
-at @var{offset} from @var{pointer} and return an integer.
-@end deffn
-
-
-@deffn Procedure pointer-ref-c-unsigned-long-long @var{pointer} @var{offset}
-Peek a number of bytes corresponding to the native @code{unsigned long
-long} type at @var{offset} from @var{pointer} and return an integer.
-@end deffn
-
-@c ------------------------------------------------------------
-
-@subsubheading Peeking floating point numbers
-
-
-@deffn Procedure pointer-ref-c-float @var{pointer} @var{offset}
-Return the four--byte float (represented as @ieee{} 754 single precision
-floating point number) stored at @var{offset} from @var{pointer}.  The
-value is extended to an @ieee{} 754 double precision floating point
-number that @value{PRJNAME} uses to represent inexact numbers.
-@end deffn
-
-
-@deffn Procedure pointer-ref-c-double @var{pointer} @var{offset}
-Return the eight--byte float (represented as @ieee{} 754 double
-precision floating point number) stored at @var{offset} from
-@var{pointer}.
-@end deffn
-
-@c ------------------------------------------------------------
-
-@subsubheading Peeking pointers
-
-
-@deffn Procedure pointer-ref-c-pointer @var{pointer} @var{offset}
-Return the pointer stored at @var{offset} from @var{pointer}.  The size
-of the pointer (also the number of bytes loaded) depends on the
-architecture: it is 4 bytes on 32-bit systems and 8 bytes on 64-bit
-systems.
-@end deffn
-
-@c page
-@node iklib foreign dl
-@subsection Accessing foreign objects from Scheme
-
-
-@deffn Procedure dlopen
-@deffnx Procedure dlopen @var{library-name}
-@deffnx Procedure dlopen @var{library-name} @var{lazy?} @var{global?}
-Take the string @var{library-name} representing a system library and
-call the system procedure @cfunc{dlopen} which dynamically loads the
-given library into the running process.
-
-The name of the library is system--dependent and must include the
-appropriate suffix (e.g. @code{*.so} on Linux, @code{*.dylib} on Darwin
-and @code{*.dll} on Cygwin).  @var{library-name} may include a full path
-which identifies the location of the library, or it may just be the name
-of the library in which case the system will lookup the library name
-using the @env{LD_LIBRARY_PATH} environment variable.
-
-The argument @var{lazy?} specifies how library dependencies are loaded.
-If true, @func{dlopen} delays the resolution and loading of dependent
-libraries until they are actually used.  If false, all library
-dependencies are loaded before the call to @func{dlopen} returns.
-
-The argument @func{global?} specifies the scope of the symbols exported
-from the loaded library.  If true, all exported symbols become part of
-the running image, and subsequent @func{dlsym} calls may not need to
-specify the library from which the symbol is loaded.  If false, the
-exported symbols are not global and the library pointer needs to be
-specified for @func{dlsym}.
-
-Calling @code{(dlopen library-name)} is equivalent to @code{(dlopen
-library-name #f #f)}.  Calling @code{(dlopen)} without arguments returns
-a pointer to the current process.
-
-If succesful, @func{dlopen} returns a pointer to the external library
-which can be used subsequently by @func{dlsym} and @func{dlclose}.  If
-the library cannot be loaded, @func{dlopen} returns @false{} and the
-procedure @func{dlerror} can be used to obtain the cause of the failure.
-
-Consult the @code{dlopen(3)} page in your system manual for further
-details.
-@end deffn
-
-
-@deffn Procedure dlclose @var{library-pointer}
-A wrapper for the system procedure of the same name.  It receives a
-library pointer (e.g. one obtained from @func{dlopen}) and releases the
-resources loaded from that library.  Closing a library renders all
-symbols and static data structures that the library exports invalid and
-the program may crash or corrupt its memory if such symbols are used
-after a library is closed.
-
-Most system implementations of dynamic loading employ reference counting
-for @func{dlopen} and @func{dlclose} in that library resources are not
-freed until the number of calls to @func{dlclose} matches the number of
-calls to @func{dlopen}.
-
-The procedure @func{dlclose} returns a boolean value indicating whether
-the success status of the operation.  If @func{dlclose} returns
-@false{}, the procedure @func{dlerror} can be used to obtain the cause
-of the error.
-
-Consult the @code{dlclose(3)} page in your system manual for further
-details.
-@end deffn
-
-
-@deffn Procedure dlsym @var{library-pointer} @var{string}
-Take a library pointer (e.g. one obtained by a call to @func{dlopen})
-and a string representing the name of a symbol that the library exports
-and return a pointer to the location of that symbol in memory.  If
-@func{dlsym} fails, it returns @false{} and the cause of the error can
-be obtained using the procedure @code{dlerror}.
-
-Consult the @code{dlsym(3)} page in your system manual for further
-details.
-@end deffn
-
-
-@deffn Procedure dlerror
-If any of the dynamic loading operations (i.e., @func{dlopen},
-@func{dlclose}, @func{dlsym}) fails, the cause of the error can be
-obtained by calling @func{dlerror} which returns a string describing the
-error.  The procedure @func{dlerror} returns @false{} if there was no
-dynamic loading error.
-
-Consult the @code{dlerror(3)} page in your system manual for further
-details.
-@end deffn
-
-@c page
-@node iklib foreign call out
-@subsection Calling out to foreign procedures
-
-
-@value{PRJNAME} provides the means to call out from Scheme to foreign
-procedures.  This allows the programmers to extend @value{PRJNAME} to
-access system--specific facilities that are available on the host
-machine.
-
-@menu
-* iklib foreign call out api::      Interface to foreign functions.
-* iklib foreign call out types::    Type specifiers.
-* iklib foreign call out example::  C language call out example.
-@end menu
-
-@c page
-@node iklib foreign call out api
-@subsubsection Interface to foreign functions
-
-
-In order to call out to a foreign procedure, one must provide two pieces
-of information: the signature of the foreign procedure (e.g. its type
-declaration if it is a C language procedure) and the address of the
-procedure in memory.  The address of the procedure can be easily
-obtained using @func{dlsym} if the name of the procedure and its
-exporting library are known.  The signature of the procedure cannot, in
-general, be obtained dynamically, and therefore must be hard coded into
-the program.
-
-The signature of the foreign procedure is required for proper linkage
-between the Scheme system and the foreign system.  Using the signature,
-@value{PRJNAME} determines how Scheme values are converted into native values,
-and where (e.g. in which registers and stack slots) to put these
-arguments.  The signature also determines where the returned values are
-placed and how they are converted from the system data types to the
-corresponding Scheme data types.
-
-A procedure's signature is composed of two parts: the return type and
-the parameter types:
-
-@itemize
-@item
-the return type is a symbol that can be any one of the type specifiers
-listed in @ref{iklib foreign call out types};
-
-@item
-the parameter types is a list of type specifier symbols; if the foreign
-function takes no arguments: the parameter types must be the empty list;
-@end itemize
-
-@noindent
-the symbol @code{void} can appear as a return type but cannot appear as
-a parameter type.
-
-
-@deffn Procedure make-c-callout @var{return-type} @var{parameter-types}
-The procedure @func{make-c-callout} is the primary facility for making
-foreign procedures callable from Scheme.  It works as follows:
-
-@enumerate
-@item
-@func{make-c-callout} receives two arguments denoting the signature of
-the procedure to be called; it prepares a bridge that converts from
-Scheme's calling conventions and data structures to their foreign
-counterparts; it returns a procedure @func{p1};
-
-@item
-the procedure @func{p1} accepts a pointer to a foreign procedure
-(e.g. one obtained from @func{dlsym}) and returns a Scheme procedure
-@func{p2} that encapsulates the foreign procedure;
-
-@item
-the final procedure @func{p2} can be called with as many arguments as
-the ones specified in the @var{parameter-types}; the parameters supplied
-to @func{p2} must match the types supplied as the @var{parameter-types}
-according to the ``Valid Scheme types'' column in the table in
-@ref{iklib foreign call out types};
-
-@item
-the procedure @func{p2} converts the parameters from Scheme types to
-native types, calls the foreign procedure, obtains the result, and
-converts it to the appropriate Scheme value (depending on the
-@var{return-type}).
-@end enumerate
-
-The interface of @func{make-c-callout} is broken down into three stages
-in order to accomodate common usage patterns.  Often a function
-signature can be used by many foreign procedures and therefore,
-@func{make-c-callout} can be called once per signature and each
-signature can be used multiple times.  Similarly, separating the foreign
-procedure preparation from parameter passing allows for preparing the
-foreign procedure once and calling it many times.
-
-The list of types in the table in @ref{iklib foreign call out types} is
-restricted to basics and provides no automatic conversion from composite
-Scheme data structures (such as strings, symbols, vectors, and lists) to
-native types.  The restriction is intentional in order for
-@value{PRJNAME} to avoid making invalid assumptions about the memory
-management of the target library.
-
-@quotation
-For example, while @value{PRJNAME} @emph{can} convert a Scheme string to a native
-byte array (e.g. use @func{string->bytevector} to decode the string,
-then use @func{malloc} to allocate a temporary buffer, then copy the
-bytes from the bytevector to the allocated memory), it cannot decide
-when this allocated byte array is no longer needed and should be freed.
-This knowledge is library--dependent and is often procedure--dependent.
-Therefore, @value{PRJNAME} leaves it to the programmer to manage all memory
-related issues.
-@end quotation
-
-Outgoing parameters to foreign procedures are checked against the
-declared types.  For example, if a callback is prepared to expect a
-parameter of type @code{signed-int}, only exact integers are allowed to
-be passed out.  For integer types, only a fixed number of bits is used
-and the remaining bits are ignored.  For floating point types, the
-argument is checked to be a Scheme flonum.  No implicit conversion
-between exact and inexact numbers is performed.
-@end deffn
-
-@c page
-@node iklib foreign call out types
-@subsubsection Type specifiers
-
-
-The following table lists valid type specifiers that can be used in
-callout and callback signatures.  Specifiers with ``4/8 bytes'' have
-size that depends on the system: it is 4 bytes on 32-bit systems and 8
-bytes on 64-bit systems.  The @code{void} specifier can only be used as
-a return value specifier to mean ``no useful value is returned''.
-
-
-@multitable {@code{unsigned-short}} {4/8 bytes} {Valid Scheme types} {Corresponding C types}
-@headitem Type specifier @tab Size @tab Valid Scheme types @tab Corresponding C types
-@item
-@code{signed-char} @tab 1 byte @tab exact integer @tab @code{char}
-@item
-@code{unsigned-char} @tab 1 byte @tab exact integer @tab @code{unsigned char}
-@item
-@code{signed-short} @tab 2 bytes @tab exact integer @tab @code{short}
-@item
-@code{unsigned-short} @tab 2 bytes @tab exact integer @tab @code{unsigned short}
-@item
-@code{signed-int} @tab 4 bytes @tab exact integer @tab @code{int}
-@item
-@code{unsigned-int} @tab 4 bytes @tab exact integer @tab @code{unsigned int}
-@item
-@code{signed-long} @tab 4/8 bytes @tab exact integer @tab @code{long}
-@item
-@code{unsigned-long} @tab 4/8 bytes @tab exact integer @tab @code{unsigned long}
-@item
-@code{float} @tab 4 bytes @tab flonum @tab @code{float}
-@item
-@code{double} @tab 8 bytes @tab flonum @tab @code{double}
-@item
-@code{pointer} @tab 4/8 bytes @tab pointer @tab @code{void*}, @code{char*}, @code{int*}, @code{int**}, etc
-@item
-@code{void} @tab --- @tab --- @tab @code{void}
-@end multitable
-
-
-
-@c page
-@node iklib foreign call out example
-@subsubsection C language call out example
-
-
-The following example illustrates the use of the @func{make-c-callout}
-procedure in combination with @func{dlopen} and @func{dlsym}; the
-session was run on a 32-bit @value{PRJNAME} running under Mac OS X 10.4:
-
-@enumerate
-@item
-the @file{libc.dylib} foreign library is loaded and is bound to the
-variable @code{libc};
-
-@item
-we obtain a pointer to the @cfunc{atan} foreign procedure that is
-defined in @code{libc}; the native procedure @cfunc{atan} takes a
-@code{double} as an argument and returns a @code{double} and that's the
-signature that we use for @func{make-c-callout};
-
-@item
-we call the foreign procedure interface with one argument, @code{1.0},
-which is a flonum and thus matches the required parameter type; the
-native procedure returns a @code{double} value which is converted to the
-Scheme flonum with value @code{0.7853981633974483}.
-@end enumerate
-
-@example
-> (import (ikarus foreign))
-> (define libc (dlopen "libc.dylib"))
-> libc
-#<pointer #x00100770>
-> (define libc-atan-ptr (dlsym libc "atan"))
-> libc-atan-ptr
-#<pointer #x9006CB1F>
-> (define libc-atan
-    ((make-c-callout 'double '(double)) libc-atan-ptr))
-> libc-atan
-#<procedure>
-> (libc-atan 1.0)
-0.7853981633974483
-> (libc-atan 1)
-Unhandled exception
- Condition components:
-    1. &assertion
-    2. &who: callout-procedure
-    3. &message: "argument does not match type double"
-    4. &irritants: (1)
-@end example
-
-
-@c page
-@node iklib foreign call back
-@subsection Calling back to Scheme
-
-
-In order to provide full interoperability with native procedures,
-@value{PRJNAME} allows native procedures to call back into Scheme just
-as it allows Scheme to call out to native procedures.  This is important
-for many system libraries that provide graphical user interfaces with
-event handling (e.g. Cocoa, GTK+, GLUT, etc.), database engines
-(e.g. libsqlite, libmysql, etc.), among others.
-
-The native calling site for the call back is compiled with a specific
-callback signature encoding the expected parameter types and return
-type.  Therefore, a Scheme procedure used for a call back must be
-wrapped with a proper adapter that converts the incoming parameters from
-native format to Scheme values as well as convert the value that the
-Scheme procedure returns back to native format.  The signature format is
-similar to the one used for call outs (@ref{iklib foreign call out
-types} for details).
-
-
-@deffn Procedure make-c-callback @var{return-type} @var{parameter-types}
-The procedure @func{make-c-callback} is similar to the procedure
-@func{make-c-callout} except that it provides a bridge from native
-procedures back into Scheme.  While the procedure @func{make-c-callout}
-takes a native pointer and returns a Scheme procedure,
-@func{make-c-callback} takes a Scheme procedure and returns a native
-pointer.  The native pointer can be called by foreign procedures.  The
-native parameters are converted to Scheme data (according to
-@var{parameter-types}), the Scheme procedure is called with these
-parameters, and the returned value is converted back into native format
-(according to @var{return-type}) before control returns to the native
-call site.
-
-Note that the native procedure pointer obtained from
-@func{make-c-callback} is indistinguishable from other native procedures
-that are obtained using @func{dlsym} or similar means.  In particular,
-such native pointers can be passed to @func{make-c-callout} resulting in
-a Scheme procedure that calls out to the native procedure that in turn
-calls back into Scheme.  The following segment illustrates a very
-inefficient way of extracting the lowermost 32 bits from an exact
-integer.
-
-@example
-> (format "~x"
-    (((make-c-callout 'unsigned-int '(unsigned-int))
-      ((make-c-callback 'unsigned-int '(unsigned-int))
-       values))
-     #xfedcba09876543210fedcba09876543210))
-"76543210"
-@end example
-@end deffn
-
-
-
-@c page
 @node iklib misc
 @section Miscellaneous functions
 
@@ -5905,6 +5138,1337 @@ vicare> (apropos "-length")
 vicare>
 @end example
 @end defun
+
+@c page
+@node ffi
+@chapter Foreign functions interface
+
+
+The library @library{vicare ffi} interfaces with the host operating
+system and other external libraries exposing a C language interface; it
+is suggested to import the @ffi{} library with the prefix @code{ffi.},
+as in the following prelude:
+
+@example
+#!r6rs
+(import (rnrs)
+  (prefix (vicare ffi) ffi.))
+@end example
+
+The facilities of the @library{vicare ffi} give the Scheme program
+unrestricted access to the computer memory, allowing one to allocate,
+access, modify, and free memory as needed.  The facilities also allow
+the Scheme program to @dfn{call out} to system procedures as well as
+allow the native procedures to @dfn{call back} into Scheme.
+
+@menu
+* ffi libffi::                  Installing and using Libffi.
+* ffi memory::                  Memory management.
+* ffi cstrings::                Raw C strings.
+* ffi dl::                      Accessing shared libraries.
+* ffi call::                    Callouts and callbacks.
+* ffi errno::                   Interface to @code{errno}.
+@end menu
+
+@c page
+@node ffi libffi
+@section Installing and using Libffi
+
+
+Currently @value{PRJNAME} implements the foreign--functions interface
+(@ffi{}) using an extenal library: Libffi, originally by Anthony Green.
+Libffi can be found at:
+
+@center @url{http://sourceware.org/libffi/}
+
+@noindent
+and it is distributed under a liberal license (look for it at the site,
+basically we can do everything but remove the original copyright
+notice).
+
+On Unix--like systems, we can install Libffi with the traditional
+sequence:
+
+@example
+$ ./configure [options]
+$ make
+$ make install
+@end example
+
+@noindent
+and the makefile supports the @env{DESTDIR} environment variable for
+installation under a different directory prefix.
+
+@quotation
+@emph{Note:} Libffi version 3.0.10 installs its header files under:
+
+@example
+$@{prefix@}/lib/libffi-3.0.10/include
+@end example
+
+@noindent
+and trying to use the @option{--includedir} option to
+@command{configure} will @strong{not} work in changing this.  It means
+that when configuring @value{PRJNAME} for installation we have to specify where
+the Libffi headers are to be found; @ref{overview install} for details.
+@end quotation
+
+@c page
+@node ffi memory
+@section Memory management
+
+
+@menu
+* ffi memory intro::            Introduction to managing memory.
+* ffi memory pointer::          Handling pointer values.
+* ffi memory alloc::            Allocating and freeing memory.
+* ffi memory poke::             Poking values.
+* ffi memory peek::             Peeking values.
+* ffi memory ops::              Memory operations.
+@end menu
+
+@c page
+@node ffi memory intro
+@subsection Introduction to managing memory
+
+
+@value{PRJNAME} Scheme is a managed environment: Scheme objects are
+allocated in a special memory region (the Scheme heap) and have
+type--specific object layouts; this allows the run time system to
+distinguish object types and the garbage collector to locate all
+potentially live objects, and reclaim the memory of dead objects.
+
+Scheme objects are also @emph{opaque} in the sense that the data
+structures used to represent Scheme objects are not exposed, at the
+Scheme level, to the programmer who can only interact with objects
+through an interface.
+
+Unmanaged environments, such as the operating system on which
+@value{PRJNAME} runs, require that the programmer manages the allocation
+and deallocation of system resources herself.  Memory regions, file
+handles, external devices, the screen, etc., are all examples of
+resources whose management must be coordinated among the different parts
+of the system, and this becomes the responsibility of the programmer who
+is wiring the different subsystems together.
+
+The procedures in the @library{vicare ffi} library are meant to provide
+a way to interface with the low level memory operations such as setting
+and getting bytes from specific locations in memory.
+
+@c page
+@node ffi memory pointer
+@subsection Handling pointer values
+
+
+Pointer objects are a disjoint type identified by the @func{pointer?}
+predicate.  When applied to pointer objects:
+
+@itemize
+@item
+The result of calling @func{eq?} is true only if the two arguments are
+both pointers and they refer to the same Scheme storage location.
+
+@item
+The result of calling @func{eqv?} and @func{equal?} is true only if the
+two arguments are both pointers and they reference the same raw memory
+location.
+@end itemize
+
+@noindent
+pointers also have @func{pointer=?} as specialised comparison predicate.
+
+
+@defun pointer? @var{obj}
+Return @true{} if @var{obj} is a pointer object, return @false{}
+otherwise.
+@end defun
+
+
+@defun pointer->integer @var{pointer}
+Convert the value of @var{pointer} to an exact integer value.  The
+result may be a fixnum or a bignum depending on the pointer.
+@end defun
+
+
+@defun integer->pointer @var{exact-integer}
+Convert @var{exact-integer} to a pointer value.  The lower @math{32}
+bits (or @math{64} bits on 64-bit systems) of the argument are
+significant in computing the pointer value.  It is guaranteed that:
+
+@example
+(integer->pointer (pointer->integer p))
+@end example
+
+@noindent
+points to the same address as @var{p}.
+@end defun
+
+
+@defun null-pointer
+Return a pointer object representing @cnull{}.
+@end defun
+
+
+@defun pointer-null? @var{obj}
+Return true if @var{obj} is a pointer object and it represents @cnull{}.
+@end defun
+
+
+@defun pointer-diff @vari{ptr} @varii{ptr}
+Return an exact integer representing the difference between the two
+pointer objects @vari{ptr} and @varii{ptr}.  The returned value is such
+that:
+
+@example
+(define ptr1 ---)
+(define ptr2 ---)
+
+(pointer=? ptr1
+           (pointer-add ptr2
+                        (pointer-diff ptr1 ptr2)))
+@result{} #t
+@end example
+@end defun
+
+
+@defun pointer-add @var{ptr} @var{diff}
+Return a new pointer object holding the memory reference resulting from
+adding @var{diff}, which must be an exact integer, to @var{ptr}.  If the
+addition would cause an overflow or underflow in machine words: raise an
+assertion violation.
+@end defun
+
+
+@defun pointer=? @vari{ptr} @varii{ptr}
+@defunx pointer<>? @vari{ptr} @varii{ptr}
+@defunx pointer<? @vari{ptr} @varii{ptr}
+@defunx pointer>? @vari{ptr} @varii{ptr}
+@defunx pointer<=? @vari{ptr} @varii{ptr}
+@defunx pointer>=? @vari{ptr} @varii{ptr}
+Comparisong functions for pointers.  Return @true{} if the arguments
+satisfy the predicate, else return @false{}.
+@end defun
+
+@c page
+@node ffi memory alloc
+@subsection Allocating and freeing memory
+
+
+@defun malloc @var{number-of-bytes}
+@defunx guarded-malloc @var{number-of-bytes}
+Interface to the C function @cfunc{malloc}, @glibcref{Basic Allocation,
+malloc}.  Allocate a block of memory @var{number-of-bytes} wide;
+@var{number-of-bytes} must be a non--negative fixnum.  If successful
+return a pointer object, else return @false{}.
+
+Memory allocated by @func{malloc} must be released by @func{free};
+memory allocated by @func{guarded-malloc} is automatically released
+whenever the returned pointer object is garbage collected.
+@end defun
+
+
+@defun realloc @var{pointer} @var{number-of-bytes}
+@defunx guarded-realloc @var{pointer} @var{number-of-bytes}
+Interface to the C function @cfunc{realloc}, @glibcref{Changing Block
+Size, realloc}.  Reallocate the block of memory referenced by
+@var{pointer} to the new size @var{number-of-bytes}, which must be a
+non--negative fixnum.
+
+If successful return a new pointer object and release the memory
+referenced by @var{pointer}; @var{pointer} itself is mutated to hold the
+@cnull{} pointer.  If an error occurs: return @false{} and leave
+untouched both @var{pointer} and its referenced memory.
+
+Memory allocated by @func{realloc} must be released by @func{free};
+memory allocated by @func{guarded-realloc} is automatically released
+whenever the returned pointer object is garbage collected.
+
+If memory allocated by a guarding function is reallocated with
+@func{guarded-realloc}: @value{PRJNAME} will @strong{not} try to
+automatically release the old memory.
+@end defun
+
+
+@defun calloc @var{number-of-elements} @var{element-size}
+@defunx guarded-calloc @var{number-of-elements} @var{element-size}
+Interface to the C function @cfunc{calloc}, @glibcref{Allocating Cleared
+Space, calloc}.  Allocate and clear to zero a block of memory capable of
+holding @var{number-of-elements} each @var{element-size} wide; both the
+arguments must be non--negative fixnums.  If successful return a pointer
+object, else return @false{}.
+
+Memory allocated by @func{calloc} must be released by @func{free};
+memory allocated by @func{guarded-calloc} is automatically released
+whenever the returned pointer object is garbage collected.
+@end defun
+
+
+@defun free @var{pointer}
+Release the memory referenced by @var{pointer}, which must be the return
+value of @cfunc{malloc}, @cfunc{realloc}, @cfunc{calloc} or a similar
+system procedure.  @var{pointer} is mutated to reference the @cnull{}
+pointer.
+
+If memory allocated by a guarding function is released by @func{free}:
+@value{PRJNAME} will @strong{not} try to automatically release the old
+memory again.
+
+If @var{pointer} is @cnull{} nothing happens.
+@end defun
+
+
+@defun with-local-storage @var{lengths} @var{proc}
+Call @var{proc} with arguments being pointers to memory blocks allocated
+just for the dynamic extent of @var{proc}.  The number and size of the
+memory blocks is determined by @var{lengths}, which must be a vector of
+non--negative fixnums.
+
+@ignore
+@c This is not clear, so far letting the flow go through with an
+@c exception seems to work (Marco Maggi; Dec  7, 2011)
+
+We must not let control flow go through a call to
+@func{with-local-storage} by raising an exception.  @var{proc}
+@strong{must} return to the caller.
+@end ignore
+
+@strong{NOTE} We must not let control flow go through a call to
+@func{with-local-storage} with an escaping continuation.
+
+@example
+#!r6rs
+(import (rnrs)
+  (prefix (vicare ffi) ffi.))
+
+;; no allocated memory
+(let ((a 1) (b 2))
+  (ffi.with-local-storage '#()
+    (lambda ()
+      (+ a b 4))))
+@result{} 7
+
+;; allocate a single block of 4 bytes
+(let ((a 1) (b 2))
+  (ffi.with-local-storage '#(4)
+    (lambda (&int32)
+      (ffi.pointer-set-c-sint32! &int32 0 4)
+      (+ a b (ffi.pointer-ref-c-sint32 &int32 0)))))
+@result{} 7
+
+;; allocate two blocks of 4 and 8 bytes
+(let ((a 1) (b 2))
+  (ffi.with-local-storage '#(4 8)
+    (lambda (&int32 &int64)
+      (ffi.pointer-set-c-sint32! &int32 0 4)
+      (ffi.pointer-set-c-sint64! &int64 0 8)
+      (+ a b
+         (ffi.pointer-ref-c-sint32 &int32 0)
+         (ffi.pointer-ref-c-sint64 &int64 0)))))
+@result{} 15
+@end example
+
+The memory blocks are actually allocated on the stack of
+@value{PRJNAME}'s runtime.
+@end defun
+
+@c page
+@node ffi memory poke
+@subsection Poking values
+
+
+With all the following functions: the @var{pointer} argument must be a
+valid pointer object; the @var{offset} argument must be a fixnum.  When
+adding an offset to a pointer: all the following functions @strong{do
+not} scale the offset to the size of the poked value; pointer
+arithmetics is performed with byte offsets.
+
+
+@macro bitpoker{BYTENUM,BITNUM}
+Set to @var{value} the \BYTENUM\ of memory located at @var{offset} from
+@var{pointer}.  @var{VALUE} must be an exact integer in the range
+representable by \BITNUM\ bits.
+@end macro
+
+@macro cpoker{TYPE}
+Set to @var{value} a number of bytes corresponding to the @code{signed
+\TYPE\} or @code{unsigned \TYPE\} type located at @var{offset} from
+@var{pointer}.
+@end macro
+
+@c ------------------------------------------------------------
+
+@subsubheading Poking bitwise sized exact integers
+
+The following functions store signed and unsigned exact integers in raw
+memory location selecting the size with the number of bits required to
+represent the value.
+
+
+@defun pointer-set-c-sint8! @var{pointer} @var{offset} @var{value}
+@defunx pointer-set-c-uint8! @var{pointer} @var{offset} @var{value}
+@bitpoker{single byte,8}
+@end defun
+
+
+@defun pointer-set-c-sint16! @var{pointer} @var{offset} @var{value}
+@defunx pointer-set-c-uint16! @var{pointer} @var{offset} @var{value}
+@bitpoker{two bytes,16}
+@end defun
+
+
+@defun pointer-set-c-sint32! @var{pointer} @var{offset} @var{value}
+@defunx pointer-set-c-uint32! @var{pointer} @var{offset} @var{value}
+@bitpoker{two bytes,32}
+@end defun
+
+
+@defun pointer-set-c-sint64! @var{pointer} @var{offset} @var{value}
+@defunx pointer-set-c-uint64! @var{pointer} @var{offset} @var{value}
+@bitpoker{two bytes,64}
+@end defun
+
+@c ------------------------------------------------------------
+
+@subsubheading Poking C language exact integers
+
+The following functions store signed and unsigned exact integers in raw
+memory locations selecting the size according to the one used by the C
+language implementation.
+
+
+@defun pointer-set-c-signed-char! @var{pointer} @var{offset} @var{value}
+@defunx pointer-set-c-unsigned-char! @var{pointer} @var{offset} @var{value}
+@cpoker{char}
+@end defun
+
+
+@defun pointer-set-c-signed-short! @var{pointer} @var{offset} @var{value}
+@defunx pointer-set-c-unsigned-short! @var{pointer} @var{offset} @var{value}
+@cpoker{short int}
+@end defun
+
+
+@defun pointer-set-c-signed-int! @var{pointer} @var{offset} @var{value}
+@defunx pointer-set-c-unsigned-int! @var{pointer} @var{offset} @var{value}
+@cpoker{int}
+@end defun
+
+
+
+@defun pointer-set-c-signed-long! @var{pointer} @var{offset} @var{value}
+@defunx pointer-set-c-unsigned-long! @var{pointer} @var{offset} @var{value}
+@cpoker{long}
+@end defun
+
+
+@defun pointer-set-c-signed-long-long! @var{pointer} @var{offset} @var{value}
+@defunx pointer-set-c-unsigned-long-long! @var{pointer} @var{offset} @var{value}
+@cpoker{long long}
+@end defun
+
+
+@c ------------------------------------------------------------
+
+@subsubheading Poking floating point numbers
+
+
+@defun pointer-set-c-float! @var{pointer} @var{offset} @var{flonum}
+Convert the Scheme floating point number @var{flonum} (represented in
+@value{PRJNAME} as an @ieee{} 754 double precision floating point number) to a
+float (an @ieee{} 754 single precision floating point number) and store
+the result in the four bytes at @var{offset} from @var{pointer}.
+@end defun
+
+
+@defun pointer-set-c-double! @var{pointer} @var{offset} @var{flonum}
+Store the double precision @ieee{} 754 floating point value of the
+Scheme @var{flonum} in the eight bytes at @var{offset} from
+@var{pointer}.
+@end defun
+
+
+@c ------------------------------------------------------------
+
+@subsubheading Poking pointers
+
+
+@defun pointer-set-c-pointer! @var{pointer} @var{offset} @var{value}
+Store address of the raw memory location referenced by the pointer
+@var{value} at @var{offset} from @var{pointer}.
+@end defun
+
+@c page
+@node ffi memory peek
+@subsection Peeking values
+
+
+With all the following functions: the @var{pointer} argument must be a
+valid pointer object; the @var{offset} argument must be a fixnum.  When
+adding an offset to a pointer: all the following functions @strong{do
+not} scale the offset to the size of the poked value; pointer
+arithmetics is performed with byte offsets.
+
+@macro bitpeeker{BITNUM}
+Peek the \BITNUM\ bits located at @var{offset} from @var{pointer} and
+return them as signed or unsigned exact integer.
+@end macro
+
+@macro cpeeker{TYPE}
+Peek the @code{signed \TYPE\} or @code{unsigned \TYPE\} integer located
+at @var{offset} from @var{pointer} and return it as signed or unsigned
+exact integer.
+@end macro
+
+@c ------------------------------------------------------------
+
+@subsubheading Peeking bitwise sized exact integers
+
+The following functions retrieve signed and unsigned exact integers from
+raw memory location selecting the size with the number of bits required
+to represent the value.
+
+
+@defun pointer-ref-c-sint8 @var{pointer} @var{offset}
+@defunx pointer-ref-c-uint8 @var{pointer} @var{offset}
+@bitpeeker{8}
+@end defun
+
+
+@defun pointer-ref-c-sint16 @var{pointer} @var{offset}
+@defunx pointer-ref-c-uint16 @var{pointer} @var{offset}
+@bitpeeker{16}
+@end defun
+
+
+@defun pointer-ref-c-sint32 @var{pointer} @var{offset}
+@defunx pointer-ref-c-uint32 @var{pointer} @var{offset}
+@bitpeeker{32}
+@end defun
+
+
+@defun pointer-ref-c-sint64 @var{pointer} @var{offset}
+@defunx pointer-ref-c-uint64 @var{pointer} @var{offset}
+@bitpeeker{64}
+@end defun
+
+@c ------------------------------------------------------------
+
+@subsubheading Peeking C language exact integers
+
+The following functions store signed and unsigned exact integers from
+raw memory locations selecting the size according to the one used by the
+C language implementation.
+
+
+@defun pointer-ref-c-signed-char @var{pointer} @var{offset}
+@defunx pointer-ref-c-signed-char @var{pointer} @var{offset}
+@cpeeker{char}
+@end defun
+
+
+@defun pointer-ref-c-signed-short @var{pointer} @var{offset}
+@defunx pointer-ref-c-unsigned-short @var{pointer} @var{offset}
+@cpeeker{short int}
+@end defun
+
+
+@defun pointer-ref-c-signed-int @var{pointer} @var{offset}
+@defunx pointer-ref-c-unsigned-int @var{pointer} @var{offset}
+@cpeeker{int}
+@end defun
+
+
+@defun pointer-ref-c-signed-long @var{pointer} @var{offset}
+@defunx pointer-ref-c-unsigned-long @var{pointer} @var{offset}
+@cpeeker{long}
+@end defun
+
+
+@defun pointer-ref-c-signed-long-long @var{pointer} @var{offset}
+@defunx pointer-ref-c-unsigned-long-long @var{pointer} @var{offset}
+@cpeeker{long long}
+@end defun
+
+@c ------------------------------------------------------------
+
+@subsubheading Peeking floating point numbers
+
+
+@defun pointer-ref-c-float @var{pointer} @var{offset}
+Return the four--byte float (represented as @ieee{} 754 single precision
+floating point number) stored at @var{offset} from @var{pointer}.  The
+value is extended to an @ieee{} 754 double precision floating point
+number that @value{PRJNAME} uses to represent inexact numbers.
+@end defun
+
+
+@defun pointer-ref-c-double @var{pointer} @var{offset}
+Return the eight--byte float (represented as @ieee{} 754 double
+precision floating point number) stored at @var{offset} from
+@var{pointer}.
+@end defun
+
+@c ------------------------------------------------------------
+
+@subsubheading Peeking pointers
+
+
+@defun pointer-ref-c-pointer @var{pointer} @var{offset}
+Return the pointer stored at @var{offset} from @var{pointer}.  The size
+of the pointer (also the number of bytes loaded) depends on the
+architecture: it is 4 bytes on 32-bit systems and 8 bytes on 64-bit
+systems.
+@end defun
+
+@c page
+@node ffi memory ops
+@subsection Memory operations
+
+
+@defun memcpy @var{dst} @var{src} @var{count}
+Interface to the C function @cfunc{memcpy}, @glibcref{Copying and
+Concatenation, memcpy}.  Copy @var{count} bytes from the memory
+referenced by the pointer @var{src} to the memory referenced by the
+pointer @var{dst}; @var{count} must be a non--negative fixnum.  The two
+memory regions must not overlap.  Return unspecified values.
+@end defun
+
+
+@defun memmove @var{dst} @var{src} @var{count}
+Interface to the C function @cfunc{memmove}, @glibcref{Copying and
+Concatenation, memmove}.  Copy @var{count} bytes from the memory
+referenced by the pointer @var{src} to the memory referenced by the
+pointer @var{dst}; @var{count} must be a non--negative fixnum.  The two
+memory regions can be overlapping.  Return unspecified values.
+@end defun
+
+
+@defun memset @var{ptr} @var{value} @var{count}
+Interface to the C function @cfunc{memset}, @glibcref{Copying and
+Concatenation, memset}.Set to @var{value} @var{count} bytes of the
+memory referenced by the pointer @var{ptr}.  @var{count} must be a
+non--negative fixnum, @var{value} must be an exact fixnum in the range
+@math{[-128, 255]}.  Return unspecified values.
+@end defun
+
+
+@defun memcmp @vari{pointer} @varii{pointer} @var{count}
+Interface to the C function @cfunc{memcmp}, @glibcref{String/Array
+Comparison, memcmp}.  Compare @var{count} bytes in the memory blocks
+referenced by @vari{pointer} and @varii{pointer}, return a fixnum
+representing the classic comparison ternary result.  @var{count} must be
+a non--negative fixnum.
+@end defun
+
+
+@defun memory-copy dst dst.start src src.start count
+Copy @var{count} bytes from @var{src} starting at offset @var{src.start}
+to @var{dst} starting at offset @var{dst.start}.  @var{src} and
+@var{dst} can be pointers or bytevectors; @var{dst.start},
+@var{src.start} and @var{count} must be non--negative fixnums.  The two
+memory regions must not overlap.  Return unspecified values.
+@end defun
+
+
+@defun memory->bytevector @var{pointer} @var{number-of-bytes}
+Build and return a new bytevector object holding @var{number-of-bytes}
+from the memory region starting at @var{pointer}.  @var{number-of-bytes}
+must be a non--negative fixnum.
+@end defun
+
+
+@defun bytevector->memory @var{bv}
+@defunx bytevector->guarded-memory @var{bv}
+Allocate a new raw memory block and copy into it the contents of
+@var{bv}.  If successful return two values being the pointer object
+referencing the memory and a fixnum representing the length of the
+memory block; if allocating memory fails return @false{} and @false{}.
+
+Memory allocated by @func{bytevector->memory} must be released by
+@func{free}; memory allocated by @func{bytevector->guarded-malloc} is
+automatically released whenever the returned pointer object is garbage
+collected.
+@end defun
+
+@c page
+@node ffi cstrings
+@section Raw C strings
+
+
+The following functions perform operations on raw @ascii{} coded strings
+terminated by a zero byte, for short @asciiz{} strings.
+
+
+@defun bytevector->cstring @var{bv}
+@defunx bytevector->guarded-cstring @var{bv}
+Convert from a Scheme bytevector to an @asciiz{} string.  If successful
+return a pointer object referencing the string, else return @false{}.
+
+Memory allocated by @func{bytevector->cstring} must be explicitly
+released by @func{free}; memory allocated by
+@func{bytevector->guarded-cstring} is automatically released by the
+garbage collector whenever the returned pointer is garbage collected.
+@end defun
+
+
+@defun cstring->bytevector @var{pointer}
+@defunx cstring->bytevector @var{pointer} @var{count}
+Convert between an @asciiz{} string and a Scheme bytevector.  When used,
+@var{count} must be a fixnum representing the number of bytes to include
+in the bytevector.
+@end defun
+
+
+@defun string->cstring @var{str}
+@defunx string->guarded-cstring @var{str}
+Convert from a Scheme string to an @asciiz{} string.  If successful
+return a pointer object referencing the string, else return @false{}.
+
+The string argument must contain only characters with Unicode code
+points in the range @math{[0, 255]}.
+
+Memory allocated by @func{string->cstring} must be explicitly
+released by @func{free}; memory allocated by
+@func{string->guarded-cstring} is automatically released by the
+garbage collector whenever the returned pointer is garbage collected.
+@end defun
+
+
+@defun cstring->string @var{pointer}
+@defunx cstring->string @var{pointer} @var{count}
+Convert between an @asciiz{} string and a Scheme string.  When used,
+@var{count} must be a fixnum representing the number of bytes to include
+in the string.
+@end defun
+
+
+@defun strlen @var{pointer}
+Interface to the C function @cfunc{strlen}, @glibcref{String Length,
+strlen}.  Return an exact integer representing the length of the
+@asciiz{} string referenced by @var{pointer}.
+@end defun
+
+
+@defun strcmp @vari{pointer} @varii{pointer}
+Interface to the C function @cfunc{strcmp}, @glibcref{String/Array
+Comparison, strcmp}.  Return a fixnum representing the classic
+comparison ternary result of comparing the @asciiz{} strings referenced
+by @vari{pointer} and @varii{pointer}.
+@end defun
+
+
+@defun strncmp @vari{pointer} @varii{pointer} @var{count}
+Interface to the C function @cfunc{strncmp}, @glibcref{String/Array
+Comparison, strncmp}.  Return a fixnum representing the classic
+comparison ternary result of comparing the first @var{count} bytes in
+the @asciiz{} strings referenced by @vari{pointer} and @varii{pointer}.
+@var{count} must be a fixnum.
+@end defun
+
+
+@defun strdup @var{pointer}
+@defunx guarded-strdup @var{pointer}
+Interface to the C function @cfunc{strdup}, @glibcref{Copying and
+Concatenation, strdup}.  Duplicate the @asciiz{} string referenced by
+@var{pointer}; if successful return a new pointer object, else return
+@false{}.
+
+Memory allocated by @func{strdup} must be explicitly released by
+@func{free}; memory allocated by @func{guarded-strdup} is automatically
+released by the garbage collector whenever the returned pointer is
+garbage collected.
+@end defun
+
+
+@defun strndup @var{pointer} @var{count}
+@defunx guarded-strndup @var{pointer} @var{count}
+Interface to the C function @cfunc{strndup}, @glibcref{Copying and
+Concatenation, strndup}.  Duplicate the first @var{count} bytes in the
+@asciiz{} string referenced by @var{pointer}; if successful return a new
+pointer object, else return @false{}.  @var{count} must be a fixnum.
+
+Memory allocated by @func{strdup} must be explicitly released by
+@func{free}; memory allocated by @func{guarded-strdup} is automatically
+released by the garbage collector whenever the returned pointer is
+garbage collected.
+@end defun
+
+
+@defun bytevectors->argv @var{list-of-bytevectors}
+@defunx bytevectors->guarded-argv @var{list-of-bytevectors}
+Given a list of bytevectors: convert them into @asciiz{} strings and
+build a @cnull{} terminated array of C pointers referencing the strings.
+Return a pointer to the array.  The strings and the array are stored in
+a single memory block.
+
+Memory allocated by @func{bytevectors->argv} must be explicitly released
+by @func{free}; memory allocated by @func{bytevectors->guarded-argv} is
+automatically released by the garbage collector whenever the returned
+pointer is garbage collected.
+@end defun
+
+
+@defun argv->bytevectors @var{pointer}
+Given a pointer to a @cnull{} terminated array of C pointers referencing
+@asciiz{} strings: build and return a list of bytevectors holding the
+same bytes of the strings.
+@end defun
+
+
+@defun strings->argv @var{list-of-strings}
+@defunx strings->guarded-argv @var{list-of-strings}
+Given a list of Scheme strings: convert them into @asciiz{} strings and
+build a @cnull{} terminated array of C pointers referencing the strings.
+Return a pointer to the array.  The strings and the array are stored in
+a single memory block.
+
+The string arguments must contain only characters with Unicode code
+points in the range @math{[0, 255]}.
+
+Memory allocated by @func{strings->argv} must be explicitly released
+by @func{free}; memory allocated by @func{strings->guarded-argv} is
+automatically released by the garbage collector whenever the returned
+pointer is garbage collected.
+@end defun
+
+
+@defun argv->strings @var{pointer}
+Given a pointer to a @cnull{} terminated array of C pointers referencing
+@asciiz{} strings: build and return a list of strings holding the same
+bytes of the strings.
+@end defun
+
+
+@defun argv-length @var{argv}
+Return the number of strings in the @cnull{}--terminated array of
+strings referenced by the @var{argv} pointer.
+@end defun
+
+@c page
+@node ffi dl
+@section Accessing foreign objects from Scheme
+
+
+Most system implementations of dynamic loading employ reference counting
+for @func{dlopen} and @func{dlclose} in that library resources are not
+freed until the number of calls to @func{dlclose} matches the number of
+calls to @func{dlopen}.
+
+
+@defun dlopen
+@defunx dlopen @var{library-name}
+@defunx dlopen @var{library-name} @var{lazy?} @var{global?}
+Interface to the C function @cfunc{dlopen}, see the manual page
+@code{dlopen(3)}.  Load a platform shared library and return a pointer
+object representing a handler for the library, which can be used as
+argument for @func{dlsym} and @func{dlclose}.  If the library cannot be
+loaded: return @false{} and the procedure @func{dlerror} can be used to
+obtain the cause of the failure.
+
+When no arguments are present: the returned pointer handler references
+the current process and it can be used to retrieve pointers to functions
+already loaded, for example the functions exported by the standard C
+library.  The @var{lazy?} and @var{global?} arguments are meaningless in
+this case.
+
+When given: @var{library-name} must be a string or a bytevector
+representing the name of the library; if it is a string: it is converted
+to bytevector using the function referenced by
+@func{filename->string-func}.
+
+Library names are system--dependent and must include the appropriate
+suffix (for exapmle @code{*.so} on Linux, @code{*.dylib} on Darwin and
+@code{*.dll} on Cygwin).  @var{library-name} may include a full path
+which identifies the location of the library, or it may just be the name
+of the library in which case the system will lookup the library name
+using the @env{LD_LIBRARY_PATH} environment variable.
+
+The argument @var{lazy?} specifies how library dependencies are loaded.
+If true, @func{dlopen} delays the resolution and loading of dependent
+libraries until they are actually used.  If false, all library
+dependencies are loaded before the call to @func{dlopen} returns.
+@var{lazy?} defaults to @false{}.
+
+The argument @var{global?} specifies the scope of the symbols exported
+from the loaded library.  If true, all exported symbols become part of
+the running image, and subsequent @func{dlsym} calls may not need to
+specify the library from which the symbol is loaded.  If false, the
+exported symbols are not global and the library pointer needs to be
+specified for @func{dlsym}.  @var{global?} defaults to @false{}.
+@end defun
+
+
+@defun dlclose @var{handle}
+Interface to the C function @cfunc{dlclose}, see the manual page
+@code{dlclose(3)}.  Release the resources loaded from the library
+referenced by the pointer handler @var{handle}.  If successful return
+@true{}, else return @false{} and @func{dlerror} can be used to obtain
+the cause of the error.
+
+Closing a library renders all symbols and static data structures that
+the library exports invalid and the program may crash or corrupt its
+memory if such symbols are used after a library is closed.
+@end defun
+
+
+@defun dlsym @var{handle} @var{name}
+Interface to the C function @cfunc{dlsym}, see the manual page
+@code{dlsym(3)}.  Search the loaded library referenced by the pointer
+@var{handle} for an exported symbol whose name is represented by the
+string @var{name}.  If successful return a pointer object, else return
+@false{} and @code{dlerror} can be used to obtain the cause of the
+error.
+
+If the returned value references a function: it can be used as argument
+to the callout generators built by @func{make-c-callout-maker}.
+@end defun
+
+
+@defun dlerror
+Interface to the C function @cfunc{dlerror}, see the manual page
+@code{dlerror(3)}.  If any of the dynamic loading operations fails, the
+cause of the error can be obtained by calling @func{dlerror} which
+returns a string describing the error; return @false{} if there was no
+dynamic loading error.
+@end defun
+
+@c page
+@node ffi call
+@section Callouts and callbacks
+
+
+Callouts allow Scheme code to invoke C functions in a foreign library;
+callbacks allow foreign C code to call a Scheme function.  The following
+example shows how Scheme code can call a callout which in turns calls a
+callback:
+
+@example
+#!r6rs
+(import (rnrs)
+  (prefix (vicare ffi) ffi.))
+
+(define callout-maker
+  (ffi.make-c-callout-maker  'unsigned-int '(unsigned-int)))
+
+(define callback-maker
+  (ffi.make-c-callback-maker 'unsigned-int '(unsigned-int)))
+
+(define callback
+  (callback-maker values))
+
+(define callout
+  (callout-maker callback))
+
+(callout 123)   @result{} 123
+
+(ffi.free-c-callback callback)
+@end example
+
+@menu
+* ffi call intro::              Overview of @ffi{} function calls.
+* ffi call out::                Calling out to foreign procedures.
+* ffi call back::               Calling back to Scheme.
+* ffi call types::              Specifying native types.
+@end menu
+
+@c page
+@node ffi call intro
+@subsection Overview of @ffi{} function calls
+
+
+Both callouts and callbacks are built on top of function signatures
+specifying the type of function arguments and returned value.  Libffi
+allows us to specify such signatures through a Call InterFace (@cif{})
+data structure; @value{PRJNAME} internally extends such a structure with
+additional data to speed up marshaling of values from Scheme to native
+representation and back.
+
+At present, @cif{} data structures are allocated with @cfunc{malloc} and
+never released.  Callouts and callbacks make use of @cif{} structures of
+the same format, so such structures are internally cached; a single
+@cif{} associated to a given function signature is used by all the
+callouts and callbacks having the same signature.
+
+@c ------------------------------------------------------------
+
+@subsubheading Calling out to foreign functions
+
+Callouts require only a @cif{} structure and the address of the foreign
+C function; no additional structure needs to be allocated and then
+released.
+
+@value{PRJNAME} organises the callout @api{} by creating a callout maker
+function, closed upon a @cif{} structure, which can build any number of
+callout functions associating the @cif{} to foreign function pointers.
+Maker functions are cached internally, so only one maker function for a
+given signature is created in a running process.
+
+@c ------------------------------------------------------------
+
+@subsubheading Calling back to Scheme functions
+
+Callbacks require an additional data structure, because they must
+generate at runtime callable machine code referenced by a pointer; such
+additional data structure cannot be automatically released by the
+garbage collector, but it can be explicitly freed by the program when
+the callback is no longer needed.
+
+We can think of the code handling a callback as organised like the
+following pseudo--code:
+
+@example
+cif_t  call_interface;
+
+int
+specific_callback (int a, long b, double c)
+@{
+  void *  args[3] = @{ &a, &b, &c @};
+  int     result;
+  generic_callback(&call_interface, &result, args);
+  return result;
+@}
+
+void
+generic_callback (cif_t * call_interface,
+                  void * result, void * args)
+@{
+  scheme_value  s_a, s_b, s_c;
+  scheme_value  s_result;
+  s_a = native_to_scheme(call_interface, 0, args);
+  s_b = native_to_scheme(call_interface, 1, args);
+  s_c = native_to_scheme(call_interface, 2, args);
+  s_result = scheme_callback(s_a, s_b, s_c);
+  scheme_to_native(call_interface, result, s_result);
+@}
+
+scheme_value
+scheme_callback (scheme_value s_a,
+                 scheme_value s_b,
+                 scheme_value s_c)
+@{
+  /* process arguments, return result */
+@}
+@end example
+
+@noindent
+where: @code{specific_callback} is generated at runtime by Libffi;
+@code{generic_callback}, @code{scheme_to_native} and
+@code{native_to_scheme} are implemented by @value{PRJNAME}'s runtime
+(using generic operations); @code{scheme callback} is implemented by the
+Scheme program.  A pointer to @code{specific_callback} is the one we
+need to acquire when creating a callback from Scheme.
+
+@value{PRJNAME} organises the callback @api{} by creating a callback
+maker function, closed upon a @cif{} structure, which can build any
+number of callback functions associating the @cif{} to Scheme functions.
+Maker functions are cached internally, so only one maker function for
+each given signature is created in a running process.
+
+@c page
+@node ffi call out
+@subsection Calling out to foreign procedures
+
+
+In order to call out to a foreign procedure, we must provide two pieces
+of information: the signature of the foreign procedure and the address
+of the procedure in memory.  The signature must usually be hard--coded
+into the program; the address is obtained using @func{dlsym}.
+
+Using the signature, the @ffi{} determines how Scheme values are
+converted to and from native values; a signature is composed of two
+parts: a Scheme symbol specifying the return type, a list of Scheme
+symbols specifying the argument types.
+
+Here is a simple example, without error checking, showing how to
+interface to the C function @cfunc{sinh}:
+
+@example
+#!r6rs
+(import (vicare)
+  (prefix (vicare ffi) ffi.))
+
+(define libc
+  (ffi.dlopen))
+
+(define sinh-address
+  (ffi.dlsym libc "sinh"))
+
+(define callout-maker
+  (ffi.make-c-callout-maker 'double '(double)))
+
+(define sinh
+  (callout-maker sinh-address))
+
+(sinh 1.2)      @result{} 1.5094613554121725
+@end example
+
+@noindent
+using the @ffi{} we build a callout function generator which can be used
+to create any number of callout functions having the same signature.
+Generated callout functions are garbage collected like any other Scheme
+values.
+
+
+@defun make-c-callout-maker @var{ret-type} @var{arg-types}
+Build and return a function to be used to generate callout Scheme
+functions wrapping foreign functions which follow the C language
+conventions for calling, arguments and return values.
+
+The returned generator function accepts as single argument a pointer
+object representing the address of a foreign function; the value
+returned by the generator function is a Scheme closure wrapping the
+foreign function.  The wrapper Scheme closure takes care of marshaling
+Scheme values as appropriate for the underlying platform.
+
+@var{ret-type} must be a Scheme symbol specifying the type of the
+returned value; if the foreign function returns no value: @var{ret-type}
+must be the symbol @code{void}.
+
+@var{arg-types} must be a list of Scheme symbols specifying the type of
+the arguments; if the foreign function accepts no arguments:
+@var{arg-types} must be nil or the list @code{(void)}.
+
+@ref{ffi call types} for the specification of accepted type symbols.
+@end defun
+
+
+@defun make-c-callout-maker/with-errno @var{ret-type} @var{arg-types}
+Like @func{make-c-callout-maker}, but the generated callout closures
+will return two values: the return value from the foreign function call
+and the value of the C language variable @code{errno} right after the
+foreign function call.
+@end defun
+
+@c page
+@node ffi call back
+@subsection Calling back to Scheme
+
+
+In order to arrange for a foreign library to callback to a Scheme
+function we need a suitable Scheme function and the signature of the
+procedure the foreign library expects.  The signature must usually be
+hard--coded in the program.
+
+Using the signature, the @ffi{} determines how native values are
+converted to and from Scheme values; a signature is composed of two
+parts: a Scheme symbol specifying the return type, a list of Scheme
+symbols specifying the argument types.  The signature format is the same
+as the one used for callouts; @ref{ffi call out} for details.
+
+Note that a callback function is indistinguishable from other native
+procedures whose address is obtained using @func{dlsym} or similar
+means.  In particular, such native pointers can be passed to callout
+generators resulting in a Scheme procedure that calls out to the native
+procedure that in turn calls back into Scheme.
+
+The following example shows how to create an identity function for
+native integers composed by a Scheme function calling out to a foreign
+function, calling back to the Scheme function @func{values}:
+
+@example
+#!r6rs
+(import (vicare)
+  (prefix (vicare ffi) ffi.))
+
+(define callout-maker
+  (ffi.make-c-callout-maker  'unsigned-int '(unsigned-int)))
+
+(define callback-maker
+  (ffi.make-c-callback-maker 'unsigned-int '(unsigned-int)))
+
+(define identity
+  (callout-maker (callback-maker values)))
+
+(identity 123)  @result{} 123
+@end example
+
+@noindent
+using the @ffi{} we build a callback function generator which can be
+used to create any number of callback functions having the same
+signature.  Generated callback functions are @strong{not} garbage
+collected like other Scheme values.
+
+
+@defun make-c-callback-maker @var{ret-type} @var{arg-types}
+Build and return a function to be used to generate callback functions
+following the C language conventions for calling, arguments and return
+values and wrapping Scheme functions.
+
+The returned generator function accepts as single argument the Scheme
+function to be wrapped; the value returned by the generator function is
+a pointer object referencing a native function.  The wrapper native
+function takes care of marshaling Scheme values as appropriate for the
+underlying platform.
+
+@var{ret-type} must be a Scheme symbol specifying the type of the
+returned value; if the callback function must return no value:
+@var{ret-type} must be the symbol @code{void}.
+
+@var{arg-types} must be a list of Scheme symbols specifying the type of
+the arguments; if the callback function must accept no arguments:
+@var{arg-types} must be nil or the list @code{(void)}.
+
+@ref{ffi call types} for the specification of accepted type symbols.
+@end defun
+
+
+@defun free-c-callback @var{c-callback-pointer}
+Release the resources associated to the given C pointer referencing a
+callback function.  If the pointer is not a callback pointer: raise an
+assertion violation.
+@end defun
+
+@c page
+@node ffi call types
+@subsection Specifying native types
+
+
+The following is a list of Scheme symbols used to specify native types
+for both callouts and callbacks.  If a type is not available on a
+platform: the callout and callback generators will raise an error if the
+associated type specifier is used.
+
+@table @code
+@item signed-char
+@itemx unsigned-char
+Exact integers in the range for @code{char} and @code{unsigned char}.
+
+@item signed-short
+@itemx unsigned-short
+Exact integers in the range for @code{short int} and @code{unsigned short
+int}.
+
+@item signed-int
+@itemx unsigned-int
+Exact integers in the range for @code{int} and @code{unsigned int}.
+
+@item signed-long
+@itemx unsigned-long
+Exact integers in the range for @code{long} and @code{unsigned long}.
+
+@item signed-long-long
+@itemx unsigned-long-long
+Exact integers in the range for @code{long long} and @code{unsigned long
+long}.
+
+@item float
+@itemx double
+Flonum.
+
+@item pointer
+@itemx callback
+Pointer object.  The symbol @code{callback} can be used to specify a
+pointer to a callback, but it is a full synonym of @code{pointer}.
+
+@item int8_t
+@itemx uint8_t
+Exact integers in the range for @code{int8_t} and @code{uint8_t}.
+
+@item int16_t
+@itemx uint16_t
+Exact integers in the range for @code{int16_t} and @code{uint16_t}.
+
+@item int32_t
+@itemx uint32_t
+Exact integers in the range for @code{int32_t} and @code{uint32_t}.
+
+@item int64_t
+@itemx uint64_t
+Exact integers in the range for @code{int64_t} and @code{uint64_t}.
+@end table
+
+@c page
+@node ffi errno
+@section Interface to @code{errno}
+
+
+Values for the C language variable @code{errno} are encoded as negated
+fixnum values; for example: if @code{EPERM} is defined to @code{1} at
+the C language level, @value{PRJNAME} defines it as the fixnum
+@code{-1}.  One syntax identifier binding for each known @code{errno}
+value is exported by the library @library{vicare platform-constants}; if
+some error codes are not defined on a platform: the corresponding
+binding evaluates to @true{}.
+
+The Scheme code accessing @code{errno} values should be agnostic with
+respect to the actual error codes; for this to happen we should use the
+following facilities exported by the library @library{vicare ffi}.  In
+addition, @library{vicare ffi} exports the following bindings also
+exported by @library{vicare posix}:
+
+@example
+&errno            make-errno-condition
+errno-condition?  condition-errno
+strerror
+@end example
+
+
+@defun errno
+@defunx errno @var{code}
+Interface to the C language level @code{errno} variable.  When called
+with no values return the value of the C variable @code{errno} right
+after the last call to a C function performed by the current process.
+When called with one argument: set the C variable @code{errno} of the
+current process to @var{code}, appropriately handling the coding of the
+value.
+
+As special cases: when the C variable @code{errno} is set to zero,
+@func{errno} returns @false{}; when @var{code} is @false{}, the C
+variable @code{errno} is set to zero; when @var{code} is @true{}, the C
+variable @code{errno} is set to @code{EFAULT}.
+
+The mechanism is such that the following form:
+
+@example
+(let ((rv (call-foreign-function)))
+  (values rv (errno)))
+@end example
+
+@noindent
+performs a foreign--function call and evaluates to two values: the
+return value from the foreign function and the value of the C variable
+@code{errno} right after the foreign call.
+@end defun
+
+
+@deffn Syntax errno-code @meta{symbol}
+Verify that @meta{symbol} is one of the symbolic names of @code{errno};
+if successful expand to an expression evaluating to the coded
+@code{errno} value, else raise a syntax violation.
+@end deffn
+
+
+@deffn Syntax case-errno @meta{errno} ((@metao{code} @meta{code} ...) . @meta{cbody}) ...
+@deffnx Syntax case-errno @meta{errno} ((@metao{code} @meta{code} ...) . @meta{cbody}) ... (else . @meta{ebody})
+@deffnx {Auxiliary Syntax} else
+Specialised @func{case} macro for @code{errno} values.  @func{else} is
+the auxiliary keyword exported by @library{rnrs}.  Example:
+
+@example
+#!r6rs
+(import (rnrs)
+  (vicare ffi))
+
+(define identifier "some-port")
+
+(case-errno (errno)
+  ((EACCES EFAULT)
+   (make-i/o-file-protection-error identifier))
+  ((EROFS)
+   (make-i/o-file-is-read-only-error identifier))
+  ((EEXIST)
+   (make-i/o-file-already-exists-error identifier))
+  ((EIO)
+   (make-i/o-error))
+  ((ENOENT)
+   (make-i/o-file-does-not-exist-error identifier))
+  (else
+   (make-irritants-condition (list identifier))))
+@end example
+
+The @meta{code} must be symbols representing @code{errno} codes, they
+are @strong{not} meant to be binding identifiers.
+@end deffn
 
 @c page
 @node posix
@@ -8845,10 +9409,12 @@ an error occurs an exception is raised.
 @section Miscellaneous functions
 
 
-@defun strerror @var{error-code}
-Return a string describing the @code{errno} code @var{error-code}.
-Makes use of the system function @cfunc{strerror}.  If @var{error-code}
-is not a valid @code{errno} value: return a string telling it.
+@defun strerror @var{errno}
+Return a string describing the @code{errno} code @var{errno}.  Makes use
+of the system function @cfunc{strerror}.  If @var{errno} is not a valid
+@code{errno} value: return a string telling it.  As special cases
+@var{errno} can be also @true{}, meaning ``unknown error'', and
+@false{}, meaning ``no error''.
 
 @glibcref{Error Messages, Error Messages}
 @end defun
@@ -9164,6 +9730,7 @@ public interface exported by @library{ikarus} and @library{rnrs}.
 * syslib strings::              Low level string operations.
 * syslib ports::                Low level port structures.
 * syslib transcoders::          Low level transcoder operations.
+* syslib pointers::             Low level pointer operations.
 @end menu
 
 @c page
@@ -10169,6 +10736,43 @@ Extract the payload bits from a transcoder and return them as fixnum.
 @end deffn
 
 @c page
+@node syslib pointers
+@section Low level pointer operations
+
+
+A pointer is a fixed length memory block, two words wide, referenced by
+machine words tagged as vectors.  The first machine word of a pointer
+block is tagged has pointer in its least significant bits and it has the
+most significant bits set to zero.  The second machine word of a pointer
+block holds the actual pointer value.
+
+@example
+|------------------------|-------------| reference to pointer
+      heap offset          vector tag
+
+|------------------------|-------------| pointer first word
+   all set to zero         pointer tag
+
+|--------------------------------------| pointer second word
+            pointer value
+@end example
+
+In the following definitions the @var{ptr} arguments must be pointer
+objects.
+
+
+@deffn {Primitive Operation} $pointer? @var{obj}
+Return @true{} if @var{obj} is a reference to a pointer memory block,
+else return @false{}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $pointer= @vari{ptr} @varii{ptr}
+Return @true{} if @vari{ptr} and @varii{ptr} are equal, else return
+@false{}.
+@end deffn
+
+@c page
 @node capi
 @chapter C language programming interface
 
@@ -10182,11 +10786,310 @@ available; when on other systems: calling such functions will terminate
 the process.
 
 @menu
+* capi ffi::                    C language level @ffi{}.
 * capi posix::                  C language level @posix{} interface.
 * capi linux::                  C language level @gnu{}+Linux interface.
 * capi glibc::                  C language level @gnu{} C Library
                                 interface.
 @end menu
+
+@c page
+@node capi ffi
+@section C language level @ffi{}
+
+
+@menu
+* capi ffi accessors::          Raw memory accessors.
+* capi ffi mutators::           Raw memory mutators.
+@end menu
+
+@c page
+@node capi ffi accessors
+@subsection Raw memory accessors
+
+
+@subsubheading Bit--sized values
+
+In all the following definitions: @var{pointer} must be a pointer
+object, @var{offset} must be an exact integer.
+
+
+@deftypefun ikptr ikrt_ref_uint8 (ikptr @var{pointer}, ikptr @var{offset})
+Extract and return the 8-bit unsigned integer at @var{offset} from
+@var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_ref_sint8 (ikptr @var{pointer}, ikptr @var{offset})
+Extract and return the 8-bit signed integer at @var{offset} from
+@var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_ref_uint16 (ikptr @var{pointer}, ikptr @var{offset})
+Extract and return the 16-bit unsigned integer at @var{offset} from
+@var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_ref_sint16 (ikptr @var{pointer}, ikptr @var{offset})
+Extract and return the 16-bit signed integer at @var{offset} from
+@var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_ref_uint32 (ikptr @var{pointer}, ikptr @var{offset}, ikpcb * @var{pcb})
+Extract and return the 32-bit unsigned integer at @var{offset} from
+@var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_ref_sint32 (ikptr @var{pointer}, ikptr @var{offset}, ikpcb * @var{pcb})
+Extract and return the 32-bit signed integer at @var{offset} from
+@var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_ref_uint64 (ikptr @var{pointer}, ikptr @var{offset}, ikpcb * @var{pcb})
+Extract and return the 64-bit unsigned integer at @var{offset} from
+@var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_ref_sint64 (ikptr @var{pointer}, ikptr @var{offset}, ikpcb * @var{pcb})
+Extract and return the 64-bit signed integer at @var{offset} from
+@var{pointer}.
+@end deftypefun
+
+@c ------------------------------------------------------------
+
+@subsubheading C language integer type--sized values
+
+In all the following definitions: @var{pointer} must be a pointer
+object, @var{offset} must be an exact integer.
+
+
+@deftypefun ikptr ikrt_ref_char (ikptr @var{pointer}, ikptr @var{offset})
+Extract and return the exact integer representation of the C language
+@code{signed char} value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_ref_uchar (ikptr @var{pointer}, ikptr @var{offset})
+Extract and return the exact integer representation of the C language
+@code{unsigned char} value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_ref_short (ikptr @var{pointer}, ikptr @var{offset})
+Extract and return the exact integer representation of the C language
+@code{signed short int} value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_ref_ushort (ikptr @var{pointer}, ikptr @var{offset})
+Extract and return the exact integer representation of the C language
+@code{unsigned short int} value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_ref_long (ikptr @var{pointer}, ikptr @var{offset})
+Extract and return the exact integer representation of the C language
+@code{signed long} value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_ref_ulong (ikptr @var{pointer}, ikptr @var{offset})
+Extract and return the exact integer representation of the C language
+@code{unsigned long} value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_ref_longlong (ikptr @var{pointer}, ikptr @var{offset})
+Extract and return the exact integer representation of the C language
+@code{signed long long} value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_ref_ulonglong (ikptr @var{pointer}, ikptr @var{offset})
+Extract and return the exact integer representation of the C language
+@code{unsigned long long} value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+@c ------------------------------------------------------------
+
+@subsubheading Other C language type--sized values
+
+In all the following definitions: @var{pointer} must be a pointer
+object, @var{offset} must be an exact integer.
+
+
+@deftypefun ikptr ikrt_ref_float (ikptr @var{pointer}, ikptr @var{offset})
+Extract and return the flonum representation of the C language
+@code{float} value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_ref_double (ikptr @var{pointer}, ikptr @var{offset})
+Extract and return the flonum representation of the C language
+@code{double} value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_ref_pointer (ikptr @var{pointer}, ikptr @var{offset})
+Extract and return the pointer representation of the C language
+@code{void *} value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+@c page
+@node capi ffi mutators
+@subsection Raw memory mutators
+
+
+@subsubheading Bit--sized values
+
+In all the following definitions: @var{pointer} must be a pointer
+object, @var{offset} and @var{value} must be an exact integers.
+
+
+@deftypefun ikptr ikrt_set_uint8 (ikptr @var{pointer}, ikptr @var{offset}, ikptr @var{value})
+Store the 8-bit unsigned integer @var{value} at @var{offset} from
+@var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_set_sint8 (ikptr @var{pointer}, ikptr @var{offset}, ikptr @var{value})
+Store the 8-bit signed integer @var{value} at @var{offset} from
+@var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_set_uint16 (ikptr @var{pointer}, ikptr @var{offset}, ikptr @var{value})
+Store the 16-bit unsigned integer @var{value} at @var{offset} from
+@var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_set_sint16 (ikptr @var{pointer}, ikptr @var{offset}, ikptr @var{value})
+Store the 16-bit signed integer @var{value} at @var{offset} from
+@var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_set_uint32 (ikptr @var{pointer}, ikptr @var{offset}, ikptr @var{value})
+Store the 32-bit unsigned integer @var{value} at @var{offset} from
+@var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_set_sint32 (ikptr @var{pointer}, ikptr @var{offset}, ikptr @var{value})
+Store the 32-bit signed integer @var{value} at @var{offset} from
+@var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_set_uint64 (ikptr @var{pointer}, ikptr @var{offset}, ikptr @var{value})
+Store the 64-bit unsigned integer @var{value} at @var{offset} from
+@var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_set_sint64 (ikptr @var{pointer}, ikptr @var{offset}, ikptr @var{value})
+Store the 64-bit signed integer @var{value} at @var{offset} from
+@var{pointer}.
+@end deftypefun
+
+@c ------------------------------------------------------------
+
+@subsubheading C language integer type--sized values
+
+In all the following definitions: @var{pointer} must be a pointer
+object, @var{offset} and @var{value} must be an exact integers.
+
+
+@deftypefun ikptr ikrt_set_char (ikptr @var{pointer}, ikptr @var{offset}, ikptr @var{value})
+Store the exact integer @var{value} representing a C language
+@code{signed char} value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_set_uchar (ikptr @var{pointer}, ikptr @var{offset}, ikptr @var{value})
+Store the exact integer @var{value} representing a C language
+@code{unsigned char} value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_set_short (ikptr @var{pointer}, ikptr @var{offset}, ikptr @var{value})
+Store the exact integer @var{value} representing a C language
+@code{signed short int} value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_set_ushort (ikptr @var{pointer}, ikptr @var{offset}, ikptr @var{value})
+Store the exact integer @var{value} representing a C language
+@code{unsigned short int} value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_set_int (ikptr @var{pointer}, ikptr @var{offset}, ikptr @var{value})
+Store the exact integer @var{value} representing a C language
+@code{signed int} value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_set_uint (ikptr @var{pointer}, ikptr @var{offset}, ikptr @var{value})
+Store the exact integer @var{value} representing a C language
+@code{unsigned int} value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_set_long (ikptr @var{pointer}, ikptr @var{offset}, ikptr @var{value})
+Store the exact integer @var{value} representing a C language
+@code{signed long} value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_set_ulong (ikptr @var{pointer}, ikptr @var{offset}, ikptr @var{value})
+Store the exact integer @var{value} representing a C language
+@code{unsigned long} value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_set_longlong (ikptr @var{pointer}, ikptr @var{offset}, ikptr @var{value})
+Store the exact integer @var{value} representing a C language
+@code{signed long long} value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_set_ulonglong (ikptr @var{pointer}, ikptr @var{offset}, ikptr @var{value})
+Store the exact integer @var{value} representing a C language
+@code{unsigned long long} value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+@c ------------------------------------------------------------
+
+@subsubheading Other C language type--sized values
+
+In all the following definitions: @var{pointer} must be a pointer
+object, @var{offset} must be an exact integer.
+
+
+@deftypefun ikptr ikrt_set_float (ikptr @var{pointer}, ikptr @var{offset}, ikptr @var{value})
+Store the flonum @var{value} representing a C language @code{float}
+value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_set_double (ikptr @var{pointer}, ikptr @var{offset}, ikptr @var{value})
+Store the flonum @var{value} representing a C language @code{double}
+value at @var{offset} from @var{pointer}.
+@end deftypefun
+
+
+@deftypefun ikptr ikrt_set_pointer (ikptr @var{pointer}, ikptr @var{offset}, ikptr @var{value})
+Store the pointer @var{value} representing a C language @code{void *}
+value at @var{offset} from @var{pointer}.
+@end deftypefun
 
 @c page
 @node capi posix
@@ -12246,6 +13149,104 @@ Names, gethostbyname2}.  Like @cfunc{ikrt_posix_gethostbyname} but
 allows the selection of the address type with @var{addrtype} which must
 be @code{AF_INET} or @code{AF_INET6}.
 @end deftypefun
+
+@c page
+@node gcc
+@chapter A toy library interface to @gcc{}
+
+
+The library @library{vicare gcc} is installed along with
+@value{PRJNAME}; it implements a toy interface to @command{gcc}, the
+@gnu{} C Compiler.  Its purpose is to build, at runtime, a C language
+shared library from possibly dynamically constructed C code; then load
+the library and access a C function as @ffi{} callout.
+
+@library{vicare gcc} must be considered as a toy to demonstrate the
+features of @value{PRJNAME}.
+
+The following is an example of function to increment an integer:
+
+@example
+#!r6rs
+(import (vicare)
+  (prefix (vicare gcc) gcc.))
+
+(gcc.initialise "/usr/local/bin/gcc" "/home/marco/var/tmp/")
+
+(gcc.define-c-function
+  signed-int incr (signed-int)
+  "#include <stdio.h>
+   int incr (int a) @{
+     return 1+a;
+   @}")
+
+(incr 1)        @result{} 2
+@end example
+
+@noindent
+the code creates a shared library @code{libincr.so} in a subdirectory of
+the given initialisation directory, then load it and access the symbol
+@code{incr}.
+
+@library{vicare gcc} depends upon the following libraries:
+
+@example
+(vicare ffi)
+(vicare posix)
+(vicare glibc)
+(vicare platform-constants)
+(vicare syntactic-extensions)
+@end example
+
+
+@defun initialise @var{gcc} @var{tmpdir}
+Initialise the library.  @var{gcc} must be the string full filename of
+the @gcc{} executable.  @var{tmpdir} must be the string pathname of an
+existing directory on a partition with executable permissions; it is
+used to create temporary files, including the shared libraries.
+
+Temporary files go in a subdirectory of @var{tmpdir}; it is the
+responsibility of the system administrator to clean up regularly such
+subdirectories.
+@end defun
+
+
+@deffn Syntax define-c-function @meta{retval} @meta{name} @meta{args} @meta{code}
+Define a new Scheme function wrapping a C function from a shared
+library.  @meta{name} must be an identifier representing the name of the
+function.
+
+@meta{retval} must be a symbol selecting the type of the return value;
+@meta{args} must be a list of symbols selecting the types of the
+arguments; @ref{ffi call types} for details.
+
+@meta{code} must be a Scheme string representing the C code to be
+compiled.
+@end deffn
+
+
+@deffn Parameter COMPILE-FLAGS
+References a list of string.  Base options for the compiler, it is
+initialised to @code{("-c")}.
+@end deffn
+
+
+@deffn Parameter LINK-FLAGS
+References a list of string.  Base options for the linker, it is
+initialised to @code{("-pipe" "-shared" "-fPIC")}.
+@end deffn
+
+
+@deffn Parameter CFLAGS
+References a list of string.  Additional options for the compiler, it is
+initialised to @code{("-O2")}.
+@end deffn
+
+
+@deffn Parameter LDFLAGS
+References a list of string.  Additional options for the linker, it is
+initialised to nil.
+@end deffn
 
 @c page
 @node objects

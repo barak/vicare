@@ -1549,6 +1549,27 @@
   if-successful-refill:
   room-is-needed-for:)
 
+(define-syntax case-errno
+  (syntax-rules (else)
+    ((_ ?errno ((?code0 ?code ...) . ?body) ... (else . ?else-body))
+     (let ((errno ?errno))
+       (cond ((or (and (fixnum? ?code0) (unsafe.fx= errno ?code0))
+		  (and (fixnum? ?code)  (unsafe.fx= errno ?code))
+		  ...)
+	      . ?body)
+	     ...
+	     (else . ?else-body))))
+    ((_ ?errno ((?code0 ?code ...) . ?body) ...)
+     (let ((errno ?errno))
+       (cond ((or (and (fixnum? ?code0) (unsafe.fx= errno ?code0))
+		  (and (fixnum? ?code)  (unsafe.fx= errno ?code))
+		  ...)
+	      . ?body)
+	     ...
+	     (else
+	      (assertion-violation #f "unknown errno code" errno)))))
+    ))
+
 
 ;;;; Byte Order Mark (BOM) parsing
 
@@ -6649,7 +6670,12 @@
 		(make-who-condition who)
 		(make-message-condition (strerror errno))
 		(case-errno errno
-		  ((EACCES EFAULT) ;why is EFAULT included here?
+		  ((EACCES EFAULT)
+		   ;;Why   is  EFAULT   included  here?    Because  many
+		   ;;functions   may   return   EFAULT   even   if   the
+		   ;;documentation in the GNU C Library does not mention
+		   ;;it explicitly;  see the notes  in the documentation
+		   ;;of the "errno" variable.
 		   (make-i/o-file-protection-error port-identifier))
 		  ((EROFS)
 		   (make-i/o-file-is-read-only-error port-identifier))

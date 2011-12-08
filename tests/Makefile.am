@@ -3,6 +3,7 @@
 testdir				= $(srcdir)
 VICARE_SELECTED_TESTS		= $(testdir)/test-*$(file)*.sps
 VICARE_SELECTED_LONG_TESTS	= $(testdir)/long-test-*$(file)*.sps
+VICARE_SELECTED_PROOFS		= $(testdir)/proof-*$(file)*.sps
 
 VICARE_TEST_SEARCH_PATH	= $(srcdir):$(srcdir)/../lib:$(builddir)/../lib:$(srcdir)/../scheme
 
@@ -16,7 +17,7 @@ VICARE_ENV	= VICARE_LIBRARY_PATH=$(VICARE_TEST_SEARCH_PATH)	\
 		  VICARE_SRC_DIR=$(srcdir) VICARE_BUILDDIR=$(builddir)
 VICARE_RUN	= $(VICARE_ENV) $(VICARE) $(VICARE_FLAGS)
 
-.PHONY: test tests test-r6rs
+.PHONY: test tests test-r6rs proof proofs
 
 test tests:
 	@echo
@@ -26,6 +27,11 @@ test tests:
 long-test long-tests:
 	@echo
 	@for f in $(VICARE_SELECTED_LONG_TESTS); do $(VICARE_RUN) $$f; done
+	@echo
+
+proof proofs:
+	@echo
+	@for f in $(VICARE_SELECTED_PROOFS); do $(VICARE_RUN) $$f; done
 	@echo
 
 #page
@@ -97,7 +103,6 @@ TESTS			=	\
 	test-ikarus-lists.sps				\
 	test-ikarus-normalization.sps			\
 	test-ikarus-numerics.sps			\
-	test-ikarus-pointers.sps			\
 	test-ikarus-r6rs-records-procedural.sps		\
 	test-ikarus-reader.sps				\
 	test-ikarus-set-position.sps			\
@@ -112,9 +117,11 @@ TESTS			=	\
 	test-vicare-io.sps				\
 	test-vicare-lists.sps				\
 	test-vicare-log.sps				\
+	test-vicare-pointers.sps			\
 	test-vicare-posix.sps				\
 	test-vicare-promises.sps			\
 	test-vicare-reader.sps				\
+	test-vicare-round.sps				\
 	test-vicare-strings.sps				\
 	test-vicare-structs.sps				\
 	test-vicare-symbols.sps				\
@@ -235,7 +242,6 @@ EXTRA_DIST =	\
 	test-ikarus-lists.sps				\
 	test-ikarus-normalization.sps			\
 	test-ikarus-numerics.sps			\
-	test-ikarus-pointers.sps			\
 	test-ikarus-r6rs-records-procedural.sps		\
 	test-ikarus-reader.sps				\
 	test-ikarus-set-position.sps			\
@@ -250,9 +256,11 @@ EXTRA_DIST =	\
 	test-vicare-io.sps				\
 	test-vicare-lists.sps				\
 	test-vicare-log.sps				\
+	test-vicare-pointers.sps			\
 	test-vicare-posix.sps				\
 	test-vicare-promises.sps			\
 	test-vicare-reader.sps				\
+	test-vicare-round.sps				\
 	test-vicare-strings.sps				\
 	test-vicare-structs.sps				\
 	test-vicare-symbols.sps				\

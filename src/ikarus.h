@@ -33,6 +33,7 @@
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 #include <strings.h>
 #include <arpa/inet.h>
@@ -176,10 +177,12 @@ typedef struct ik_ptr_page{
   ikptr ptr[ik_ptr_page_size];
 } ik_ptr_page;
 
-typedef struct callback_locative{
-  ikptr data;
-  struct callback_locative* next;
-} callback_locative;
+typedef struct ik_callback_locative {
+  void *                        callable_pointer;
+  void *                        closure;
+  ikptr                         data;
+  struct ik_callback_locative * next;
+} ik_callback_locative;
 
 typedef struct ikpcb
 {
@@ -198,9 +201,16 @@ typedef struct ikpcb
   ikptr   interrupted;                  /* offset = 40 */
   ikptr   base_rtd;                     /* offset = 44 */
   ikptr   collect_key;                  /* offset = 48 */
-  /* the rest are not used by any scheme code        */
-  /* they only support the runtime system (gc, etc.) */
-  callback_locative* callbacks;
+
+/* ------------------------------------------------------------------ */
+  /* The  following fields are  not used  by any  scheme code  they only
+     support the runtime system (gc, etc.) */
+
+  /* Linked  list of  FFI callback  support data.   Used by  the garbage
+     collector  not  to collect  data  still  needed  by some  callbacks
+     registered in data structures handled by foreign libraries. */
+  ik_callback_locative * callbacks;
+
   ikptr* root0;
   ikptr* root1;
   unsigned int* segment_vector;
@@ -335,6 +345,9 @@ ikptr   ik_asm_reenter          (ikpcb*, ikptr code_object, ikptr val);
 #define fx_shift        wordshift
 #define fx_mask         (wordsize - 1)
 
+#define most_positive_fixnum    (((unsigned long int)-1) >> (fx_shift+1))
+#define most_negative_fixnum    (most_positive_fixnum+1)
+
 #define unfix(X)        \
   (((long)(X)) >> fx_shift)
 
@@ -362,6 +375,7 @@ ikptr   ik_asm_reenter          (ikpcb*, ikptr code_object, ikptr val);
 
 int     ik_list_length          (ikptr x);
 void    ik_list_to_argv         (ikptr x, char **argv);
+void    ik_list_to_argv_and_argc (ikptr x, char **argv, long *argc);
 char**  ik_list_to_vec          (ikptr x);
 
 #define ik_pair_alloc(PCB)      (ik_safe_alloc((PCB), align(pair_size)) + pair_tag)
@@ -449,6 +463,11 @@ ikptr   ik_cstring_to_symbol    (char*, ikpcb*);
 #define disp_bignum_data        wordsize
 #define off_bignum_data         (disp_bignum_data - vector_tag)
 
+#define bnfst_limb_count(X)     (((unsigned long)(X)) >> bignum_length_shift)
+#define bnfst_negative(X)       (((unsigned long)(X)) & bignum_sign_mask)
+
+#define max_digits_per_limb ((wordsize==4)?10:20)
+
 #define ratnum_tag              ((ikptr) 0x27)
 #define disp_ratnum_num         (1 * wordsize)
 #define disp_ratnum_den         (2 * wordsize)
@@ -476,17 +495,22 @@ ikptr   ik_flonum_alloc         (ikpcb * pcb);
 #define flonum_data(X)  \
   (*((double*)(((char*)(long)(X)) + off_flonum_data)))
 
-ikptr   u_to_number             (unsigned long, ikpcb*);
-ikptr   ull_to_number           (unsigned long long, ikpcb*);
+ikptr   ik_integer_from_long               (signed long x, ikpcb* pcb);
+ikptr   ik_integer_from_long_long          (signed long long n, ikpcb* pcb);
+ikptr   ik_integer_from_unsigned_long      (unsigned long, ikpcb*);
+ikptr   ik_integer_from_unsigned_long_long (unsigned long long, ikpcb*);
+ikptr   ik_flonum_from_double              (double x, ikpcb* pcb);
 
-ikptr   s_to_number             (signed long x, ikpcb* pcb);
-ikptr   sll_to_number           (signed long long n, ikpcb* pcb);
+uint32_t  ik_integer_to_uint32 (ikptr x);
+int32_t   ik_integer_to_sint32 (ikptr x);
+uint64_t  ik_integer_to_uint64 (ikptr x);
+int64_t   ik_integer_to_sint64 (ikptr x);
 
-ikptr   d_to_number             (double x, ikpcb* pcb);
 
-long            extract_num             (ikptr x);
-unsigned long   extract_unum            (ikptr x);
-long long       extract_num_longlong    (ikptr x);
+long                ik_integer_to_long                  (ikptr x);
+unsigned long       ik_integer_to_unsigned_long         (ikptr x);
+long long           ik_integer_to_long_long             (ikptr x);
+unsigned long long  ik_integer_to_unsigned_long_long    (ikptr x);
 
 ikptr   normalize_bignum        (long limbs, int sign, ikptr r);
 
@@ -500,7 +524,7 @@ ikptr   normalize_bignum        (long limbs, int sign, ikptr r);
 #define pointer_size          (2 * wordsize)
 #define off_pointer_data      (disp_pointer_data - vector_tag)
 
-ikptr   ikrt_pointer_alloc      (long memory, ikpcb* pcb);
+ikptr   ik_pointer_alloc        (unsigned long memory, ikpcb* pcb);
 ikptr   ikrt_is_pointer         (ikptr x);
 
 #define VICARE_POINTER_DATA_VOIDP(X)  \
@@ -509,8 +533,17 @@ ikptr   ikrt_is_pointer         (ikptr x);
 #define VICARE_POINTER_DATA_CHARP(X)  \
   ((char *)ref((X), off_pointer_data))
 
-#define VICARE_POINTER_DATA_LONG(X)  \
-  ((long)ref((X), off_pointer_data))
+#define VICARE_POINTER_DATA_UINT8P(X)  \
+  ((uint8_t *)ref((X), off_pointer_data))
+
+#define VICARE_POINTER_DATA_ULONG(X)  \
+  ((unsigned long)ref((X), off_pointer_data))
+
+#define VICARE_POINTER_DATA_ULLONG(X) \
+  ((unsigned long long)ref((X), off_pointer_data))
+
+#define VICARE_POINTER_DATA_LLONG(X) \
+  ((long long)ref((X), off_pointer_data))
 
 
 /** --------------------------------------------------------------------
@@ -528,6 +561,12 @@ ikptr   ikrt_is_pointer         (ikptr x);
   ((((long)(X)) & vector_mask) == vector_tag)
 
 ikptr   ik_vector_alloc         (ikpcb * pcb, long int requested_number_of_items);
+
+#define VICARE_VECTOR_LENGTH_FX(vec)                    \
+  ref((vec),off_vector_length)
+
+#define VICARE_VECTOR_LENGTH(vec)                       \
+  unfix(ref((vec),off_vector_length))
 
 #define VICARE_VECTOR_REF(vec,idx)                      \
   ref((vec),off_vector_data+(idx)*wordsize)
@@ -557,6 +596,9 @@ extern ikptr   ik_bytevector_alloc (ikpcb * pcb, long int requested_number_of_by
 extern ikptr   ik_bytevector_from_cstring       (ikpcb * pcb, const char * cstr);
 extern ikptr   ik_bytevector_from_cstring_len   (ikpcb * pcb, const char * cstr, size_t len);
 extern ikptr   ik_bytevector_from_memory_block  (ikpcb * pcb, void * memory, size_t length);
+
+#define VICARE_BYTEVECTOR_LENGTH(BV)                    \
+  unfix(ref((BV), off_bytevector_length))
 
 #define VICARE_BYTEVECTOR_LENGTH_FX(BV)                 \
   ref((BV), off_bytevector_length)
@@ -644,10 +686,11 @@ ikptr   ik_struct_alloc         (ikpcb * pcb, ikptr rtd, long number_of_fields);
 #define continuation_size       (4 * wordsize)
 
 #define system_continuation_tag         ((ikptr) 0x11F)
-#define disp_system_continuation_top     (1 * wordsize)
-#define disp_system_continuation_next    (2 * wordsize)
-#define disp_system_continuation_unused  (3 * wordsize)
-#define system_continuation_size         (4 * wordsize)
+#define disp_system_continuation_tag    0
+#define disp_system_continuation_top    (1 * wordsize)
+#define disp_system_continuation_next   (2 * wordsize)
+#define disp_system_continuation_unused (3 * wordsize)
+#define system_continuation_size        (4 * wordsize)
 
 #define off_continuation_top   (disp_continuation_top  - vector_tag)
 #define off_continuation_size  (disp_continuation_size - vector_tag)
