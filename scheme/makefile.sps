@@ -2173,6 +2173,62 @@
     (if-nametoindex				glibc)
     (if-indextoname				glibc)
     (if-nameindex				glibc)
+    ;; trig functions
+    (csin					glibc)
+    (ccos					glibc)
+    (ctan					glibc)
+    (casin					glibc)
+    (cacos					glibc)
+    (catan					glibc)
+    ;; exponents and logarithms
+    (cexp					glibc)
+    (clog					glibc)
+    (clog10					glibc)
+    (csqrt					glibc)
+    (cpow					glibc)
+    ;; hyperbolic functions
+    (glibc-sinh					glibc)
+    (glibc-cosh					glibc)
+    (glibc-tanh					glibc)
+    (csinh					glibc)
+    (ccosh					glibc)
+    (ctanh					glibc)
+    (glibc-asinh				glibc)
+    (glibc-acosh				glibc)
+    (glibc-atanh				glibc)
+    (casinh					glibc)
+    (cacosh					glibc)
+    (catanh					glibc)
+    ;; special functions
+    (erf					glibc)
+    (erfc					glibc)
+    (lgamma					glibc)
+    (tgamma					glibc)
+    (j0						glibc)
+    (j1						glibc)
+    (jn						glibc)
+    (y0						glibc)
+    (y1						glibc)
+    (yn						glibc)
+    ;; random
+    (rand					glibc)
+    (srand					glibc)
+    ;; pattern matching, globbing and regular expressions
+    (fnmatch					glibc)
+    (glob					glibc)
+    (glob/string				glibc)
+    (regcomp					glibc)
+    (regexec					glibc)
+    (regfree					glibc)
+    ;; word expansion
+    (wordexp					glibc)
+    (wordexp/string				glibc)
+    ;; system configuration
+    (sysconf					glibc)
+    (pathconf					glibc)
+    (fpathconf					glibc)
+    (confstr					glibc)
+    (confstr/string				glibc)
 
 ;;; --------------------------------------------------------------------
 ;;; Linux functions

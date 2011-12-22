@@ -52,7 +52,7 @@ void ik_munmap(ikptr mem, unsigned long int size);
 
 static void
 extend_table_maybe(ikptr p, unsigned long int size, ikpcb* pcb){
-  assert(size == align_to_next_page(size));
+  assert(size == IK_ALIGN_TO_NEXT_PAGE(size));
   ikptr q = p + size;
   if(p < pcb->memory_base){
     unsigned long int new_lo = segment_index(p);
@@ -107,7 +107,7 @@ static void
 set_segment_type(ikptr base, unsigned long int size, unsigned int type, ikpcb* pcb){
   assert(base >= pcb->memory_base);
   assert((base+size) <= pcb->memory_end);
-  assert(size == align_to_next_page(size));
+  assert(size == IK_ALIGN_TO_NEXT_PAGE(size));
   unsigned int* p = pcb->segment_vector + page_index(base);
   unsigned int* q = p + page_index(size);
   while(p < q){
@@ -120,7 +120,7 @@ void
 ik_munmap_from_segment(ikptr base, unsigned long int size, ikpcb* pcb){
   assert(base >= pcb->memory_base);
   assert((base+size) <= pcb->memory_end);
-  assert(size == align_to_next_page(size));
+  assert(size == IK_ALIGN_TO_NEXT_PAGE(size));
   unsigned int* p =
     ((unsigned int*)(long)(pcb->segment_vector)) + page_index(base);
   unsigned int* s =
@@ -345,7 +345,7 @@ ikpcb* ik_make_pcb(){
   }
   /* initialize base rtd */
   {
-    ikptr r = ik_unsafe_alloc(pcb, align(rtd_size)) + rtd_tag;
+    ikptr r = ik_unsafe_alloc(pcb, IK_ALIGN(rtd_size)) | rtd_tag;
     ref(r, off_rtd_rtd) = r;
     ref(r, off_rtd_length) = (ikptr) (rtd_size-wordsize);
     ref(r, off_rtd_name) = 0;
@@ -397,9 +397,9 @@ void ik_delete_pcb(ikpcb* pcb){
 
 
 ikptr
-ik_safe_alloc (ikpcb* pcb, int size)
+ik_safe_alloc (ikpcb* pcb, unsigned long size)
 {
-  assert(size == align(size));
+  assert(size == IK_ALIGN(size));
   ikptr alloc_ptr       = pcb->allocation_pointer;
   ikptr end_ptr         = pcb->heap_base + pcb->heap_size;
   ikptr new_alloc_ptr   = alloc_ptr + size;
@@ -419,7 +419,7 @@ ik_safe_alloc (ikpcb* pcb, int size)
       pcb->allocation_pointer = new_alloc_ptr;
       return alloc_ptr;
     } else {
-      fprintf(stderr, "vicare: BUG: collector did not leave enough room for %d\n", size);
+      fprintf(stderr, "*** Vicare: error: collector did not leave enough room for %lu\n", size);
       exit(EXIT_FAILURE);
     }
   }
@@ -427,9 +427,9 @@ ik_safe_alloc (ikpcb* pcb, int size)
 
 
 ikptr
-ik_unsafe_alloc (ikpcb* pcb, int size)
+ik_unsafe_alloc (ikpcb* pcb, unsigned long size)
 {
-  assert(size == align(size));
+  assert(size == IK_ALIGN(size));
   ikptr alloc_ptr       = pcb->allocation_pointer;
   ikptr end_ptr         = pcb->heap_base + pcb->heap_size;
   ikptr new_alloc_ptr   = alloc_ptr + size;
@@ -460,9 +460,9 @@ ik_unsafe_alloc (ikpcb* pcb, int size)
     pcb->allocation_count_minor = minor;
   }
 
-  int new_size = (size > IK_HEAP_EXT_SIZE) ? size : IK_HEAP_EXT_SIZE;
+  unsigned long new_size = (size > IK_HEAP_EXT_SIZE) ? size : IK_HEAP_EXT_SIZE;
   new_size += 2 * 4096;
-  new_size = align_to_next_page(new_size);
+  new_size = IK_ALIGN_TO_NEXT_PAGE(new_size);
   alloc_ptr = ik_mmap_mixed(new_size, pcb);
   pcb->heap_base = alloc_ptr;
   pcb->heap_size = new_size;
@@ -474,15 +474,22 @@ ik_unsafe_alloc (ikpcb* pcb, int size)
 
 
 void
+ik_abort (const char * error_message, ...)
+{
+  va_list        ap;
+  va_start(ap, error_message);
+  vfprintf(stderr, "*** Vicare error: %s\n", ap);
+  va_end(ap);
+  exit(EXIT_FAILURE);
+}
+void
 ik_error (ikptr args)
 {
-  fprintf(stderr, "Vicare error: ");
+  fprintf(stderr, "*** Vicare error: ");
   ik_fprint(stderr, args);
   fprintf(stderr, "\n");
   exit(EXIT_FAILURE);
 }
-
-
 void ik_stack_overflow(ikpcb* pcb){
 #ifndef NDEBUG
   fprintf(stderr, "entered ik_stack_overflow pcb=0x%016lx\n", (long int)pcb);
@@ -495,7 +502,7 @@ void ik_stack_overflow(ikpcb* pcb){
   fprintf(stderr, "underflow_handler = 0x%08x\n", (int)underflow_handler);
 #endif
   /* capture continuation and set it as next_k */
-  ikptr k = ik_unsafe_alloc(pcb, align(continuation_size)) + vector_tag;
+  ikptr k = ik_unsafe_alloc(pcb, IK_ALIGN(continuation_size)) | vector_tag;
   ref(k, -vector_tag) = continuation_tag;
   ref(k, off_continuation_top) = pcb->frame_pointer;
   ref(k, off_continuation_size) =
@@ -612,7 +619,7 @@ ikptr
 ikrt_make_code(ikptr codesizeptr, ikptr freevars, ikptr rvec, ikpcb* pcb){
   assert((fx_mask & (int)codesizeptr) == 0);
   long int code_size = unfix(codesizeptr);
-  long int memreq = align_to_next_page(code_size + disp_code_data);
+  long int memreq = IK_ALIGN_TO_NEXT_PAGE(code_size + disp_code_data);
   ikptr mem = ik_mmap_code(memreq, 0, pcb);
   bzero((char*)(long)mem, memreq);
   ref(mem, 0) = code_tag;
@@ -678,7 +685,7 @@ ikrt_register_guardian_pair(ikptr p0, ikpcb* pcb){
 
 ikptr
 ikrt_register_guardian(ikptr tc, ikptr obj, ikpcb* pcb){
-  ikptr p0 = ik_unsafe_alloc(pcb, pair_size) + pair_tag;
+  ikptr p0 = ik_unsafe_alloc(pcb, pair_size) | pair_tag;
   ref(p0, off_car) = tc;
   ref(p0, off_cdr) = obj;
   return ikrt_register_guardian_pair(p0, pcb);
@@ -722,8 +729,8 @@ ikrt_stats_now(ikptr t, ikpcb* pcb){
 ikptr
 ikrt_make_vector1(ikptr len, ikpcb* pcb){
   int intlen = (int)len;
-  if(is_fixnum(len) && (intlen >= 0)){
-    ikptr s = ik_safe_alloc(pcb, align(len + disp_vector_data));
+  if(IK_IS_FIXNUM(len) && (intlen >= 0)){
+    ikptr s = ik_safe_alloc(pcb, IK_ALIGN(len + disp_vector_data));
     ref(s, 0) = len;
     memset((char*)(long)(s+disp_vector_data), 0, len);
     return s+vector_tag;
@@ -735,9 +742,9 @@ ikrt_make_vector1(ikptr len, ikpcb* pcb){
 #if 0
 ikptr
 ikrt_make_vector2(ikptr len, ikptr obj, ikpcb* pcb){
-  if(is_fixnum(len) && ((len >> 31)!=0)){
+  if(IK_IS_FIXNUM(len) && ((len >> 31)!=0)){
     pcb->root0 = &obj;
-    ikptr s = ik_safe_alloc(pcb, align(((int)len) + disp_vector_data));
+    ikptr s = ik_safe_alloc(pcb, IK_ALIGN(((int)len) + disp_vector_data));
     pcb->root0 = 0;
     ref(s, 0) = len;
     memset(s+disp_vector_data, 0, (int)len);
@@ -770,7 +777,7 @@ ikrt_exit (ikptr status, ikpcb* pcb)
 {
   ik_delete_pcb(pcb);
   assert(total_allocated_pages == 0);
-  if(is_fixnum(status)){
+  if(IK_IS_FIXNUM(status)){
     exit(unfix(status));
   } else {
     exit(EXIT_FAILURE);

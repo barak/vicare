@@ -1,7 +1,7 @@
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ(2.68)
-AC_INIT([vicare],[0.2d5],[marco.maggi-ipsu@poste.it])
+AC_PREREQ(2.67)
+AC_INIT([vicare],[0.2d6],[marco.maggi-ipsu@poste.it])
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([src/])
@@ -85,7 +85,7 @@ AC_CHECK_HEADERS([assert.h dlfcn.h errno.h fcntl.h signal.h \
                   sys/time.h sys/types.h sys/wait.h time.h \
                   unistd.h])
 
-AC_CHECK_HEADERS([arpa/inet.h dirent.h fstab.h ftw.h grp.h inttypes.h limits.h mntent.h net/if.h netinet/in.h netdb.h paths.h pwd.h signal.h termios.h sys/mman.h sys/mount.h sys/select.h sys/socket.h sys/times.h sys/timex.h sys/types.h sys/un.h sys/utsname.h sys/uio.h utime.h sys/ioctl.h])
+AC_CHECK_HEADERS([arpa/inet.h dirent.h fstab.h ftw.h grp.h inttypes.h limits.h mntent.h net/if.h netinet/in.h netdb.h paths.h pwd.h signal.h termios.h sys/mman.h sys/mount.h sys/select.h sys/socket.h sys/times.h sys/timex.h sys/types.h sys/un.h sys/utsname.h sys/uio.h utime.h sys/ioctl.h math.h complex.h fnmatch.h glob.h regex.h wordexp.h])
 
 AC_C_CONST
 AC_C_INLINE
@@ -433,7 +433,9 @@ AC_DEFUN([VICARE_CONSTANT_TESTS],[m4_map_args_w($1,[VICARE_CONSTANT_TEST(],[)])]
 AC_DEFUN([VICARE_STRING_CONSTANT_TEST],[VICARE_STRINGOF_TEST([$1],[$1])])
 AC_DEFUN([VICARE_STRING_CONSTANT_TESTS],[m4_map_args_w($1,[VICARE_STRING_CONSTANT_TEST(],[)])])
 
-VICARE_CONSTANT_TESTS([CHAR_BIT SCHAR_MIN SCHAR_MAX UCHAR_MAX CHAR_MIN CHAR_MAX SHRT_MIN SHRT_MAX USHRT_MAX INT_MIN INT_MAX UINT_MAX LONG_MIN LONG_MAX ULONG_MAX LONG_LONG_MIN LONG_LONG_MAX ULONG_LONG_MAX WCHAR_MAX])
+AC_DEFUN([VICARE_DOUBLEOF_TESTS],[m4_map_args_w($1,[VICARE_DOUBLEOF_TEST(],[)])])
+
+VICARE_CONSTANT_TESTS([CHAR_BIT SCHAR_MIN SCHAR_MAX UCHAR_MAX CHAR_MIN CHAR_MAX SHRT_MIN SHRT_MAX USHRT_MAX INT_MIN INT_MAX UINT_MAX LONG_MIN LONG_MAX ULONG_MAX LONG_LONG_MIN LONG_LONG_MAX ULONG_LONG_MAX WCHAR_MAX RAND_MAX])
 
 ## constants for waitpid and similar
 VICARE_CONSTANT_TEST([WAIT_ANY])
@@ -592,6 +594,25 @@ VICARE_CONSTANT_TESTS([EAI_ADDRFAMILY EAI_AGAIN EAI_BADFLAGS EAI_FAIL EAI_FAMILY
 
 AC_CACHE_SAVE
 
+# mathematics
+VICARE_DOUBLEOF_TESTS([M_E M_LOG2E M_LOG10E M_LN2 M_LN10 M_PI M_PI_2 M_PI_4 M_1_PI M_2_PI M_2_SQRTPI M_SQRT2 M_SQRT1_2])
+
+# fnmatch()
+VICARE_CONSTANT_TESTS([FNM_NOMATCH FNM_FILE_NAME FNM_PATHNAME FNM_PERIOD FNM_NOESCAPE FNM_LEADING_DIR FNM_CASEFOLD FNM_EXTMATCH])
+
+# glob() flags
+VICARE_CONSTANT_TESTS([GLOB_ERR GLOB_MARK GLOB_NOCHECK GLOB_NOSORT GLOB_NOESCAPE GLOB_PERIOD GLOB_MAGCHAR GLOB_BRACE GLOB_NOMAGIC GLOB_TILDE GLOB_TILDE_CHECK GLOB_ONLYDIR GLOB_ABORTED GLOB_NOMATCH GLOB_NOSPACE])
+
+# POSIX regexps
+VICARE_CONSTANT_TESTS([REG_BADBR REG_BADPAT REG_BADRPT REG_ECOLLATE REG_ECTYPE REG_EESCAPE REG_ESUBREG REG_EBRACK REG_EPAREN REG_EBRACE REG_ERANGE REG_ESPACE])
+VICARE_CONSTANT_TESTS([REG_EXTENDED REG_ICASE REG_NOSUB REG_NEWLINE REG_NOTBOL REG_NOTEOL REG_NOMATCH REG_ESPACE])
+
+# word expansion
+VICARE_CONSTANT_TESTS([WRDE_NOCMD WRDE_SHOWERR WRDE_UNDEF])
+VICARE_CONSTANT_TESTS([WRDE_BADCHAR WRDE_BADVAL WRDE_CMDSUB WRDE_NOSPACE WRDE_SYNTAX])
+
+AC_CACHE_SAVE
+
 #page
 #### tests for specific features
 
@@ -632,6 +653,17 @@ AC_CACHE_SAVE
 #### tests for GNU C Library specific features
 
 AC_CHECK_FUNCS([clearenv dirfd mkstemp mkdtemp sync fsync fdatasync])
+AC_CHECK_FUNCS([creal cimag])
+AC_CHECK_FUNCS([csin ccos ctan casin cacos catan])
+AC_CHECK_FUNCS([cexp clog clog10 csqrt cpow])
+AC_CHECK_FUNCS([sinh cosh tanh csinh ccosh ctanh asinh acosh atanh casinh cacosh catanh])
+AC_CHECK_FUNCS([erf erfc lgamma_r tgamma j0 j1 jn y0 y1 yn])
+AC_CHECK_FUNCS([rand srand])
+AC_CHECK_FUNCS([fnmatch glob regcomp regexec regfree regerror])
+AC_CHECK_FUNCS([wordexp wordfree])
+AC_CHECK_FUNCS([sysconf pathconf fpathconf confstr])
+
+AC_CACHE_SAVE
 
 #page
 #### tests for GNU+Linux specific features

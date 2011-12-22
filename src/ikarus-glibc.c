@@ -29,12 +29,38 @@
  ** ----------------------------------------------------------------- */
 
 #include "ikarus.h"
-#include <dirent.h>
-#include <unistd.h>
-#include <net/if.h>
-#include <sys/types.h>
+#ifdef HAVE_DIRENT_H
+#  include <dirent.h>
+#endif
+#ifdef HAVE_COMPLEX_H
+#  include <complex.h>
+#endif
+#ifdef HAVE_FNMATCH_H
+#  include <fnmatch.h>
+#endif
+#ifdef HAVE_GLOB_H
+#  include <glob.h>
+#endif
+#ifdef HAVE_MATH_H
+#  include <math.h>
+#endif
+#ifdef HAVE_NET_IF_H
+#  include <net/if.h>
+#endif
+#ifdef HAVE_REGEX_H
+#  include <regex.h>
+#endif
+#ifdef HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#  include <unistd.h>
+#endif
+#ifdef HAVE_WORDEXP_H
+#  include <wordexp.h>
+#endif
 
-static VICARE_UNUSED void
+static IK_UNUSED void
 feature_failure_ (const char * funcname)
 {
   fprintf(stderr, "Vicare error: called GNU C Library specific function, %s\n", funcname);
@@ -92,7 +118,7 @@ ikrt_glibc_mkstemp (ikptr template_bv, ikpcb * pcb)
 #ifdef HAVE_MKSTEMP
   char *        template;
   int           rv;
-  template = VICARE_BYTEVECTOR_DATA_CHARP(template_bv);
+  template = IK_BYTEVECTOR_DATA_CHARP(template_bv);
   errno    = 0;
   rv       = mkstemp(template);
   if (-1 == rv)
@@ -109,7 +135,7 @@ ikrt_glibc_mkdtemp (ikptr template_bv, ikpcb * pcb)
 #ifdef HAVE_MKDTEMP
   char *        template;
   char *        rv;
-  template = VICARE_BYTEVECTOR_DATA_CHARP(template_bv);
+  template = IK_BYTEVECTOR_DATA_CHARP(template_bv);
   errno    = 0;
   rv       = mkdtemp(template);
   if (NULL == rv)
@@ -179,7 +205,7 @@ ikrt_glibc_if_nametoindex (ikptr name_bv)
 {
   char *        name;
   unsigned int  rv;
-  name  = VICARE_BYTEVECTOR_DATA_CHARP(name_bv);
+  name  = IK_BYTEVECTOR_DATA_CHARP(name_bv);
   rv    = if_nametoindex(name);
   if (0 == rv)
     return false_object;
@@ -198,7 +224,7 @@ ikrt_glibc_if_indextoname (ikptr index, ikpcb * pcb)
   } else {
     long        len  = strlen(buffer);
     ikptr       bv   = ik_bytevector_alloc(pcb, len);
-    char *      data = VICARE_BYTEVECTOR_DATA_CHARP(bv);
+    char *      data = IK_BYTEVECTOR_DATA_CHARP(bv);
     memcpy(data, buffer, len+1);
     return bv;
   }
@@ -217,16 +243,16 @@ ikrt_glibc_if_nameindex (ikpcb * pcb) {
   arry = if_nameindex();
   for (i=0; 0 != arry[i].if_index; ++i) {
     /* Add a pair to the alist spine. */
-    spine = ik_pair_alloc(pcb);
+    spine = IK_PAIR_ALLOC(pcb);
     ref(spine, off_cdr) = alist;
     alist               = spine;
     /* Add an entry to the alist. */
-    entry = ik_pair_alloc(pcb);
+    entry = IK_PAIR_ALLOC(pcb);
     ref(spine, off_car) = entry;
     /* Fill the entry. */
     len  = strlen(arry[i].if_name);
     bv   = ik_bytevector_alloc(pcb, len);
-    data = VICARE_BYTEVECTOR_DATA_CHARP(bv);
+    data = IK_BYTEVECTOR_DATA_CHARP(bv);
     memcpy(data, arry[i].if_name, len);
     ref(entry, off_car) = fix(arry[i].if_index);
     ref(entry, off_cdr) = bv;
@@ -236,7 +262,697 @@ ikrt_glibc_if_nameindex (ikpcb * pcb) {
   return alist;
 }
 
+
+/** --------------------------------------------------------------------
+ ** Mathematics.
+ ** ----------------------------------------------------------------- */
+
+#undef RE
+#undef IM
+#define RE(X)   IK_FLONUM_DATA(IK_CFLONUM_REAL(X))
+#define IM(X)   IK_FLONUM_DATA(IK_CFLONUM_IMAG(X))
+
+ikptr
+ikrt_glibc_csin (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_CSIN
+  complex double        X   = RE(s_X) + IM(s_X) * _Complex_I;
+  complex double        Y   = csin(X);
+  return ik_cflonum_alloc(pcb, creal(Y), cimag(Y));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_ccos (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_CCOS
+  complex double        X   = RE(s_X) + IM(s_X) * _Complex_I;
+  complex double        Y   = ccos(X);
+  return ik_cflonum_alloc(pcb, creal(Y), cimag(Y));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_ctan (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_CTAN
+  complex double        X   = RE(s_X) + IM(s_X) * _Complex_I;
+  complex double        Y   = ctan(X);
+  return ik_cflonum_alloc(pcb, creal(Y), cimag(Y));
+#else
+  feature_failure(__func__);
+#endif
+}
+
 /* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_glibc_casin (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_CASIN
+  complex double        X   = RE(s_X) + IM(s_X) * _Complex_I;
+  complex double        Y   = casin(X);
+  return ik_cflonum_alloc(pcb, creal(Y), cimag(Y));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_cacos (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_CACOS
+  complex double        X   = RE(s_X) + IM(s_X) * _Complex_I;
+  complex double        Y   = cacos(X);
+  return ik_cflonum_alloc(pcb, creal(Y), cimag(Y));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_catan (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_CATAN
+  complex double        X   = RE(s_X) + IM(s_X) * _Complex_I;
+  complex double        Y   = catan(X);
+  return ik_cflonum_alloc(pcb, creal(Y), cimag(Y));
+#else
+  feature_failure(__func__);
+#endif
+}
+
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_glibc_cexp (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_CEXP
+  complex double        X   = RE(s_X) + IM(s_X) * _Complex_I;
+  complex double        Y   = cexp(X);
+  return ik_cflonum_alloc(pcb, creal(Y), cimag(Y));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_clog (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_CLOG
+  complex double        X   = RE(s_X) + IM(s_X) * _Complex_I;
+  complex double        Y   = clog(X);
+  return ik_cflonum_alloc(pcb, creal(Y), cimag(Y));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_clog10 (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_CLOG10
+  complex double        X   = RE(s_X) + IM(s_X) * _Complex_I;
+  complex double        Y   = clog10(X);
+  return ik_cflonum_alloc(pcb, creal(Y), cimag(Y));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_csqrt (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_CSQRT
+  complex double        X   = RE(s_X) + IM(s_X) * _Complex_I;
+  complex double        Y   = csqrt(X);
+  return ik_cflonum_alloc(pcb, creal(Y), cimag(Y));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_cpow (ikptr s_base, ikptr s_power, ikpcb * pcb)
+{
+#ifdef HAVE_CPOW
+  complex double  base  = RE(s_base)  + IM(s_base)  * _Complex_I;
+  complex double  power = RE(s_power) + IM(s_power) * _Complex_I;
+  complex double  Y     = cpow(base, power);
+  return ik_cflonum_alloc(pcb, creal(Y), cimag(Y));
+#else
+  feature_failure(__func__);
+#endif
+}
+
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_glibc_sinh (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_SINH
+  double        X   = IK_FLONUM_DATA(s_X);
+  double        Y   = sinh(X);
+  return ik_flonum_alloc(pcb, Y);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_cosh (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_COSH
+  double        X   = IK_FLONUM_DATA(s_X);
+  double        Y   = cosh(X);
+  return ik_flonum_alloc(pcb, Y);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_tanh (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_TANH
+  double        X   = IK_FLONUM_DATA(s_X);
+  double        Y   = tanh(X);
+  return ik_flonum_alloc(pcb, Y);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_csinh (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_CSINH
+  complex double        X   = RE(s_X) + IM(s_X) * _Complex_I;
+  complex double        Y   = csinh(X);
+  return ik_cflonum_alloc(pcb, creal(Y), cimag(Y));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_ccosh (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_CCOSH
+  complex double        X   = RE(s_X) + IM(s_X) * _Complex_I;
+  complex double        Y   = ccosh(X);
+  return ik_cflonum_alloc(pcb, creal(Y), cimag(Y));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_ctanh (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_CTANH
+  complex double        X   = RE(s_X) + IM(s_X) * _Complex_I;
+  complex double        Y   = ctanh(X);
+  return ik_cflonum_alloc(pcb, creal(Y), cimag(Y));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_asinh (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_ASINH
+  double        X   = IK_FLONUM_DATA(s_X);
+  double        Y   = asinh(X);
+  return ik_flonum_alloc(pcb, Y);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_acosh (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_ACOSH
+  double        X   = IK_FLONUM_DATA(s_X);
+  double        Y   = acosh(X);
+  return ik_flonum_alloc(pcb, Y);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_atanh (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_ATANH
+  double        X   = IK_FLONUM_DATA(s_X);
+  double        Y   = atanh(X);
+  return ik_flonum_alloc(pcb, Y);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_casinh (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_CASINH
+  complex double        X   = RE(s_X) + IM(s_X) * _Complex_I;
+  complex double        Y   = casinh(X);
+  return ik_cflonum_alloc(pcb, creal(Y), cimag(Y));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_cacosh (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_CACOSH
+  complex double        X   = RE(s_X) + IM(s_X) * _Complex_I;
+  complex double        Y   = cacosh(X);
+  return ik_cflonum_alloc(pcb, creal(Y), cimag(Y));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_catanh (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_CATANH
+  complex double        X   = RE(s_X) + IM(s_X) * _Complex_I;
+  complex double        Y   = catanh(X);
+  return ik_cflonum_alloc(pcb, creal(Y), cimag(Y));
+#else
+  feature_failure(__func__);
+#endif
+}
+
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_glibc_erf (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_ERF
+  double        X   = IK_FLONUM_DATA(s_X);
+  double        Y   = erf(X);
+  return ik_flonum_alloc(pcb, Y);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_erfc (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_ERFC
+  double        X   = IK_FLONUM_DATA(s_X);
+  double        Y   = erfc(X);
+  return ik_flonum_alloc(pcb, Y);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_lgamma (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_LGAMMA_R
+  double        X   = IK_FLONUM_DATA(s_X);
+  int           sgn;
+  double        Y   = lgamma_r(X, &sgn);
+  ikptr         s_pair = IK_PAIR_ALLOC(pcb);
+  pcb->root0 = &s_pair;
+  {
+    IK_CAR(s_pair) = ik_flonum_alloc(pcb, Y);
+    IK_CDR(s_pair) = IK_FIX(sgn);
+  }
+  pcb->root0 = NULL;
+  return s_pair;
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_tgamma (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_TGAMMA
+  double        X   = IK_FLONUM_DATA(s_X);
+  double        Y   = tgamma(X);
+  return ik_flonum_alloc(pcb, Y);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_y0 (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_Y0
+  double        X   = IK_FLONUM_DATA(s_X);
+  double        Y   = y0(X);
+  return ik_flonum_alloc(pcb, Y);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_y1 (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_Y1
+  double        X   = IK_FLONUM_DATA(s_X);
+  double        Y   = y1(X);
+  return ik_flonum_alloc(pcb, Y);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_j0 (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_J0
+  double        X   = IK_FLONUM_DATA(s_X);
+  double        Y   = j0(X);
+  return ik_flonum_alloc(pcb, Y);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_j1 (ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_J1
+  double        X   = IK_FLONUM_DATA(s_X);
+  double        Y   = j1(X);
+  return ik_flonum_alloc(pcb, Y);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_yn (ikptr s_N, ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_YN
+  double        X   = IK_FLONUM_DATA(s_X);
+  double        Y   = yn((int)unfix(s_N), X);
+  return ik_flonum_alloc(pcb, Y);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_jn (ikptr s_N, ikptr s_X, ikpcb * pcb)
+{
+#ifdef HAVE_JN
+  double        X   = IK_FLONUM_DATA(s_X);
+  double        Y   = jn((int)unfix(s_N), X);
+  return ik_flonum_alloc(pcb, Y);
+#else
+  feature_failure(__func__);
+#endif
+}
+
+
+/** --------------------------------------------------------------------
+ ** Random numbers.
+ ** ----------------------------------------------------------------- */
+
+ikptr
+ikrt_glibc_rand (ikpcb * pcb)
+{
+#ifdef HAVE_RAND
+  return ik_integer_from_long((long)rand(), pcb);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_srand (ikptr s_seed)
+{
+#ifdef HAVE_RAND
+  srand((unsigned int)ik_integer_to_unsigned_long(s_seed));
+  return void_object;
+#else
+  feature_failure(__func__);
+#endif
+}
+
+
+/** --------------------------------------------------------------------
+ ** Pattern matching, globbing, regular expressions.
+ ** ----------------------------------------------------------------- */
+
+ikptr
+ikrt_glibc_fnmatch (ikptr s_pattern, ikptr s_string, ikptr s_flags)
+{
+#ifdef HAVE_FNMATCH
+  return fnmatch(IK_BYTEVECTOR_DATA_CHARP(s_pattern),
+                 IK_BYTEVECTOR_DATA_CHARP(s_string),
+                 unfix(s_flags))? false_object : true_object;
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_glob (ikptr s_pattern, ikptr s_flags, ikptr s_error_handler, ikpcb * pcb)
+{
+#ifdef HAVE_GLOB
+  typedef int handler_t (const char * filename, int error_code);
+  glob_t        G;
+  int           rv;
+  handler_t     * handler;
+  handler = (false_object == s_error_handler)? NULL : IK_POINTER_DATA_VOIDP(s_error_handler);
+  G.gl_pathc    = 0;
+  G.gl_pathv    = NULL;
+  G.gl_offs     = 0;
+  G.gl_opendir  = NULL;
+  G.gl_readdir  = NULL;
+  G.gl_closedir = NULL;
+  G.gl_stat     = NULL;
+  G.gl_lstat    = NULL;
+  rv = glob(IK_BYTEVECTOR_DATA_CHARP(s_pattern), unfix(s_flags), handler, &G);
+  if (0 == rv) {
+    ikptr       s_list = ik_list_from_argv_and_argc(pcb, G.gl_pathv, G.gl_pathc);
+    globfree(&G);
+    return s_list;
+  } else {
+    return fix(rv);
+  }
+#else
+  feature_failure(__func__);
+#endif
+}
+
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_glibc_regcomp (ikptr s_pattern, ikptr s_flags, ikpcb *pcb)
+{
+#ifdef HAVE_REGCOMP
+  ikptr         s_compiled_regex = ik_bytevector_alloc(pcb, sizeof(regex_t));
+  regex_t *     compiled_regex   = IK_BYTEVECTOR_DATA_VOIDP(s_compiled_regex);
+  char *        pattern          = IK_BYTEVECTOR_DATA_CHARP(s_pattern);
+  int           rv;
+  pcb->root0 = &s_compiled_regex;
+  rv = regcomp(compiled_regex, pattern, unfix(s_flags));
+  if (0 == rv) {
+    pcb->root0 = NULL;
+    return s_compiled_regex;
+  } else {
+    ikptr       s_pair = IK_PAIR_ALLOC(pcb);
+    char *      error_message;
+    size_t      error_message_len;
+    pcb->root1 = &s_pair;
+    {
+      compiled_regex    = IK_BYTEVECTOR_DATA_VOIDP(s_compiled_regex);
+      error_message_len = regerror(rv, compiled_regex, NULL, 0);
+      IK_CAR(s_pair)    = IK_FIX(rv);
+      IK_CDR(s_pair)    = ik_bytevector_alloc(pcb, (long)error_message_len-1);
+      error_message     = IK_BYTEVECTOR_DATA_CHARP(IK_CDR(s_pair));
+      compiled_regex    = IK_BYTEVECTOR_DATA_VOIDP(s_compiled_regex);
+      regerror(rv, compiled_regex, error_message, error_message_len);
+    }
+    pcb->root1 = NULL;
+    pcb->root0 = NULL;
+    return s_pair;
+  }
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_regexec (ikptr s_compiled_regex, ikptr s_string, ikptr s_flags, ikpcb *pcb)
+{
+#ifdef HAVE_REGCOMP
+  regex_t *     compiled_regex = IK_BYTEVECTOR_DATA_VOIDP(s_compiled_regex);
+  char *        string         = IK_BYTEVECTOR_DATA_CHARP(s_string);
+  size_t        nmatch         = compiled_regex->re_nsub;
+  regmatch_t    match[1+nmatch];
+  int           rv;
+  rv = regexec(compiled_regex, string, 1+nmatch, match, unfix(s_flags));
+  switch (rv) {
+  case 0:
+    {
+      size_t      i;
+      ikptr       s_match_vector = ik_vector_alloc(pcb, 1+nmatch);
+      ikptr       s_pair;
+      pcb->root0 = &s_match_vector;
+      {
+        for (i=0; i<1+nmatch; ++i) {
+          s_pair = IK_ITEM(s_match_vector, i) = IK_PAIR_ALLOC(pcb);
+          IK_CAR(s_pair) = IK_FIX(match[i].rm_so);
+          IK_CDR(s_pair) = IK_FIX(match[i].rm_eo);
+        }
+      }
+      pcb->root0 = NULL;
+      return s_match_vector;
+    }
+  case REG_NOMATCH:
+    return false_object;
+  default:
+    {
+      ikptr       s_pair = IK_PAIR_ALLOC(pcb);
+      pcb->root0 = &s_pair;
+      {
+        char *          errmsg;
+        size_t          errmsg_len_including_zero;
+        compiled_regex            = IK_BYTEVECTOR_DATA_VOIDP(s_compiled_regex);
+        errmsg_len_including_zero = regerror(rv, compiled_regex, NULL, 0);
+        IK_CAR(s_pair)            = IK_FIX(rv);
+        IK_CDR(s_pair)            = ik_bytevector_alloc(pcb, (long)errmsg_len_including_zero-1);
+        errmsg                    = IK_BYTEVECTOR_DATA_CHARP(IK_CDR(s_pair));
+        compiled_regex            = IK_BYTEVECTOR_DATA_VOIDP(s_compiled_regex);
+        regerror(rv, compiled_regex, errmsg, errmsg_len_including_zero);
+      }
+      pcb->root0 = NULL;
+      return s_pair;
+    }
+  }
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_regfree (ikptr s_compiled_regex)
+/* Free the compiled regex in the given bytevector, but only if at least
+   one byte in  the bytevector is non-zero, else it  means that the data
+   structure has already been freed. */
+{
+#ifdef HAVE_REGCOMP
+  uint8_t *     data = IK_BYTEVECTOR_DATA_VOIDP(s_compiled_regex);
+  long          len  = IK_BYTEVECTOR_LENGTH(s_compiled_regex);
+  long          i;
+  int           clean = 0;
+  for (i=0; i<len; ++i) {
+    if (data[i]) {
+      clean=1;
+      break;
+    }
+  }
+  if (clean) {
+    regfree((regex_t*)data);
+    for (i=0; i<len; ++i)
+      data[i] = 0;
+  }
+  return void_object;
+#else
+  feature_failure(__func__);
+#endif
+}
+
+
+/** --------------------------------------------------------------------
+ ** Performing word expansion.
+ ** ----------------------------------------------------------------- */
+
+ikptr
+ikrt_glibc_wordexp (ikptr s_words, ikptr s_flags, ikpcb * pcb)
+{
+#ifdef HAVE_WORDEXP
+  char *        word = IK_BYTEVECTOR_DATA_VOIDP(s_words);
+  wordexp_t     W;
+  int           rv;
+  W.we_wordc    = 0;
+  W.we_wordv    = NULL;
+  W.we_offs     = 0;
+  rv = wordexp(word, &W, unfix(s_flags));
+  if (0 == rv) {
+    ikptr       s_words = ik_vector_alloc(pcb, (long)W.we_wordc);
+    pcb->root0 = &s_words;
+    {
+      int         i;
+      for (i=0; i<W.we_wordc; ++i) {
+        IK_ITEM(s_words, i) = ik_bytevector_from_cstring(pcb, W.we_wordv[i]);
+      }
+    }
+    pcb->root0 = NULL;
+    wordfree(&W);
+    return s_words;
+  } else
+    return fix(rv);
+#else
+  feature_failure(__func__);
+#endif
+}
+
+
+/** --------------------------------------------------------------------
+ ** System configuration.
+ ** ----------------------------------------------------------------- */
+
+ikptr
+ikrt_glibc_sysconf (ikptr s_parameter, ikpcb * pcb)
+{
+#ifdef HAVE_SYSCONF
+  long  parameter = ik_integer_to_long(s_parameter);
+  long  value;
+  errno = 0;
+  value = sysconf((int)parameter);
+  if (-1 == value)
+    return (errno)? ik_errno_to_code() : false_object;
+  else
+    return ik_integer_from_long(value, pcb);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_pathconf (ikptr s_pathname, ikptr s_parameter, ikpcb * pcb)
+{
+#ifdef HAVE_PATHCONF
+  char *pathname  = IK_BYTEVECTOR_DATA_CHARP(s_pathname);
+  long  parameter = ik_integer_to_long(s_parameter);
+  long  value;
+  errno = 0;
+  value = pathconf(pathname, (int)parameter);
+  if (-1 == value)
+    return (errno)? ik_errno_to_code() : false_object;
+  else
+    return ik_integer_from_long(value, pcb);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_fpathconf (ikptr s_fd, ikptr s_parameter, ikpcb * pcb)
+{
+#ifdef HAVE_FPATHCONF
+  long  parameter = ik_integer_to_long(s_parameter);
+  long  value;
+  errno = 0;
+  value = fpathconf(unfix(s_fd), (int)parameter);
+  if (-1 == value)
+    return (errno)? ik_errno_to_code() : false_object;
+  else
+    return ik_integer_from_long(value, pcb);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_confstr (ikptr s_parameter, ikpcb * pcb)
+{
+#ifdef HAVE_CONFSTR
+  long          parameter = ik_integer_to_long(s_parameter);
+  size_t        length_including_zero;
+  errno = 0;
+  length_including_zero = confstr((int)parameter, NULL, 0);
+  if (length_including_zero) {
+    ikptr       s_result = ik_bytevector_alloc(pcb, (long)length_including_zero-1);
+    char *      result   = IK_BYTEVECTOR_DATA_CHARP(s_result);
+    confstr((int)parameter, result, length_including_zero);
+    return s_result;
+  } else
+    return ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
 
 
 /** --------------------------------------------------------------------

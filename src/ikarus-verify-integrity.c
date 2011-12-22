@@ -33,7 +33,7 @@ static int isa_fixnum(ikptr x){
 }
 
 static int isa_vector(ikptr x){
-  return ( (tagof(x) == vector_tag) &&
+  return ( (IK_TAGOF(x) == vector_tag) &&
            isa_fixnum(ref(x, -vector_tag)));
 }
 #endif
@@ -62,7 +62,7 @@ verify_code(char* x, char* base, unsigned int* svec, unsigned int* dvec){
   if(rgen < cgen){
     unsigned int d = dvec[page_idx(x) - page_idx(base)];
     d = d & d;
-    //int off = (((int)x) - align_to_prev_page(x)) / card_size;
+    //int off = (((int)x) - IK_ALIGN_TO_PREV_PAGE(x)) / card_size;
     //int card_mark = (d >> off) & 0xF;
     assert(d != 0);
   }
@@ -82,11 +82,11 @@ verify_code_small(char* p, int s, unsigned int d,
   while(p < q){
     ikptr fst = ref(p, 0);
     if(fst == code_tag){
-      assert(is_fixnum(ref(p, disp_code_code_size)));
+      assert(IK_IS_FIXNUM(ref(p, disp_code_code_size)));
       int code_size = unfix(ref(p, disp_code_code_size));
       assert(code_size >= 0);
       verify_code(p, base, svec, dvec);
-      p+=align(code_size + disp_code_data);
+      p+=IK_ALIGN(code_size + disp_code_data);
     } else {
       p = q;
     }
@@ -108,9 +108,9 @@ verify_code_large(char* p, unsigned int s, unsigned int d,
   int code_size = unfix(ref(p, disp_code_code_size));
   assert(code_size >= 0);
   verify_code(p, base, svec, dvec);
-  assert(align(code_size+disp_code_data) >= pagesize);
+  assert(IK_ALIGN(code_size+disp_code_data) >= pagesize);
   char* end = p + code_size + disp_code_data;
-  return((char*)align_to_next_page(end));
+  return((char*)IK_ALIGN_TO_NEXT_PAGE(end));
 }
 
 static char*
@@ -125,7 +125,7 @@ verify_code_page(char* p, unsigned int s, unsigned int d,
   }
   int code_size = unfix(ref(p, disp_code_code_size));
   assert(code_size >= 0);
-  int obj_size = align(code_size + disp_code_data);
+  int obj_size = IK_ALIGN(code_size + disp_code_data);
   char* result;
   if(obj_size <= pagesize){
     result = verify_code_small(p,s,d,base,svec,dvec);

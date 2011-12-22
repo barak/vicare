@@ -52,7 +52,7 @@ char* char_string[128] = {
 
 static void
 print(FILE* fh, ikptr x){
-  if(is_fixnum(x)){
+  if(IK_IS_FIXNUM(x)){
     fprintf(fh, "%ld", unfix(x));
   }
   else if(x == false_object){
@@ -64,7 +64,7 @@ print(FILE* fh, ikptr x){
   else if(x == null_object){
     fprintf(fh, "()");
   }
-  else if(is_char(x)){
+  else if(IK_IS_CHAR(x)){
     unsigned long int i = ((long int)x) >> char_shift;
     if(i < 128){
       fprintf(fh, "%s", char_string[i]);
@@ -73,14 +73,14 @@ print(FILE* fh, ikptr x){
     }
   }
 #if 0
-  else if(tagof(x) == symbol_tag){
+  else if(IK_TAGOF(x) == symbol_tag){
     ikptr str = ref(x, off_symbol_string);
     fprintf(fh, "%s", str+off_string_data);
   }
 #endif
-  else if(tagof(x) == vector_tag){
+  else if(IK_TAGOF(x) == vector_tag){
     ikptr fst = ref(x, off_vector_length);
-    if(is_fixnum(fst)){
+    if(IK_IS_FIXNUM(fst)){
       ikptr len = fst;
       if(len == 0){
         fprintf(fh, "#()");
@@ -96,7 +96,7 @@ print(FILE* fh, ikptr x){
         }
         fprintf(fh, ")");
       }
-    } else if (fst == symbol_record_tag){
+    } else if (fst == symbol_tag){
       ikptr str = ref(x, off_symbol_record_string);
       ikptr fxlen = ref(str, off_string_length);
       int len = unfix(fxlen);
@@ -113,13 +113,13 @@ print(FILE* fh, ikptr x){
   else if(is_closure(x)){
     fprintf(fh, "#<procedure>");
   }
-  else if(is_pair(x)){
+  else if(IK_IS_PAIR(x)){
     fprintf(fh, "(");
     print(fh, ref(x, off_car));
     ikptr d = ref(x, off_cdr);
     /* fprintf(stderr, "d=0x%016lx\n", (long int)d); */
     while(1){
-      if(is_pair(d)){
+      if(IK_IS_PAIR(d)){
         fprintf(fh, " ");
         print(fh, ref(d, off_car));
         d = ref(d, off_cdr);
@@ -136,7 +136,7 @@ print(FILE* fh, ikptr x){
       }
     }
   }
-  else if(tagof(x) == string_tag){
+  else if(IK_TAGOF(x) == string_tag){
     ikptr fxlen = ref(x, off_string_length);
     int len = unfix(fxlen);
     int * data = (int*)(x + off_string_data);
@@ -151,7 +151,7 @@ print(FILE* fh, ikptr x){
     }
     fprintf(fh, "\"");
   }
-  else if(tagof(x) == bytevector_tag){
+  else if(IK_TAGOF(x) == bytevector_tag){
     ikptr fxlen = ref(x, off_bytevector_length);
     int len = unfix(fxlen);
     unsigned char* data = (unsigned char*)(x + off_bytevector_data);

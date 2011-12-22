@@ -230,6 +230,33 @@
     posix-timelocal			posix-timegm
     posix-strftime
     posix-nanosleep
+
+    ;; mathematics
+    glibc-csin		glibc-ccos	glibc-ctan
+    glibc-casin		glibc-cacos	glibc-catan
+    glibc-cexp		glibc-clog	glibc-clog10
+    glibc-csqrt		glibc-cpow
+    glibc-sinh		glibc-cosh	glibc-tanh
+    glibc-csinh		glibc-ccosh	glibc-ctanh
+    glibc-asinh		glibc-acosh	glibc-atanh
+    glibc-casinh	glibc-cacosh	glibc-catanh
+    glibc-erf		glibc-erfc	glibc-tgamma	glibc-lgamma
+    glibc-j0		glibc-j1	glibc-y0
+    glibc-y1		glibc-jn	glibc-yn
+
+    ;; random numbers
+    glibc-rand		glibc-srand
+
+    ;; pattern matching, globbing, regular expressions
+    glibc-fnmatch	glibc-glob
+    glibc-regcomp	glibc-regexec	glibc-regfree
+
+    ;; word expansion
+    glibc-wordexp
+
+    ;; system configuration
+    glibc-sysconf	glibc-confstr
+    glibc-pathconf	glibc-fpathconf
     )
   (import (except (ikarus)
 		  posix-read	posix-write
@@ -1261,6 +1288,164 @@
 
 (define-inline (posix-strftime template tm)
   (foreign-call "ikrt_posix_strftime" template tm))
+
+
+;;;; mathematics
+
+(define-inline (glibc-csin X)
+  (foreign-call "ikrt_glibc_csin" X))
+
+(define-inline (glibc-ccos X)
+  (foreign-call "ikrt_glibc_ccos" X))
+
+(define-inline (glibc-ctan X)
+  (foreign-call "ikrt_glibc_ctan" X))
+
+(define-inline (glibc-casin X)
+  (foreign-call "ikrt_glibc_casin" X))
+
+(define-inline (glibc-cacos X)
+  (foreign-call "ikrt_glibc_cacos" X))
+
+(define-inline (glibc-catan X)
+  (foreign-call "ikrt_glibc_catan" X))
+
+;;; --------------------------------------------------------------------
+
+(define-inline (glibc-cexp X)
+  (foreign-call "ikrt_glibc_cexp" X))
+
+(define-inline (glibc-clog X)
+  (foreign-call "ikrt_glibc_clog" X))
+
+(define-inline (glibc-clog10 X)
+  (foreign-call "ikrt_glibc_clog10" X))
+
+(define-inline (glibc-csqrt X)
+  (foreign-call "ikrt_glibc_csqrt" X))
+
+(define-inline (glibc-cpow X Y)
+  (foreign-call "ikrt_glibc_cpow" X Y))
+
+;;; --------------------------------------------------------------------
+
+(define-inline (glibc-sinh X)
+  (foreign-call "ikrt_glibc_sinh" X))
+
+(define-inline (glibc-cosh X)
+  (foreign-call "ikrt_glibc_cosh" X))
+
+(define-inline (glibc-tanh X)
+  (foreign-call "ikrt_glibc_tanh" X))
+
+(define-inline (glibc-csinh X)
+  (foreign-call "ikrt_glibc_csinh" X))
+
+(define-inline (glibc-ccosh X)
+  (foreign-call "ikrt_glibc_ccosh" X))
+
+(define-inline (glibc-ctanh X)
+  (foreign-call "ikrt_glibc_ctanh" X))
+
+(define-inline (glibc-asinh X)
+  (foreign-call "ikrt_glibc_asinh" X))
+
+(define-inline (glibc-acosh X)
+  (foreign-call "ikrt_glibc_acosh" X))
+
+(define-inline (glibc-atanh X)
+  (foreign-call "ikrt_glibc_atanh" X))
+
+(define-inline (glibc-casinh X)
+  (foreign-call "ikrt_glibc_casinh" X))
+
+(define-inline (glibc-cacosh X)
+  (foreign-call "ikrt_glibc_cacosh" X))
+
+(define-inline (glibc-catanh X)
+  (foreign-call "ikrt_glibc_catanh" X))
+
+;;; --------------------------------------------------------------------
+
+(define-inline (glibc-erf X)
+  (foreign-call "ikrt_glibc_erf" X))
+
+(define-inline (glibc-erfc X)
+  (foreign-call "ikrt_glibc_erfc" X))
+
+(define-inline (glibc-tgamma X)
+  (foreign-call "ikrt_glibc_tgamma" X))
+
+(define-inline (glibc-lgamma X)
+  (foreign-call "ikrt_glibc_lgamma" X))
+
+(define-inline (glibc-j0 X)
+  (foreign-call "ikrt_glibc_j0" X))
+
+(define-inline (glibc-j1 X)
+  (foreign-call "ikrt_glibc_j1" X))
+
+(define-inline (glibc-jn N X)
+  (foreign-call "ikrt_glibc_jn" N X))
+
+(define-inline (glibc-y0 X)
+  (foreign-call "ikrt_glibc_y0" X))
+
+(define-inline (glibc-y1 X)
+  (foreign-call "ikrt_glibc_y1" X))
+
+(define-inline (glibc-yn N X)
+  (foreign-call "ikrt_glibc_yn" N X))
+
+
+;;;; random numbers
+
+(define-inline (glibc-rand)
+  (foreign-call "ikrt_glibc_rand"))
+
+(define-inline (glibc-srand seed)
+  (foreign-call "ikrt_glibc_srand" seed))
+
+
+;;;; pattern matching, globbing, regular expressions
+
+(define-inline (glibc-fnmatch pattern string flags)
+  (foreign-call "ikrt_glibc_fnmatch" pattern string flags))
+
+(define-inline (glibc-glob pattern flags error-handler)
+  (foreign-call "ikrt_glibc_glob" pattern flags error-handler))
+
+;;; --------------------------------------------------------------------
+
+(define-inline (glibc-regcomp pattern flags)
+  (foreign-call "ikrt_glibc_regcomp" pattern flags))
+
+(define-inline (glibc-regexec regex string flags)
+  (foreign-call "ikrt_glibc_regexec" regex string flags))
+
+(define-inline (glibc-regfree regex)
+  (foreign-call "ikrt_glibc_regfree" regex))
+
+
+;;;; word expansion
+
+(define-inline (glibc-wordexp words flags)
+  (foreign-call "ikrt_glibc_wordexp" words flags))
+
+
+;;;; system configuration
+
+(define-inline (glibc-sysconf parameter)
+  (foreign-call "ikrt_glibc_sysconf" parameter))
+
+(define-inline (glibc-pathconf pathname parameter)
+  (foreign-call "ikrt_glibc_pathconf" pathname parameter))
+
+(define-inline (glibc-fpathconf fd parameter)
+  (foreign-call "ikrt_glibc_fpathconf" fd parameter))
+
+(define-inline (glibc-confstr parameter)
+  (foreign-call "ikrt_glibc_confstr" parameter))
 
 
 ;;;; done

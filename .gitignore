@@ -1,3 +1,6 @@
+*~
+=*
+,,*
 *.a
 *.bz2
 *.fasl
@@ -10,16 +13,14 @@
 *.so.*
 *.tgz
 *.tmp
-*~
-,,*
 .DS_Store
 .arch
 .deps/
 .emacs.*
 .gdb_history
 .vimview
-/Makefile
-/Makefile.in
+Makefile
+Makefile.in
 /aclocal.m4
 /autom4te*/
 /compile
@@ -32,13 +33,7 @@
 /config.sub
 /configure
 /depcomp
-/doc/mdate-sh
-/doc/stamp-vti
-/doc/texinfo.tex
-/doc/version.texi
 /install-sh
-/lib/vicare/installation-configuration.sls
-/lib/vicare/platform-constants.sls
 /missing
 /mkinstalldirs
 /scheme/ikarus.config.ss
@@ -47,4 +42,3 @@
 /src/bootfileloc.h
 /src/vicare
 /stamp-h1
-=*

@@ -754,13 +754,13 @@
 
  (define-primop symbol? safe
    ((P x)
-    (sec-tag-test (T x) vector-mask vector-tag #f symbol-record-tag))
+    (sec-tag-test (T x) vector-mask vector-tag #f symbol-tag))
    ((E x) (nop)))
 
  (define-primop $make-symbol unsafe
    ((V str)
     (with-tmp ((x (prm 'alloc (K (align symbol-record-size)) (K vector-tag))))
-      (prm 'mset x (K (- vector-tag)) (K symbol-record-tag))
+      (prm 'mset x (K (- vector-tag)) (K symbol-tag))
       (prm 'mset x (K (- disp-symbol-record-string  vector-tag)) (T str))
       (prm 'mset x (K (- disp-symbol-record-ustring vector-tag)) (K 0))
       (prm 'mset x (K (- disp-symbol-record-value   vector-tag)) (K unbound))
@@ -859,10 +859,10 @@
 
 ;;;; fixnums
 ;;
-;;A fixnum is a machine word whose two least significant bits are set to
+;;A fixnum  is a machine  word whose least  significant bits are  set to
 ;;zero.  R6RS states  that a fixnum must have at least  24 bits in which
 ;;to store  the number; on a  32-bit platform, 29 bits  are available to
-;;store the number and 1 bit to store the sign:
+;;store the number:
 ;;
 ;; (greatest-fixnum)       => +536870911
 ;; (expt 2 29)             => +536870912
@@ -1942,12 +1942,12 @@
 
 ;;;; structs
 ;;
-;;A data structure  is a variable length block of  memory allocated as a
-;;vector; a reference  to a structure value is a  machine word tagged as
-;;vector.  The first machine word of the structure is a reference to the
-;;type  descriptor; a  type descriptor  is itself  a data  structure.  A
-;;block of memory is a data structure  if and only if: a reference to it
-;;is tagged as vector and its first word is tagged as vector.
+;;A data  structure is a variable  length block of  memory referenced by
+;;machine  words  tagged as  vectors;  the  first  machine word  of  the
+;;structure is  a reference  to the type  descriptor, which is  itself a
+;;data structure.  A block of memory is a data structure if and only if:
+;;a reference to it is tagged as  vector and its first word is tagged as
+;;vector.
 ;;
 ;; |----------------|----------| reference to structure
 ;;   heap offset     vector tag
@@ -2037,7 +2037,8 @@
 ;;;; characters
 ;;
 ;;A character is a machine word  whose least significant bits are set to
-;;the character tag.
+;;the  character tag.   When stored  in a  string: the  machine  word is
+;;trimmed to its least significant 32 bits.
 ;;
 ;;The most  significant bits, interpreted  as integer, represent  a code
 ;;point  in  the range  [0,  #x10FFFF] but  not  in  the range  [#xD800,
@@ -2496,7 +2497,9 @@
       ((constant n)
        (unless (fx? n) (interrupt))
        (with-tmp ((s (prm 'alloc
-			  (K (align (+ (* n wordsize) disp-string-data)))
+;;; Characters are 32-bit unsigned integers, NOT machine words.
+			  (K (align (+ (* n 4) disp-string-data)))
+;;;			  (K (align (+ (* n wordsize) disp-string-data)))
 			  (K string-tag))))
 	 (prm 'mset s
 	      (K (- disp-string-length string-tag))

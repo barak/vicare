@@ -2,13 +2,13 @@
 
 libvicaredir		= $(pkglibdir)/vicare
 
-EXTRA_DIST		= vicare/platform-constants.sls.in	\
+EXTRA_DIST		= compile-all.sps			\
+			  vicare/platform-constants.sls.in	\
 			  vicare/words.sls.in			\
 			  vicare/installation-configuration.sls.in
 
 dist_libvicare_DATA	= vicare/ffi.sls			\
 			  vicare/platform-constants.sls		\
-			  vicare/ipc.sls			\
 			  vicare/include.sls			\
 			  vicare/syntactic-extensions.sls	\
 			  vicare/flonum-parser.sls		\
@@ -19,5 +19,26 @@ dist_libvicare_DATA	= vicare/ffi.sls			\
 			  vicare/words.sls			\
 			  vicare/installation-configuration.sls	\
 			  vicare/gcc.sls
+
+## --------------------------------------------------------------------
+
+VICARE_FLAGS	= -b $(VICARE_BOOT) $(user_flags)
+
+VICARE		= $(builddir)/../src/vicare
+VICARE_BOOT	= $(builddir)/../scheme/vicare.boot
+VICARE_ENV	= VICARE_LIBRARY_PATH=$(builddir):$(srcdir)
+VICARE_RUN	= $(VICARE_ENV) $(VICARE) $(VICARE_FLAGS)
+
+VICARE_INST	= $(bindir)/vicare
+VICARE_INST_ENV	= VICARE_LIBRARY_PATH=$(VICARE_LIBRARY_PATH)
+VICARE_INST_RUN	= $(VICARE_INST_ENV) $(VICARE_INST)
+
+.PHONY: vfasl-installed
+
+vfasl:
+	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-all.sps
+
+vfasl-installed:
+	$(VICARE_INST_RUN) --compile-dependencies $(srcdir)/compile-all.sps
 
 ### end of file
