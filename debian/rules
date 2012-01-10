@@ -7,6 +7,10 @@ $(dh_targets) %:
 
 .PHONY: $(dh_targets)
 
+override_dh_autoreconf:
+	mkdir -p m4
+	dh_autoreconf
+
 override_dh_auto_build:
 	egrep -q '^flags[[:space:]]*:.*\bsse2\b' /proc/cpuinfo \
 	 || (echo "error: CPU instruction set extension sse2 not found."; \
