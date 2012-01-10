@@ -1,6 +1,6 @@
 ;;;Ikarus Scheme -- A compiler for R6RS Scheme.
+;;;Copyright (C) 2011, 2012  Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;Copyright (C) 2006,2007,2008  Abdulaziz Ghuloum
-;;;Modified by Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
 ;;;it under  the terms of  the GNU General  Public License version  3 as
@@ -39,6 +39,9 @@
 		  ;; internal functions only for Vicare
 		  read-source-file read-script-source-file
 		  read-library-source-file)
+    (only (vicare.foreign-libraries)
+	  register-filename-foreign-library
+	  autoload-filename-foreign-library)
     (vicare syntactic-extensions)
     (vicare words)
     (prefix (vicare unsafe-operations)
@@ -69,6 +72,11 @@
 
 
 ;;;; miscellaneous helpers
+
+;;Used to make the reader functions aware of the library file name being
+;;read.
+(define current-library-file
+  (make-parameter #f))
 
 (define-inline (reverse-list->string ell)
   ;;There are more efficient ways to do this, but ELL is usually short.
@@ -543,9 +551,10 @@
   ;;and return the first datum; close the port.
   ;;
   (let ((port (open-input-file filename)))
-    (unwind-protect
-	(get-annotated-datum port)
-      (close-input-port port))))
+    (parameterize ((current-library-file filename))
+      (unwind-protect
+	  (get-annotated-datum port)
+	(close-input-port port)))))
 
 (define (read-source-file filename)
   ;;Open FILENAME for input only  using the native transcoder, then read
@@ -893,6 +902,7 @@
   ;;(mark . <n>)		The token is a graph syntax mark: #<N>=---
   ;;(ref . <n>)			The token is a graph syntax reference: #<N>#
   ;;vparen			The token is a vector.
+  ;;comment-paren		The token is a comment list.
   ;;
   ;;When the token is a bytevector: the return value is the return value
   ;;of ADVANCE-TOKENISATION-OF-BYTEVECTORS.
@@ -948,23 +958,32 @@
 
    ;; #! comments and such
    ((unsafe.char= #\! ch)
-    (let* ((token (finish-tokenisation-of-identifier '() port))
-	   (sym   (cdr token)))
-      (case sym
-	((vicare ikarus)
-	 (set-port-mode! port 'vicare)
-	 (start-tokenising port))
-	((r6rs)
-	 (set-port-mode! port 'r6rs)
-	 (start-tokenising port))
-	((eof)
-	 (if (port-in-r6rs-mode? port)
-	     (%error-1 "invalid syntax" "#!eof")
-	   `(datum . ,(eof-object))))
-	(else
-	 ;;If not recognised,  just handle it as a  comment and read the
-	 ;;next datum.
-	 (start-tokenising port)))))
+    (let ((ch1 (peek-char port)))
+      (cond ((eof-object? ch1)
+	     (%unexpected-eof-error))
+	    ((unsafe.char= ch1 #\()
+	     (read-char port)
+	     (if (port-in-r6rs-mode? port)
+		 (%error-1 "invalid syntax" "#!(")
+	       'comment-paren))
+	    (else
+	     (let* ((token (finish-tokenisation-of-identifier '() port))
+		    (sym   (cdr token)))
+	       (case sym
+		 ((vicare ikarus)
+		  (set-port-mode! port 'vicare)
+		  (start-tokenising port))
+		 ((r6rs)
+		  (set-port-mode! port 'r6rs)
+		  (start-tokenising port))
+		 ((eof)
+		  (if (port-in-r6rs-mode? port)
+		      (%error-1 "invalid syntax" "#!eof")
+		    `(datum . ,(eof-object))))
+		 (else
+		  ;;If not  recognised, just handle it as  a comment and
+		  ;;read the next datum.
+		  (start-tokenising port))))))))
 
    ((dec-digit? ch)
     (when (port-in-r6rs-mode? port)
@@ -1779,6 +1798,15 @@
 			(finish-tokenisation-of-bytevector-c8n port locations kont 0 '()))
 		       )))
 	     (values bv (annotate bv bv/ann pos) locations kont)))
+
+	  ;;Read a comment list.
+	  ((eq? token 'comment-paren)
+	   (let-values (((ls ls/ann locations kont)
+			 (finish-tokenisation-of-list port pos locations kont 'rparen 'rbrack)))
+	     (%process-comment-list port ls)
+	     ;;Go on with the next token.
+	     (let-values (((token pos) (start-tokenising/pos port)))
+	       (finalise-tokenisation port locations kont token pos))))
 
 	  ((pair? token)
 	   (%process-pair-token token))
@@ -2819,6 +2847,30 @@
   cflonum?			     ;to validate numbers
   16				     ;number of bytes in word
   bytevector-cflonum-double-ne-set!) ;setter
+
+
+(define (%process-comment-list port ls)
+  ;;Called when a comment list syntax has been read "#!(<datum> ...)" to
+  ;;process the list executing desired directives.
+  ;;
+  (define-inline (%error msg)
+    (die/p port 'tokenize msg ls))
+  (unless (null? ls)
+    (case (car ls)
+      ((load-shared-library)
+       (cond ((null? (cdr ls))
+	      (%error "expected argument to load-shared-library"))
+	     ((not (null? (cddr ls)))
+	      (%error "expected single argument to load-shared-library"))
+	     (else
+	      (let ((libid (cadr ls)))
+		(if (string? libid)
+		    (begin
+		      (register-filename-foreign-library (current-library-file) libid)
+		      (autoload-filename-foreign-library libid))
+		  (%error "expected string argument to load-shared-library"))))))
+      (else
+       (%error "invalid comment list")))))
 
 
 ;;;; done
