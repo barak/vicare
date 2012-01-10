@@ -273,11 +273,12 @@
     "ikarus.hash-tables.sls"
     "ikarus.pretty-formats.sls"
     "ikarus.writer.sls"
+    "ikarus.foreign-libraries.sls"
     "ikarus.reader.sls"
     "ikarus.code-objects.sls"
     "ikarus.intel-assembler.sls"
     "ikarus.fasl.write.sls"
-    "ikarus.fasl.sls"
+    "ikarus.fasl.read.sls"
     "ikarus.compiler.sls"
     "psyntax.compat.sls"
     "psyntax.library-manager.sls"
@@ -892,6 +893,7 @@
     (fasl-write					i v)
     (fasl-read					i v)
     (fasl-directory				i v)
+    (fasl-path					i v)
     (lambda						i v r ba se ne)
     (and					i v r ba se ne)
     (begin					i v r ba se ne)
