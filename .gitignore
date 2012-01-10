@@ -36,6 +36,7 @@
 /doc/version.texi
 /install-sh
 /install-sh
+/libtool
 /ltmain.sh
 /m4/
 /missing
