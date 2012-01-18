@@ -35,7 +35,7 @@
   (exit 0))
 
 (check-set-mode! 'report-failed)
-(display "*** testing Vicare CRE2 binding\n")
+(check-display "*** testing Vicare CRE2 binding\n")
 
 
 (parametrise ((check-test-name	'version))
@@ -242,12 +242,12 @@
 
   (check
       (let ((rex (cre2.make-regexp "ciao|hello")))
-	(cre2.match rex "ciao" #f #f 'unanchored))
+  	(cre2.match rex "ciao" #f #f 'unanchored))
     => '#((0 . 4)))
 
   (check
       (let ((rex (cre2.make-regexp "ciao|hello")))
-	(cre2.match rex "ohayo" #f #f 'unanchored))
+  	(cre2.match rex "ohayo" #f #f 'unanchored))
     => #f)
 
   (check
