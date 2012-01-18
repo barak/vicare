@@ -26,7 +26,7 @@
 
 
 #!vicare
-(import (rename (vicare) #;(ikarus)
+(import (rename (vicare)
 		(parameterize	parametrise))
   (prefix (vicare posix)
 	  px.)
@@ -133,8 +133,8 @@
 
 ;;; --------------------------------------------------------------------
 
-;;;  (pretty-print (environ))
-;;;  (pretty-print (hashtable-keys (px.environ-table)))(newline)
+;;;(check-pretty-print (environ))
+;;;(check-pretty-print (hashtable-keys (px.environ-table)))
 
   (check
       (let ((table (px.environ-table)))
@@ -194,6 +194,72 @@
 
   (check
       (fixnum? (px.getppid))
+    => #t)
+
+  #t)
+
+
+(parametrise ((check-test-name	'uids))
+
+  (when #f
+    (fprintf (current-error-port)
+	     "UID=~a, GID=~a, EUID=~a, EGID=~a, login=~a\n"
+	     (px.getuid) (px.getgid) (px.geteuid) (px.getegid)
+	     (px.getlogin/string))
+    (fprintf (current-error-port) "groups=~a\n" (px.getgroups))
+    (fprintf (current-error-port) "passwd=~a\n" (px.getpwuid (px.getuid)))
+    (fprintf (current-error-port) "passwd=~a\n" (px.getpwnam (px.getlogin/string)))
+    (fprintf (current-error-port) "group=~a\n" (px.getgrgid (px.getgid)))
+    (fprintf (current-error-port) "group=~a\n"
+	     (px.getgrnam (px.struct-group-gr_name (px.getgrgid (px.getgid)))))
+    (check-pretty-print (px.user-entries))
+    (check-pretty-print (px.group-entries))
+    #f)
+
+;;; --------------------------------------------------------------------
+
+  (check
+      (fixnum? (px.getuid))
+    => #t)
+
+  (check
+      (fixnum? (px.getgid))
+    => #t)
+
+  (check
+      (fixnum? (px.geteuid))
+    => #t)
+
+  (check
+      (fixnum? (px.getegid))
+    => #t)
+
+;;; --------------------------------------------------------------------
+
+  (check
+      (px.struct-passwd? (px.getpwuid (px.getuid)))
+    => #t)
+
+  (check
+      (px.struct-passwd? (px.getpwnam (px.getlogin/string)))
+    => #t)
+
+  (check
+      (for-all px.struct-passwd? (px.user-entries))
+    => #t)
+
+;;; --------------------------------------------------------------------
+
+  (check
+      (px.struct-group? (px.getgrgid (px.getgid)))
+    => #t)
+
+  (check
+      (px.struct-group? (px.getgrnam (px.struct-group-gr_name (px.getgrgid (px.getgid)))))
+    => #t)
+
+  (check
+      (for-all px.struct-group? (px.group-entries))
     => #t)
 
   #t)
@@ -940,15 +1006,15 @@
 ;;; --------------------------------------------------------------------
 
   (check
-      (let ((S (px.gethostbyname "localhost")))
-;;;(check-pretty-print S)
-	(list (px.struct-hostent? S)
-	      (utf8->string (px.struct-hostent-h_name S))
-	      (px.struct-hostent-h_aliases   S)
-	      (px.struct-hostent-h_addrtype  S)
-	      (px.struct-hostent-h_length    S)
-	      (px.struct-hostent-h_addr_list S)
-	      (px.struct-hostent-h_addr      S)))
+    (let ((S (px.gethostbyname "localhost")))
+;;;      (check-pretty-print S)
+      (list (px.struct-hostent? S)
+	    (utf8->string (px.struct-hostent-h_name S))
+	    (px.struct-hostent-h_aliases   S)
+	    (px.struct-hostent-h_addrtype  S)
+	    (px.struct-hostent-h_length    S)
+	    (px.struct-hostent-h_addr_list S)
+	    (px.struct-hostent-h_addr      S)))
     => `(#t "localhost" () ,AF_INET 4 (#vu8(127 0 0 1)) #vu8(127 0 0 1)))
 
   (check
@@ -979,7 +1045,7 @@
       (for-all px.struct-hostent? (px.host-entries))
     => #t)
 
-;;;  (check-pretty-print (cons '/etc/hosts (px.host-entries)))
+;;;(check-pretty-print (cons '/etc/hosts (px.host-entries)))
 
 ;;; --------------------------------------------------------------------
 
@@ -987,109 +1053,113 @@
   ;;Maggi; Thu Nov 17, 2011).
   (when #f
     (check
-	(let* ((hints	(make-struct-addrinfo AI_CANONNAME AF_INET SOCK_STREAM 0 #f #f #f))
+	(let* ((hints	(px.make-struct-addrinfo AI_CANONNAME AF_INET SOCK_STREAM 0 #f #f #f))
 	       (rv	(px.getaddrinfo "localhost" "smtp" hints)))
-	  (for-all struct-addrinfo? rv))
+	  (for-all px.struct-addrinfo? rv))
       => #t)
 
     (check
 	(let ((rv (px.getaddrinfo "localhost" "smtp" #f)))
-	  (for-all struct-addrinfo? rv))
+	  (for-all px.struct-addrinfo? rv))
       => #t)
 
     (check
 	(let ((rv (px.getaddrinfo "localhost" #f #f)))
-	  (for-all struct-addrinfo? rv))
+	  (for-all px.struct-addrinfo? rv))
       => #t)
 
     #f)
 
-;;; --------------------------------------------------------------------
-
   (check
-      (let ((rv (px.getprotobyname "icmp")))
-;;;	(check-pretty-print rv)
-	(px.struct-protoent? rv))
+      (string? (px.gai-strerror EAI_FAMILY))
     => #t)
-
-  (check
-      (let ((rv (px.getprotobyname "udp")))
-;;;	(check-pretty-print rv)
-	(px.struct-protoent? rv))
-    => #t)
-
-  (check
-      (let ((rv (px.getprotobyname "tcp")))
-;;;	(check-pretty-print rv)
-	(px.struct-protoent? rv))
-    => #t)
-
-  (check
-      (let ((rv (px.getprotobynumber 6)))
-;;;	(check-pretty-print rv)
-	(px.struct-protoent? rv))
-    => #t)
-
-;;;  (check-pretty-print (px.protocol-entries))
 
 ;;; --------------------------------------------------------------------
 
-  (check
-      (let ((rv (px.getservbyname "smtp" "tcp")))
+    (check
+	(let ((rv (px.getprotobyname "icmp")))
 ;;;	(check-pretty-print rv)
-	(px.struct-servent? rv))
-    => #t)
+	  (px.struct-protoent? rv))
+      => #t)
 
-  (check
-      (let ((rv (px.getservbyname "http" "tcp")))
+    (check
+	(let ((rv (px.getprotobyname "udp")))
 ;;;	(check-pretty-print rv)
-	(px.struct-servent? rv))
-    => #t)
+	  (px.struct-protoent? rv))
+      => #t)
 
-  (check
-      (let ((rv (px.getservbyname "ntp" "tcp")))
+    (check
+	(let ((rv (px.getprotobyname "tcp")))
 ;;;	(check-pretty-print rv)
-	(px.struct-servent? rv))
-    => #t)
+	  (px.struct-protoent? rv))
+      => #t)
 
-  (check
-      (let ((rv (px.getservbyport 25 "tcp")))
+    (check
+	(let ((rv (px.getprotobynumber 6)))
 ;;;	(check-pretty-print rv)
-	(px.struct-servent? rv))
-    => #t)
+	  (px.struct-protoent? rv))
+      => #t)
 
-  (check
-      (for-all px.struct-servent? (px.service-entries))
-    => #t)
+;;; (check-pretty-print (px.protocol-entries))
+
+;;; --------------------------------------------------------------------
+
+    (check
+	(let ((rv (px.getservbyname "smtp" "tcp")))
+;;;	(check-pretty-print rv)
+	  (px.struct-servent? rv))
+      => #t)
+
+    (check
+	(let ((rv (px.getservbyname "http" "tcp")))
+;;;	(check-pretty-print rv)
+	  (px.struct-servent? rv))
+      => #t)
+
+    (check
+	(let ((rv (px.getservbyname "ntp" "tcp")))
+;;;	(check-pretty-print rv)
+	  (px.struct-servent? rv))
+      => #t)
+
+    (check
+	(let ((rv (px.getservbyport 25 "tcp")))
+;;;	(check-pretty-print rv)
+	  (px.struct-servent? rv))
+      => #t)
+
+    (check
+	(for-all px.struct-servent? (px.service-entries))
+      => #t)
 
 ;;;  (check-pretty-print (px.service-entries))
 
 ;;; --------------------------------------------------------------------
 
-  (when #f
+    (when #f
 
-    (check
-	(let ((rv (px.getnetbyname "loopback")))
-	  (check-pretty-print rv)
-	  (px.struct-netent? rv))
-      => #t)
+      (check
+	  (let ((rv (px.getnetbyname "loopback")))
+	    (check-pretty-print rv)
+	    (px.struct-netent? rv))
+	=> #t)
 
-    (check
-	(let ((rv (px.getnetbyaddr (bytevector-u32-ref '#vu8(127 0 0 0) 0 (endianness big))
-				   AF_INET)))
-	  (check-pretty-print rv)
-	  (px.struct-netent? rv))
-      => #t)
+      (check
+	  (let ((rv (px.getnetbyaddr (bytevector-u32-ref '#vu8(127 0 0 0) 0 (endianness big))
+				     AF_INET)))
+	    (check-pretty-print rv)
+	    (px.struct-netent? rv))
+	=> #t)
 
-    (check
-	(for-all px.struct-netent? (px.network-entries))
-      => #t)
+      (check
+	  (for-all px.struct-netent? (px.network-entries))
+	=> #t)
 
-    (check-pretty-print (px.network-entries))
+      (check-pretty-print (px.network-entries))
 
-    #f)
+      #f)
 
-  #t)
+    #t)
 
 
 (parametrise ((check-test-name	'net))
@@ -1631,6 +1701,19 @@
 
 
 ;;;; done
+
+(flush-output-port (current-output-port))
+(flush-output-port (current-error-port))
+
+(when #f
+  (fprintf (current-error-port) "running gc ")
+  (flush-output-port (current-error-port))
+  (do ((i 0 (+ 1 i)))
+      ((= i 1024))
+    (fprintf (current-error-port) "~a " i)
+    (flush-output-port (current-error-port))
+    (collect))
+  (check-newline))
 
 (check-report)
 

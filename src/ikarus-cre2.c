@@ -29,20 +29,22 @@
  ** Headers.
  ** ----------------------------------------------------------------- */
 
-#include "ikarus.h"
+#include "vicare.h"
+#include <stdio.h>
+#include <stdlib.h>
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
 
 #if (1 == ENABLE_CRE2)
 #  include <cre2.h>
 #else
-
 static IK_UNUSED void
 feature_failure_ (const char * funcname)
 {
-  fprintf(stderr, "Vicare error: called CRE2 specific function, %s\n", funcname);
-  exit(EXIT_FAILURE);
+  ik_abort("called CRE2 specific function, %s", funcname);
 }
 #define feature_failure(FN)     { feature_failure_(FN); return void_object; }
-
 #endif
 
 
@@ -120,17 +122,17 @@ ikrt_cre2_new (ikptr s_pattern, ikptr s_options, ikpcb * pcb)
   else {
     int  errcode = cre2_error_code(rex);
     if (errcode) {
-      ikptr	s_pair = IK_PAIR_ALLOC(pcb);
+      ikptr	s_pair = ika_pair_alloc(pcb);
       pcb->root0 = &s_pair;
       {
 	IK_CAR(s_pair) = IK_FIX(errcode);
-	IK_CDR(s_pair) = ik_bytevector_from_cstring(pcb, cre2_error_string(rex));
+	IK_ASS(IK_CDR(s_pair), ika_bytevector_from_cstring(pcb, cre2_error_string(rex)));
       }
       pcb->root0 = NULL;
       cre2_delete(rex);
       return s_pair;
     } else
-      return ik_pointer_alloc((unsigned long)rex, pcb);
+      return ika_pointer_alloc(pcb, (ik_ulong)rex);
   }
 #else
   return feature_failure(__func__);
@@ -148,7 +150,7 @@ ikrt_cre2_delete (ikptr s_rex)
   rex = IK_POINTER_DATA_VOIDP(s_rex);
   if (rex) {
     cre2_delete(rex);
-    ref(s_rex, off_pointer_data) = 0;
+    IK_POINTER_SET_NULL(s_rex);
   }
   return void_object;
 #else
@@ -172,8 +174,10 @@ ikrt_cre2_opt_new (ikpcb * pcb)
   cre2_options_t *	opt;
   opt = cre2_opt_new();
   if (opt) {
+    /* UTF8 is  the default in the  current release but I  set it anyway
+       (Marco Maggi; Jan 12, 2012). */
     cre2_opt_set_encoding(opt, CRE2_UTF8);
-    return ik_pointer_alloc((unsigned long)opt, pcb);
+    return ika_pointer_alloc(pcb, (ik_ulong)opt);
   } else
     return false_object; /* error allocating memory */
 #else
@@ -192,7 +196,7 @@ ikrt_cre2_opt_delete (ikptr s_opt)
   opt = IK_POINTER_DATA_VOIDP(s_opt);
   if (opt) {
     cre2_opt_delete(opt);
-    ref(s_opt, off_pointer_data) = 0;
+    IK_POINTER_SET_NULL(s_opt);
   }
   return void_object;
 #else
@@ -244,7 +248,7 @@ ikrt_cre2_opt_max_mem (ikptr s_opt, ikpcb * pcb)
   long			dim;
   opt = IK_POINTER_DATA_VOIDP(s_opt);
   dim = (long)cre2_opt_max_mem(opt);
-  return ik_integer_from_long(dim, pcb);
+  return ika_integer_from_long(pcb, dim);
 }
 
 
@@ -308,13 +312,14 @@ ikrt_cre2_match (ikptr s_rex, ikptr s_text, ikptr s_start, ikptr s_end, ikptr s_
     ikptr		s_match;
     int			i;
     cre2_strings_to_ranges(text_data, ranges, strings, nmatch);
-    s_match = ik_vector_alloc(pcb, nmatch);
+    s_match = ika_vector_alloc_and_init(pcb, nmatch);
     pcb->root0 = &s_match;
     {
       for (i=0; i<nmatch; ++i) {
-	IK_ITEM(s_match, i) = IK_PAIR_ALLOC(pcb);
-	IK_CAR(IK_ITEM(s_match, i)) = IK_FIX(ranges[i].start);
-	IK_CDR(IK_ITEM(s_match, i)) = IK_FIX(ranges[i].past);
+	ikptr	s_pair = IKA_PAIR_ALLOC(pcb);	/* first alloc... */
+	IK_ITEM(s_match, i) = s_pair;		/* ...then store */
+	IK_CAR(s_pair)      = IK_FIX(ranges[i].start);
+	IK_CDR(s_pair)      = IK_FIX(ranges[i].past);
       }
     }
     pcb->root0 = NULL;

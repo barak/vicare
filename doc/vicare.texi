@@ -122,6 +122,10 @@ Revised^6 Report on the algorithmic language Scheme
 @acronym{URL}
 @end macro
 
+@macro urldate{DATE}
+(@acronym{URL} last verified \DATE\)
+@end macro
+
 @macro ascii{}
 @acronym{ASCII}
 @end macro
@@ -532,7 +536,7 @@ Revised^6 Report on the algorithmic language Scheme
 
 @c To be used as @value{COPYRIGHT_YEARS} whenever we need to include the
 @c list of copyright years.
-@set COPYRIGHT_YEARS            2010-2011
+@set COPYRIGHT_YEARS            2010-2012
 
 
 @set TARBALLURL                 @url{http://github.com/marcomaggi/vicare/downloads}
@@ -5550,18 +5554,13 @@ Size, realloc}.  Reallocate the block of memory referenced by
 @var{pointer} to the new size @var{number-of-bytes}, which must be a
 non--negative fixnum.
 
-If successful return a new pointer object and release the memory
-referenced by @var{pointer}; @var{pointer} itself is mutated to hold the
-@cnull{} pointer.  If an error occurs: return @false{} and leave
-untouched both @var{pointer} and its referenced memory.
+If successful: mutate @var{pointer} to reference a the new memory block
+and return @var{pointer} itself.  If an error occurs: return @false{}
+and leave untouched both @var{pointer} and its referenced memory.
 
 Memory allocated by @func{realloc} must be released by @func{free};
 memory allocated by @func{guarded-realloc} is automatically released
 whenever the returned pointer object is garbage collected.
-
-If memory allocated by a guarding function is reallocated with
-@func{guarded-realloc}: @value{PRJNAME} will @strong{not} try to
-automatically release the old memory.
 @end defun
 
 
@@ -8665,6 +8664,24 @@ Function, setsockopt}.  Set a new value for @var{option} of socket
 unspecified values, else raise an exception.
 @end defun
 
+
+@defun getsockopt/int @var{sock} @var{level} @var{option}
+@defunx setsockopt/int @var{sock} @var{level} @var{option} @var{optval}
+Like @func{getsockopt} and @func{setsockopt} but specially handle the
+case of an option with value represented by a C language @code{int}.
+@var{optval} must appropriately be a boolean or an exact integer
+representable as a platform's C language @code{int}.
+@end defun
+
+
+@defun getsockopt/size_t @var{sock} @var{level} @var{option}
+@defunx setsockopt/size_t @var{sock} @var{level} @var{option} @var{optval}
+Like @func{getsockopt} and @func{setsockopt} but specially handle the
+case of an option with value represented by a C language @code{size_t}.
+@var{optval} must be an exact integer representable as a platform's C
+language @code{size_t}.
+@end defun
+
 @c page
 @node posix socket misc
 @subsection Error and miscellaneous functions
@@ -10113,8 +10130,8 @@ Expressions:
 @defun regcomp @var{pattern} @var{flags}
 Interface to the C function @cfunc{regcomp}, @glibcref{POSIX Regexp
 Compilation, regcomp}.  Compile the regular expression in @var{pattern}
-accoding to @var{flags}.  If successful return a bytevector referencing
-the compiled regexp, else raise an exception with condition components
+accoding to @var{flags}.  If successful return a pointer referencing the
+compiled regexp, else raise an exception with condition components
 @condition{error}, @condition{who}, @condition{message},
 @condition{irritants}.
 
@@ -10122,10 +10139,10 @@ the compiled regexp, else raise an exception with condition components
 expression.  @var{flags} must be a fixnum resulting from the bitwise
 combination (@func{fxior}) of @code{REG_} constants.
 
-The bytevector returned in case of success contains a @code{regex_t}
-data structure whose fields must be released explicitly by
-@func{regfree}, or they are automatically released by the garbage
-collector whenever the bytevector itself is collected.
+The pointer returned in case of success references a @code{regex_t} data
+structure whose fields must be released explicitly by @func{regfree}, or
+they are automatically released by the garbage collector whenever the
+pointer itself is collected.
 @end defun
 
 
@@ -10133,6 +10150,11 @@ collector whenever the bytevector itself is collected.
 Interface to the C function @cfunc{regexec}, @glibcref{Matching POSIX
 Regexps, regexec}.  Attempt to match @var{string} against the
 precompiled regular expression @var{regex} according to @var{flags}.
+
+@var{regex} must be a pointer returned by a previous call to
+@func{regcomp}; @var{string} must be a string or bytevector in @ascii{}
+encoding; @var{flags} must be a fixnum representing matching flags, we
+can use zero for no flags.
 
 If one or more matches occur return a vector holding pairs describing
 the portions of @var{string} that did match; if no match occurs return
@@ -10157,9 +10179,12 @@ the returned vector has at least one element.
 @defun regfree @var{regex}
 Interface to the C function @cfunc{regfree}, @glibcref{Regexp Cleanup,
 regfree}.  Release the resources associated to the compiled regular
-expression @var{regex}, which must be a bytevector, then clear the
-bytevector to zero.  Releasing occurs only if at least one byte of
-@var{regex} is non--zero.
+expression @var{regex}, which must be a pointer.
+
+It is safe to apply this function multiple times to the same @var{regex}
+pointer object: releasing occurs only if the first time, subsequent
+applications do nothing.  After the resources have been released:
+@var{regex} is reset to @cnull{}.
 @end defun
 
 @c page
@@ -14021,7 +14046,7 @@ initialised to nil.
 Built in Scheme objects are mostly implemented in the C language portion
 of the source code, but many core operations are also reimplemented at
 the Scheme level.  The overall definitions are in the C language file
-@file{ikarus.h} and the definition of many values is duplicated in the
+@file{vicare.h} and the definition of many values is duplicated in the
 Scheme language compiler @file{ikarus.compiler.sls}.
 
 @menu
@@ -14061,7 +14086,7 @@ interpretations:
 @table @strong
 @item Immediate values
 Objects that fit in a single machine word: special constants, fixnums,
-characters and transcoders.
+characters and input/output port transcoders.
 
 @item Reference values
 Objects allocated on the heap and subject to garbage collection; they
@@ -14086,8 +14111,8 @@ reference @ikptr{} values have two minor interpretations:
 
 @table @strong
 @item Vector tagged references
-Pointer values whose @math{3} least significant bits are set to the
-vector tag.  They reference multiword objects allocated on the heap:
+Memory pointer values whose @math{3} least significant bits are set to
+the vector tag.  They reference multiword objects allocated on the heap:
 vectors, bignums, structures, flonums, ratnums, compnums, cflonums,
 continuations, code, ports, symbols, pointers.
 
@@ -14117,23 +14142,24 @@ the underlying platform.
 @end deftp
 
 
-@deffn {Preprocessor Macro} int IK_TAGOF (ikptr @var{ref})
+@deftypefn {Preprocessor Macro} int IK_TAGOF (ikptr @var{ref})
 Return an integer representing the @math{3} least significant bits of an
 @ikptr{} value.
-@end deffn
+@end deftypefn
 
 
-@deffn {Preprocessor Macro} ikptr ref (ikptr @var{value_ref}, long @var{byte_offset})
+@deftypefn {Preprocessor Macro} ikptr IK_REF (ikptr @var{value_ref}, long @var{byte_offset})
+@deftypefnx {Preprocessor Macro} ikptr ref (ikptr @var{value_ref}, long @var{byte_offset})
 Getter and setter for machine words allocated on the heap.  Interpret
 @var{value_ref} as a pointer to an array of @ikptr{} and locate the
-value at @var{byte_offset}.  A use of this macro can appear both as
-operand and as left--side of an assignment.
+value at the zero--based @var{byte_offset}.  A use of this macro can
+appear both as operand and as left--side of an assignment.
 
 @example
 ikptr   P, Q;
 
-Q = ref(P, 3);     /* retrieve the 3rd word */
-ref(P, 1) = 123L;  /* store a value in the 1st word */
+Q = IK_REF(P, 2);     /* retrieve the 3rd word */
+IK_REF(P, 0) = 123L;  /* store a value in the 1st word */
 @end example
 
 Both @var{value_ref} and @var{byte_offset} are first cast to @code{long}
@@ -14142,7 +14168,12 @@ values, then added and the sum is cast to @code{ikptr *}.
 Values for @var{byte_offset} are usually precomputed and take into
 account a component used to remove the tag from the pointer in
 @var{value_ref}.
-@end deffn
+
+@quotation
+@strong{NOTE} @cfunc{ref} is defined only in the internal header file
+and its use is deprecated.
+@end quotation
+@end deftypefn
 
 @c ------------------------------------------------------------
 
@@ -14193,8 +14224,8 @@ references to values which have been already garbage collected.
 @end defmac
 
 The variable values that fit in a single machine word are fixnums,
-characters and transcoders.  The last byte of these machine words is
-tagged as follows:
+characters and port transcoders.  The last byte of these machine words
+is tagged as follows:
 
 @example
    object      |  tag bits  | tag hex | mask bits
@@ -14212,11 +14243,30 @@ to identify a fixnum we can do:
 ikptr   X;
 
 if (fx_tag == (X & fx_mask))
-  is_a_fixnum();
+  it_is_a_fixnum();
+else
+  it_is_not();
 @end example
 
 @noindent
-the same for the other immediate variable values.
+or just use the macro @cfunc{IK_IS_FIXNUM}; similarly for for the other
+immediate variable values.
+
+Notice that a @cnull{} pointer stored in a @ikptr{} with zero bits as
+tag represents the fixnum zero; also, the zero tag bits for fixnums are
+in such a number that: a tagged @ikptr{} fixnum can be interpreted as
+the number of bytes needed to hold a number of machine words equal to
+the number represented by the fixnum itself, that is the following holds
+true:
+
+@example
+long    number_of_words = ...;
+
+number_of_words * wordsize == number_of_words << fx_shift;
+@end example
+
+@noindent
+where @code{fx_shift} is the number of bits in the fixnum's tag.
 
 @c ------------------------------------------------------------
 
@@ -14262,11 +14312,12 @@ to zero.
 The vector tag is used to tag machine word references to multiple object
 types: vectors, bignums, structures, flonums, ratnums, compnums,
 cflonums, continuations, code, ports, symbols, pointers, system
-continuations.
+continuations.  The first word in the memory block of these types has
+the least significant bits set to a secondary tag.
 
 All the possible values for @math{3}-bit tags in reference values are
-already allocated; new object types can be added only as subtypes of
-values whose references are tagged as vector.
+already allocated; new object types can be added only defining a new
+secondary tag with references tagged as vector.
 
 While the @api{} defines predicates to recognise values, to identify a
 type--specific reference we can do:
@@ -14275,22 +14326,26 @@ type--specific reference we can do:
 ikptr   X;
 
 if (pair_tag == (X & pair_mask))
-  is_a_pair();
+  it_is_a_pair();
+else
+  it_is_not();
 @end example
 
 @noindent
-the same for the other types.  The vector tag acts as @dfn{primary tag};
-a @dfn{secondary tag} is stored in the least significant bits of the
-referenced vector of words on the heap; to recognise such values we can
-do:
+similarly for the other types.  The vector tag acts as @dfn{primary
+tag}; a @dfn{secondary tag} is stored in the least significant bits of
+the referenced vector of words on the heap; to recognise such values we
+can do:
 
 @example
 ikptr  X;
 
 if ((vector_tag    == (X & vector_tag)) &&
     (secondary_tag == (secondary_mask
-                       & ref(X, -vector_tag))))
+                       & IK_REF(X, -vector_tag))))
   it_is();
+else
+  it_is_not();
 @end example
 
 @noindent
@@ -14333,12 +14388,13 @@ elements.
 
 @item Bignums
 The first word uses the @math{3} least significant bits as tag, the
-@math{4}th bit representing the sign and the remaining bits representing
-the number of words in the bignum data area.
+@math{4}th bit representing the sign (@math{0} for positive, @math{1}
+for negative) and the remaining bits representing the number of words in
+the bignum data area.
 
 @item Structures
 The first word is tagged as vector, because the first word of a
-structure is itself a structure: the type descriptor.
+structure is itself a reference to a structure: the type descriptor.
 
 @item Ports
 The most significant bits of the first word are used for port
@@ -14350,18 +14406,41 @@ attributes.
 @section Memory allocation and collection
 
 
-In short, memory allocation is performed as follows:
+In short, memory allocation which may trigger a garbage collection is
+performed as follows:
 
 @example
-ikpcb     pcb = the_pcb;
+ikpcb *   pcb = the_pcb;
 long int  number_of_bytes = the_number_of_bytes;
 ikptr     p = ik_safe_alloc(pcb, IK_ALIGN(number_of_bytes));
 @end example
 
 @noindent
-where @code{pcb} is a pointer to the ``Process Control Block'' data
-structure.  Memory blocks subject to garbage collection are allocated on
-the heap, a contiguous region of memory:
+while memory allocation without garbage collection is performed as
+follows:
+
+@example
+ikpcb *   pcb = the_pcb;
+long int  number_of_bytes = the_number_of_bytes;
+ikptr     p = ik_unsafe_alloc(pcb, IK_ALIGN(number_of_bytes));
+@end example
+
+@noindent
+where @code{p} is an untagged memory pointer and @code{pcb} is a pointer
+to the ``Process Control Block'' data structure.
+
+To add a tag, for example the @code{vector_tag}, to an untagged memory
+pointer we can do:
+
+@example
+ikpcb * pcb = the_pcb;
+long    len = IK_ALIGN(the_number_of_bytes);
+ikptr   ref = ik_safe_alloc(pcb, len) | vector_tag;
+@end example
+
+Objects subject to garbage collection are allocated on the Scheme heap,
+which is an array of contiguous memory segments; the next object is
+allocated in the ``current segment'' of the heap:
 
 @example
     allocated  allocated      allocated
@@ -14379,16 +14458,16 @@ purposes:
 
 @enumerate
 @item
-To make pointer indirection efficient on the underlying platform.
+To make pointer indirection efficient for the underlying platform.
 
 @item
 To have pointer values with the @math{3} least significant bits set to
-zero, so that such bits can be used to hold an object type tag.
+zero, so that such bits can be used to hold an object's type tag.
 @end enumerate
 
 @noindent
 for these reasons we must always filter the requested size (in bytes)
-through the @cfunc{IK_ALIGN} macro.  The @code{pcb} always references a
+through the @cfunc{IK_ALIGN} macro.  The @pcb{} always references a
 ``pointer to the next free block'' with alignment constraints satisfied;
 if we filter the requested number of bytes through @cfunc{IK_ALIGN}, we
 obtain a number of bytes which, added to the pointer, gives a correctly
@@ -14396,8 +14475,8 @@ aligned pointer:
 
 @example
 uint8_t * allocated_block = (uint8_t *)pcb->allocation_pointer;
-long int  requested_size  = ...;
-long int  align_size      = IK_ALIGN(requested_size);
+long      requested_size  = ...;
+long      align_size      = IK_ALIGN(requested_size);
 uint8_t * next_free_block = allocated_block + align_size;
 pcb->allocation_pointer   = (ikptr)next_free_block;
 
@@ -14416,17 +14495,21 @@ pcb->allocation_pointer   = (ikptr)next_free_block;
 @end example
 
 
-@deftypevar {ikpcb *} the_pcb
+@deftypevr {Global Variable} {ikpcb *} the_pcb
 Global variable referencing the process control block.  It is rarely
 needed because when calling a C function from Scheme a pointer to the
-@pcb{} is always pushed on the stack as last argument.
-@end deftypevar
+@pcb{} is always pushed on the C stack as last argument.
+@end deftypevr
 
 
-@deftypefn {Preprocessor Macro} long IK_ALIGN (long @var{number_of_bytes})
+@deftypefn {Preprocessor Macro} {unsigned long} IK_ALIGN (unsigned long @var{number_of_bytes})
 Convert @var{number_of_bytes} to the number of bytes requested to
-satisfy pointer alignment constraints.  We can simulate the computation
-with:
+satisfy pointer alignment constraints.  The aligned size is always an
+exact multiple of the underlying platform's word size (32-bit or
+64-bit); precisely: it is the smallest multiple of the wordsize which is
+greater than @var{number_of_bytes}.
+@ignore
+We can simulate the computation with:
 
 @example
 (import (ikarus))
@@ -14462,6 +14545,7 @@ with:
   (print-align 17)
   (print-align 1234))
 @end example
+@end ignore
 @end deftypefn
 
 
@@ -14471,138 +14555,216 @@ Allocate a memory block on the heap and return a reference to it as an
 block, @var{align_size} must be the requested number of bytes filtered
 through @cfunc{IK_ALIGN}.
 
-If not enough memory is available on the heap, a garbage collection is
-triggered; then allocation is tried again: if it still fails the process
-is terminated with exit status @code{-1}.
+If not enough memory is available on the current heap segment: a garbage
+collection is triggered; then allocation is tried again: if it still
+fails the process is terminated with exit status @code{EXIT_FAILURE}.
 @end deftypefun
+
+
+@deftypefun ikptr ik_unsafe_alloc (ikpcb * @var{pcb}, unsigned long @var{align_size})
+Allocate a memory block on the Scheme heap and return a reference to it
+as an @strong{untagged} pointer.  @var{pcb} must reference the process
+control block, @var{align_size} must be the requested number of bytes
+filtered through @cfunc{IK_ALIGN}.
+
+If not enough memory is available on the current heap segment: a new
+heap segment is allocated; if such allocation fails: the process is
+terminated with exit status @code{EXIT_FAILURE}.
+
+We notice explicitly that this function @strong{does not} trigger a
+garbage collection run, so, when using it, it is not needed to register
+C pointers as garbage collection roots.
+@end deftypefun
+
+
+@deffn {Preprocessor Macro} IK_ASS (ikptr @var{left}, ikptr @var{right})
+Perform a C language assignment enforcing the order of evaluation of the
+left--side and right--side expressions.  First evaluate @var{right},
+then evaluate @var{left}, finally store the result of @var{right} in the
+lvalue resulting from evaluating @var{left}.
+@end deffn
 
 @c ------------------------------------------------------------
 
 @subsubheading Writing correct C language code
 
 The garbage collector considers an object ``in use'' if at least one
-reference to it is on the heap or referenced by the fields @code{root0}
-and @code{root1} of the @code{ikpcb} structure; if an @ikptr{} reference
-is on the stack or in a @acronym{CPU} register, the garbage collector
-will not see it.  This allows to avoid scanning the process' stack for
-references to values, but imposes care when writing C language code.
+reference to it is reachable from the roots of the garbage collection;
+if an @ikptr{} reference exists only in a @acronym{CPU} register or on
+the C language stack, or on the C language heap out of segments
+allocated for Scheme: the garbage collector will not see it.  This
+allows to avoid scanning the full process' stack for references to
+values, but imposes care when writing C language code.
 
-Whenever we call @cfunc{ik_safe_alloc} a garbage collection may be run;
-so, before the call, we must make sure that all the Scheme objects we
-are using are reachable; after the call we must reobtain all the
-pointers to the internals of the objects we are using.
+Whenever we call @cfunc{ik_safe_alloc} or a function relying on it for
+memory allocation: a garbage collection may run and Scheme objects may
+be moved from their location in memory to another memory segment; this
+renders invalid all the pointers in the @acronym{CPU} registers, on the
+C stack and the C heap.  Notice that this includes the arguments to C
+functions called from Scheme through the macro @func{foreign-call}.
 
-@strong{Correct code}: @code{s_one} is protected while allocating
-@code{s_two}:
+We must write C code with the following constraints:
+
+@itemize
+@item
+Before a call to @cfunc{ik_safe_alloc}: we must make sure that all the
+Scheme objects we are using in C code are reachable by the garbage
+collector.  This is done by registering an object as garbage collector
+root through the @code{root} fields of the @pcb{}.
+
+@item
+After a call to @cfunc{ik_safe_alloc}: we must reobtain all the pointers
+to the internals of the objects we are using.
+@end itemize
+
+To help identification of C functions and macros allocating memory: the
+ones calling @cfunc{ik_safe_alloc} are prefixed with @code{ika_} and
+@code{IKA_}; the ones calling @cfunc{ik_unsafe_alloc} are prefixed with
+@code{iku_} and @code{IKU_}.
+
+Example of @strong{correct} code: @code{s_one} is protected while
+allocating @code{s_two}:
 
 @example
 ikpcb * pcb = the_pcb;
 ikptr   s_one, s_two;
 
-s_one = ik_bytevector_alloc(pcb, 10);
+s_one = ika_bytevector_alloc(pcb, 10);
 pcb->root0 = &s_one;
 @{
-  s_two = ik_bytevector_alloc(pcb, 10);
+  s_two = ika_bytevector_alloc(pcb, 10); /* GOOD */
 @}
 pcb->root0 = NULL;
 @end example
 
 @noindent
-@strong{wrong code}: after the second call to
-@cfunc{ik_bytevector_alloc} the value in @code{s_two} may be invalid:
+example of @strong{wrong} code: after the second call to the allocation
+function the value in @code{s_one} may be invalid:
 
 @example
 ikpcb * pcb = the_pcb;
 ikptr   s_one, s_two;
 
-s_one = ik_bytevector_alloc(pcb, 10);
-s_two = ik_bytevector_alloc(pcb, 10);
+s_one = ika_bytevector_alloc(pcb, 10);
+s_two = ika_bytevector_alloc(pcb, 10);
+/* do something with "s_one" and "s_two" */ /* WRONG */
 @end example
 
-@strong{Correct code}: @code{s_one} and @code{s_two} are protected while
-allocating @code{s_three}:
+Example of @strong{correct} code: @code{s_one} is protected while
+allocating @code{s_two} and after the second allocation the pointer to
+the data area of @code{s_one} is retrieved again:
 
 @example
 ikpcb * pcb = the_pcb;
-ikptr   s_one, s_two, s_three;
+ikptr   s_one;
+ikptr   s_two;
+char *  one;
+char *  two;
 
-s_one = ik_bytevector_alloc(pcb, 10);
+s_one = ika_bytevector_alloc(pcb, 10);
+one   = IK_BYTEVECTOR_DATA_CHARP(s_one);
+/* do something with "one" */
 pcb->root0 = &s_one;
 @{
-  s_two = ik_bytevector_alloc(pcb, 10);
-  pcb->root1 = &s_two;
-  @{
-    s_three = ik_bytevector_alloc(pcb, 10);
-  @}
-  pcb->root1 = NULL;
+  s_two = ika_bytevector_alloc(pcb, 10);
 @}
 pcb->root0 = NULL;
+one   = IK_BYTEVECTOR_DATA_CHARP(s_one); /* GOOD */
+two   = IK_BYTEVECTOR_DATA_CHARP(s_two);
+/* do something with "one" and "two" */
 @end example
 
-@strong{Correct code}: all the bytevectors are protected while the
-allocation proceeds:
+@noindent
+example of @strong{wrong} code: after the second call to the allocation
+function the pointer to the data area of @code{s_one} may be invalid:
 
 @example
 ikpcb * pcb = the_pcb;
+ikptr   s_one;
+ikptr   s_two;
+char *  one;
+char *  two;
+
+s_one = ika_bytevector_alloc(pcb, 10);
+one   = IK_BYTEVECTOR_DATA_CHARP(s_one);
+/* do something with "one" */
+pcb->root0 = &s_one;
+@{
+  s_two = ika_bytevector_alloc(pcb, 10);
+@}
+pcb->root0 = NULL;
+two   = IK_BYTEVECTOR_DATA_CHARP(s_two);
+/* do something with "one" and "two" */ /* WRONG */
+@end example
+
+Notice that, according to the C standard Section 6.5.16 ``Assignment
+operators'': the order of evaluation of the operands is
+unspecified@footnote{For an introduction to such problems see
+@urldate{Jan 12, 2012}:
+
+@center @url{http://en.wikipedia.org/wiki/Sequence_point}
+}.  In the following code:
+
+@example
+IK_CAR(s_pair) = ika_bytevector_alloc(pcb, 8); /* WRONG */
+@end example
+
+@noindent
+the left--side expression may be evaluated before the right--side one,
+resulting in the value referenced by @code{s_pair} to be invalid when
+the memory assigment actually takes place; so we have to code:
+
+@example
 ikptr   s_tmp;
-ikptr   s_one, s_two, s_three, s_four, s_five;
-
-s_tmp = ik_vector_alloc(pcb, 5);
-pcb->root0 = &s_tmp;
-@{
-  s_one   = IK_VECTOR_SET(s_tmp, 0) \
-          = ik_bytevector_alloc(pcb, 10);
-  s_two   = IK_VECTOR_SET(s_tmp, 1) \
-          = ik_bytevector_alloc(pcb, 10);
-  s_three = IK_VECTOR_SET(s_tmp, 2) \
-          = ik_bytevector_alloc(pcb, 10);
-  s_four  = IK_VECTOR_SET(s_tmp, 3) \
-          = ik_bytevector_alloc(pcb, 10);
-  s_five  = IK_VECTOR_SET(s_tmp, 4) \
-          = ik_bytevector_alloc(pcb, 10);
-@}
-pcb->root0 = NULL;
+s_tmp          = ika_bytevector_alloc(pcb, 8); /* GOOD */
+IK_CAR(s_pair) = s_tmp;
 @end example
 
-@strong{Correct code}: after the second call to
-@cfunc{ik_bytevector_alloc} the pointer to the data area of @code{s_one}
-is retrieved again:
+@noindent
+or:
+
+@example
+IK_ASS(IK_CAR(s_pair), ika_bytevector_alloc(pcb, 8)); /* GOOD */
+@end example
+
+@noindent
+yes, it is a hard life.
+
+Let's consider the following snippet, which is @strong{wrong}:
 
 @example
 ikpcb * pcb = the_pcb;
 ikptr   s_one, s_two;
-char *  one;
 
-s_one = ik_bytevector_alloc(pcb, 10);
-one   = IK_BYTEVECTOR_DATA_CHARP(s_one);
+s_one = IKA_PAIR_ALLOC(pcb); /* WRONG */
 pcb->root0 = &s_one;
 @{
-  s_two = ik_bytevector_alloc(pcb, strlen(one));
-  one   = IK_BYTEVECTOR_DATA_CHARP(s_one);
+  s_two = IKA_PAIR_ALLOC(pcb);
 @}
 pcb->root0 = NULL;
 @end example
 
 @noindent
-@strong{wrong code}: after the second call to
-@cfunc{ik_bytevector_alloc} the location referenced by @code{one} is
-unknown:
+when the second pair is allocated, the first pair has car and cdr still
+uninitialised: the content of these words is undefined; this may cause
+undefined behaviour while the second allocation takes place and the
+garbage collection tries to scan the first pair.  The @strong{correct}
+code is:
 
 @example
 ikpcb * pcb = the_pcb;
 ikptr   s_one, s_two;
-char *  one;
 
-s_one = ik_bytevector_alloc(pcb, 10);
-one   = IK_BYTEVECTOR_DATA_CHARP(s_one);
+s_one = ika_pair_alloc(pcb); /* GOOD */
 pcb->root0 = &s_one;
 @{
-  s_two = ik_bytevector_alloc(pcb, strlen(one));
+  s_two = IKA_PAIR_ALLOC(pcb);
 @}
 pcb->root0 = NULL;
 @end example
 
-
+@noindent
+because @cfunc{ika_pair_alloc} initialises the car and the cdr.
 
 @c page
 @node objects fixnums
@@ -14638,6 +14800,19 @@ size is @math{4} bytes; then the representation of a fixnum is:
 @noindent
 the two least significant bits are set to zero: this ``tags'' the
 machine words which embed fixnums.
+
+The fixnums tag is @code{00} on 32-bit platforms and @code{000} on
+64-bit platforms; the value is selected in such a way that:
+
+@example
+length_in_bytes = number_of_words *  fx_tag
+                = number_of_words << fx_tag
+@end example
+
+@noindent
+this allows us, for example, to take the fixnum representing the number
+of items in a vector and consider it directly as size of the vector's
+data area in bytes.
 
 
 @deftypefn {Preprocessor Macro} ikptr IK_FIX (@var{num})
@@ -14704,8 +14879,8 @@ the car and cdr of a pair are extracted as follows:
 @example
 ikptr   s_pair, s_car, s_cdr;
 
-s_car = ref(s_pair, off_car);
-s_cdr = ref(s_pair, off_cdr);
+s_car = IK_REF(s_pair, off_car);
+s_cdr = IK_REF(s_pair, off_cdr);
 @end example
 
 @noindent
@@ -14714,8 +14889,8 @@ the car and cdr of a pair are set as follows:
 @example
 ikptr   s_pair, s_car, s_cdr;
 
-ref(s_pair, off_car) = s_car;
-ref(s_pair, off_cdr) = s_car;
+IK_REF(s_pair, off_car) = s_car;
+IK_REF(s_pair, off_cdr) = s_car;
 @end example
 
 @noindent
@@ -14752,6 +14927,18 @@ Evaluate to true if the machine word @var{X} is tagged as pair.
 @end deftypefn
 
 
+@deftypefn {Preprocessor Macro} ikptr IKA_PAIR_ALLOC (ikpcb * @var{pcb})
+Allocate a new pair object using @cfunc{ik_safe_alloc} and return a
+tagged reference to it.  The pair is left @strong{uninitialised}.
+@end deftypefn
+
+
+@deftypefn {Preprocessor Macro} ikptr IKU_PAIR_ALLOC (ikpcb * @var{pcb})
+Allocate a new pair object using @cfunc{ik_unsafe_alloc} and return a
+tagged reference to it.  The pair is left @strong{uninitialised}.
+@end deftypefn
+
+
 @deftypefn {Preprocessor Macro} ikptr IK_CAR (ikptr @var{pair})
 @deftypefnx {Preprocessor Macro} ikptr IK_CDR (ikptr @var{pair})
 Evaluate to the locations of the car and cdr of a pair; uses of these
@@ -14761,6 +14948,13 @@ macros can appear both as operands and as left--side of assignments.
 @c ------------------------------------------------------------
 
 @subsubheading Operations on pairs and lists
+
+
+@deftypefun ikptr ika_pair_alloc (ikpcb * @var{pcb})
+Allocate and return a new pair object using @cfunc{ik_unsafe_alloc} and
+return a tagged reference to it.  Both the car and cdr are initialised
+to @code{void_object}.
+@end deftypefun
 
 
 @deftypefun long ik_list_length (ikptr @var{list})
@@ -14788,14 +14982,14 @@ referenced by @var{argc} must be wide enough to hold all the lengths.
 @end deftypefun
 
 
-@deftypefun ikptr ik_list_from_argv (ikpcb * @var{pcb}, char ** @var{argv})
+@deftypefun ikptr ika_list_from_argv (ikpcb * @var{pcb}, char ** @var{argv})
 Given a pointer @var{argv} to a @cnull{}--terminated array of @asciiz{}
 strings build and return a list of bytevectors holding a copy of the
 @asciiz{} strings.  Make use of @code{pcb->root1}.
 @end deftypefun
 
 
-@deftypefun ikptr ik_list_from_argv_and_argc (ikpcb * @var{pcb}, char ** @var{argv}, int @var{argc})
+@deftypefun ikptr ika_list_from_argv_and_argc (ikpcb * @var{pcb}, char ** @var{argv}, int @var{argc})
 Given a pointer @var{argv} to an array of @asciiz{} strings holding
 @var{argc} pointers: build and return a list of bytevectors holding a
 copy of the @asciiz{} strings.  Make use of @code{pcb->root1}.
@@ -14809,8 +15003,8 @@ copy of the @asciiz{} strings.  Make use of @code{pcb->root1}.
 The suggested way to allocate and initialise a pair is as follows:
 
 @example
-ikpcb * pcb    = ...;
-ikptr   s_pair = IK_PAIR_ALLOC(pcb);
+ikpcb * pcb    = the_pcb;
+ikptr   s_pair = ika_pair_alloc(pcb);
 
 pcb->root0 = &s_pair;
 @{
@@ -14828,25 +15022,34 @@ Let's say we need to build a list of bytevectors from @asciiz{} strings
 in the array @code{argv} and there are @code{argc} of them:
 
 @example
-ikpcb * pcb  = the_pcb;
-char ** argv = ...;
-long    argc = ...;
-ikptr   s_list, s_pair, s_new;
-long    i;
+ikpcb *  pcb  = the_pcb;
+char **  argv = ...;
+long     argc = ...;
+ikptr    s_list, s_pair;
 
-s_list = s_pair = IK_PAIR_ALLOC(pcb);
-pcb->root1 = &s_list;
-@{
-  for (i=0; i<argc;) @{
-    IK_CAR(s_pair) = ik_bytevector_from_cstring(pcb, argv[i]);
-    if (++i < argc) @{
-      s_new  = IK_CDR(s_pair) = IK_PAIR_ALLOC(pcb);
-      s_pair = s_new;
-    @} else
-      IK_CDR(s_pair) = null_object;
+if (argc) @{
+  ikptr    s_spine;
+  s_list = s_spine = ika_pair_alloc(pcb);
+  pcb->root0 = &s_list;
+  pcb->root1 = &s_spine;
+  @{
+    long   i;
+    for (i=0; i<argc;) @{
+      IK_ASS(IK_CAR(s_spine),
+             ik_bytevector_from_cstring(pcb, argv[i]));
+      if (++i < argc) @{
+        IK_ASS(IK_CDR(s_spine), ika_pair_alloc(pcb));
+        s_spine = IK_CDR(s_spine);
+      @} else @{
+        IK_CDR(s_spine) = null_object;
+        break;
+      @}
+    @}
   @}
-@}
-pcb->root1 = NULL;
+  pcb->root1 = NULL;
+  pcb->root0 = NULL;
+@} else
+  s_list = null_object;
 
 /* make use of S_LIST */
 @end example
@@ -14918,7 +15121,7 @@ looks like this:
 
 @example
 ikptr
-ik_bytevector_alloc (ikpcb * pcb, long bv_len)
+ika_bytevector_alloc (ikpcb * pcb, long bv_len)
 @{
   long   align_size;
   ikptr  bv;
@@ -14926,7 +15129,7 @@ ik_bytevector_alloc (ikpcb * pcb, long bv_len)
   align_size = IK_ALIGN(disp_bytevector_data + bv_len + 1);
   bv         = ik_safe_alloc(pcb, align_size)
                | bytevector_tag;
-  ref(bv, off_bytevector_length) = IK_FIX(bv_len);
+  IK_REF(bv, off_bytevector_length) = IK_FIX(bv_len);
   data = (char *)(long)(bv + off_bytevector_data);
   data[bv_len] = '\0';
   return bv;
@@ -15007,7 +15210,7 @@ Return a pointer referencing the first byte in the data area of
 @subsubheading Operations on bytevectors
 
 
-@deftypefun ikptr ik_bytevector_alloc (ikpcb * @var{pcb}, long @var{requested_number_of_bytes})
+@deftypefun ikptr ika_bytevector_alloc (ikpcb * @var{pcb}, long @var{requested_number_of_bytes})
 Allocate, initialise and return a new bytevector capable of holding the
 specified number of bytes.  The contents of the data area are
 unspecified.
@@ -15087,7 +15290,7 @@ ik_vector_alloc (ikpcb * pcb, long number_of_items)
   align_size = IK_ALIGN(disp_vector_data
                         + number_of_items * wordsize);
   vec        = ik_safe_alloc(pcb, align_size) | vector_tag;
-  ref(vec, off_vector_length) = IK_FIX(number_of_items);
+  IK_REF(vec, off_vector_length) = IK_FIX(number_of_items);
   return vec;
 @}
 @end example
@@ -15096,9 +15299,9 @@ To fill a vector of @math{3} items with fixnums we should do:
 
 @example
 ikptr  s_vec = the_vector;
-ref(s_vec, off_vector_data + 0 * wordsize) = IK_FIX(10);
-ref(s_vec, off_vector_data + 1 * wordsize) = IK_FIX(20);
-ref(s_vec, off_vector_data + 2 * wordsize) = IK_FIX(30);
+IK_REF(s_vec, off_vector_data + 0 * wordsize) = IK_FIX(10);
+IK_REF(s_vec, off_vector_data + 1 * wordsize) = IK_FIX(20);
+IK_REF(s_vec, off_vector_data + 2 * wordsize) = IK_FIX(30);
 @end example
 
 @noindent
@@ -15107,7 +15310,7 @@ to retrieve the item at index @math{2} we do:
 @example
 long   index  = 2;
 ikptr  s_vec  = the_vector;
-ikptr  s_item = ref(s_vec, off_vector_data + index * wordsize);
+ikptr  s_item = IK_REF(s_vec, off_vector_data + index * wordsize);
 @end example
 
 @noindent
@@ -15115,7 +15318,7 @@ and to retrieve the vector length:
 
 @example
 ikptr  s_vec    = the_vector;
-ikptr  s_length = ref(s_vec, off_vector_length);
+ikptr  s_length = IK_REF(s_vec, off_vector_length);
 long   length   = IK_UNFIX(s_length);
 @end example
 
@@ -15328,7 +15531,7 @@ ik_struct_alloc (ikpcb * pcb, ikptr rtd, long number_of_fields)
                               number_of_fields * wordsize);
   ikptr stru       = ik_safe_alloc(pcb, align_size)
                      | record_tag;
-  ref(stru, off_record_rtd) = rtd;
+  IK_REF(stru, off_record_rtd) = rtd;
   return stru;
 @}
 @end example
@@ -15340,7 +15543,7 @@ to recognise an @ikptr{} value as reference to a structure we do:
 ikptr   R = the_value;
 
 if ((record_tag == (record_mask & R)) &&
-    (record_tag == (record_mask & ref(R, off_record_rtd))))
+    (record_tag == (record_mask & IK_REF(R, off_record_rtd))))
   it_is_a_structure();
 else
   it_is_not();
@@ -15354,7 +15557,7 @@ to store a value in field @math{2} of a structure we do:
 ikptr  s_stru  = the_structure;
 ikptr  s_field = the_field;
 
-ref(s_stru, off_record_data + 2 * wordsize) = the_field;
+IK_REF(s_stru, off_record_data + 2 * wordsize) = the_field;
 @end example
 
 @noindent
@@ -15364,7 +15567,7 @@ and to retrieve a the value of field @math{2} we do:
 ikptr  s_stru  = the_structure;
 ikptr  s_field;
 
-s_field = ref(s_stru, off_record_data + 2 * wordsize);
+s_field = IK_REF(s_stru, off_record_data + 2 * wordsize);
 @end example
 
 
@@ -15620,7 +15823,7 @@ value of @func{greatest-fixnum}.
 @end example
 
 All the remaining space in the memory block is filled with 32-bit
-unsigned integers representing Scheme characters.
+unsigned integers representing Scheme characters as Unicode code points.
 
 @c ------------------------------------------------------------
 
@@ -15657,7 +15860,7 @@ ik_string_alloc (ikpcb * pcb, long number_of_chars)
   align_size = IK_ALIGN(disp_string_data
                         + number_of_chars * sizeof(ikchar));
   str        = ik_safe_alloc(pcb, align_size) | string_tag;
-  ref(str, off_string_length) = IK_FIX(number_of_chars);
+  IK_REF(str, off_string_length) = IK_FIX(number_of_chars);
   return str;
 @}
 @end example
@@ -15688,7 +15891,7 @@ and to retrieve the string length:
 
 @example
 ikptr  s_str    = the_string;
-ikptr  s_length = ref(s_str, off_string_length);
+ikptr  s_length = IK_REF(s_str, off_string_length);
 long   length   = IK_UNFIX(s_length);
 @end example
 
