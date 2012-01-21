@@ -7,8 +7,9 @@ Subject: [announce] Vicare Scheme revision 0.2d6
 Vicare Scheme is an R6RS compliant fork of Ikarus Scheme, aiming to be a
 native compiler for R6 Scheme producing single threaded programs running
 on  Intel x86 32-bit  processors, with  experimental support  for 64-bit
-machines; it  implements a foreign-functions interface  based on Libffi.
-"Vicare" is pronounced the etruscan way.
+machines; it is tested only  on GNU+Linux, no official support for other
+platforms is present.  It implements a foreign-functions interface based
+on Libffi.  "Vicare" is pronounced the etruscan way.
 
   The latest  version of this package  can be downloaded  from Github or
 Google Code:
@@ -41,12 +42,20 @@ collection of R6 Scheme libraries:
 Notes for revision 0.2d6
 ------------------------
 
+* Big C code review to fix  bad handling of allocated Scheme object with
+  respect to garbage collection.
+
+* The documentation of the  C language internals for manipulating Scheme
+  objects  has  been reviewed  and  extended  (it  is still  incomplete,
+  though).
+
 * The Scheme  code for the glibc  and linux functions has  been moved in
   standalone libraries, out of the  boot image.  The public interface to
   these libraries is unchanged.
 
-* Added  support for  foreign  libraries associated  to  FASL files  for
-  autoloading.  The packaging infrastructure needs GNU Libtool now.
+* Added  support   for  autoloading  foreign   libraries  associated  to
+  precompiled  library files.   The packaging  infrastructure  needs GNU
+  Libtool now.
 
 * Optional support for the Iconv API has been added to (vicare glibc) by
   linking with  Libiconv.  By default  disabled, to enable it:  give the

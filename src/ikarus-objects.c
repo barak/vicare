@@ -44,6 +44,14 @@ ika_pair_alloc (ikpcb * pcb)
   IK_CDR(s_pair) = void_object;
   return s_pair;
 }
+ikptr
+iku_pair_alloc (ikpcb * pcb)
+{
+  ikptr	s_pair = IKU_PAIR_ALLOC(pcb);
+  IK_CAR(s_pair) = void_object;
+  IK_CDR(s_pair) = void_object;
+  return s_pair;
+}
 long
 ik_list_length (ikptr s_list)
 /* Return the  length of the list  S_LIST.  Do *not*  check for circular
@@ -160,11 +168,11 @@ ika_list_from_argv_and_argc (ikpcb * pcb, char ** argv, long argc)
 ikptr
 ika_bytevector_alloc (ikpcb * pcb, long int requested_number_of_bytes)
 {
-  long int  aligned_size;
-  ikptr	    s_bv;
+  long   aligned_size;
+  ikptr	 s_bv;
   aligned_size = IK_ALIGN(disp_bytevector_data + requested_number_of_bytes + 1);
   s_bv	       = ik_safe_alloc(pcb, aligned_size) | bytevector_tag;
-  ref(s_bv, off_bytevector_length) = IK_FIX(requested_number_of_bytes);
+  IK_REF(s_bv, off_bytevector_length) = IK_FIX(requested_number_of_bytes);
   IK_BYTEVECTOR_DATA_CHARP(s_bv)[requested_number_of_bytes] = '\0';
   return s_bv;
 }
@@ -193,6 +201,19 @@ ika_bytevector_from_memory_block (ikpcb * pcb, void * memory, size_t length)
   memcpy(data, memory, length);
   return s_bv;
 }
+ikptr
+ikrt_bytevector_copy (ikptr s_dst, ikptr s_dst_start,
+		      ikptr s_src, ikptr s_src_start,
+		      ikptr s_count)
+{
+  long		src_start = IK_UNFIX(s_src_start);
+  long		dst_start = IK_UNFIX(s_dst_start);
+  size_t	count     = (size_t)IK_UNFIX(s_count);
+  uint8_t *	dst = IK_BYTEVECTOR_DATA_UINT8P(s_dst) + dst_start;
+  uint8_t *	src = IK_BYTEVECTOR_DATA_UINT8P(s_src) + src_start;
+  memcpy(dst, src, count);
+  return void_object;
+}
 
 
 /** --------------------------------------------------------------------
@@ -207,24 +228,42 @@ ik_is_vector (ikptr s_vec)
 ikptr
 ika_vector_alloc_no_init (ikpcb * pcb, long number_of_items)
 {
+  ikptr s_len      = IK_FIX(number_of_items);
   /* Do not ask me why, but IK_ALIGN is needed here. */
-  long	align_size = IK_ALIGN(disp_vector_data + number_of_items * wordsize);
+  long	align_size = IK_ALIGN(disp_vector_data + s_len);
   ikptr	s_vec	   = ik_safe_alloc(pcb, align_size) | vector_tag;
-  IK_REF(s_vec, off_vector_length) = IK_FIX(number_of_items);
+  IK_REF(s_vec, off_vector_length) = s_len;
   return s_vec;
 }
 ikptr
 ika_vector_alloc_and_init (ikpcb * pcb, long number_of_items)
 {
-  /* Do not ask me why, but IK_ALIGN is needed here. */
-  long	align_size = IK_ALIGN(disp_vector_data + number_of_items * wordsize);
-  ikptr	s_vec	   = ik_safe_alloc(pcb, align_size) | vector_tag;
   ikptr s_len      = IK_FIX(number_of_items);
+  /* Do not ask me why, but IK_ALIGN is needed here. */
+  long	align_size = IK_ALIGN(disp_vector_data + s_len);
+  ikptr	s_vec	   = ik_safe_alloc(pcb, align_size) | vector_tag;
   IK_REF(s_vec, off_vector_length) = s_len;
   /* Set the data area to zero.  Remember that the machine word 0 is the
      fixnum zero. */
   memset((char*)(long)(s_vec + off_vector_data), 0, s_len);
   return s_vec;
+}
+ikptr
+ikrt_vector_clean (ikptr s_vec)
+{
+  ikptr	s_len = IK_VECTOR_LENGTH_FX(s_vec);
+  memset((char*)(long)(s_vec + off_vector_data), 0, s_len);
+  return s_vec;
+}
+ikptr
+ikrt_vector_copy (ikptr s_dst, ikptr s_dst_start,
+		  ikptr s_src, ikptr s_src_start,
+		  ikptr s_count)
+{
+  uint8_t *	dst = IK_BYTEVECTOR_DATA_UINT8P(s_dst) + (long)s_dst_start;
+  uint8_t *	src = IK_BYTEVECTOR_DATA_UINT8P(s_src) + (long)s_src_start;
+  memcpy(dst, src, (size_t)s_count);
+  return void_object;
 }
 
 
@@ -236,7 +275,7 @@ int
 ik_is_struct (ikptr R)
 {
   return ((record_tag == (record_mask & R)) &&
-	  (record_tag == (record_mask & ref(R, off_record_rtd))));
+	  (record_tag == (record_mask & IK_REF(R, off_record_rtd))));
 }
 ikptr
 ika_struct_alloc_no_init (ikpcb * pcb, ikptr s_rtd)
@@ -296,6 +335,18 @@ ika_string_alloc (ikpcb * pcb, long number_of_chars)
 
 
 /** --------------------------------------------------------------------
+ ** Symbols.
+ ** ----------------------------------------------------------------- */
+
+int
+ik_is_symbol (ikptr obj)
+{
+  return ((vector_tag == (vector_mask & obj)) &&
+	  (symbol_tag == (symbol_mask & IK_REF(obj, off_symbol_record_tag))));
+}
+
+
+/** --------------------------------------------------------------------
  ** Scheme objects from C numbers.
  ** ----------------------------------------------------------------- */
 
@@ -317,11 +368,11 @@ ika_integer_from_long (ikpcb * pcb, long N)
     ikptr s_bn = ik_safe_alloc(pcb, IK_ALIGN(wordsize + disp_bignum_data)) | vector_tag;
     if (N > 0) { /* positive bignum */
       ref(s_bn, off_bignum_tag)	 =
-	(ikptr)(bignum_tag | (NUMBER_OF_WORDS << bignum_length_shift));
+	(ikptr)(bignum_tag | (NUMBER_OF_WORDS << bignum_nlimbs_shift));
       ref(s_bn, off_bignum_data) = (ikptr)+N;
     } else { /* zero or negative bignum */
       ref(s_bn, off_bignum_tag)	 =
-	(ikptr)(bignum_tag | (NUMBER_OF_WORDS << bignum_length_shift) | (1 << bignum_sign_shift));
+	(ikptr)(bignum_tag | (NUMBER_OF_WORDS << bignum_nlimbs_shift) | (1 << bignum_sign_shift));
       ref(s_bn, off_bignum_data) = (ikptr)-N;
     }
     return s_bn;
@@ -341,11 +392,11 @@ ika_integer_from_llong (ikpcb * pcb, ik_llong N)
     ikptr s_bn	     = ik_safe_alloc(pcb, align_size) | vector_tag;
     if (N > 0){
       ref(s_bn, off_bignum_tag) =
-	(ikptr)(bignum_tag | (NUMBER_OF_WORDS << bignum_length_shift));
+	(ikptr)(bignum_tag | (NUMBER_OF_WORDS << bignum_nlimbs_shift));
       *((ik_llong*)(s_bn + off_bignum_data)) = +N;
     } else {
       ref(s_bn, off_bignum_tag) =
-	(ikptr)(bignum_tag | (NUMBER_OF_WORDS << bignum_length_shift) | (1 << bignum_sign_shift));
+	(ikptr)(bignum_tag | (NUMBER_OF_WORDS << bignum_nlimbs_shift) | (1 << bignum_sign_shift));
       *((ik_llong*)(s_bn + off_bignum_data)) = -N;
     }
     return s_bn;
@@ -365,7 +416,7 @@ ika_integer_from_ulong (ikpcb * pcb, ik_ulong N)
   } else {
     /* wordsize == sizeof(unsigned long) */
     ikptr	s_bn = ik_safe_alloc(pcb, IK_ALIGN(disp_bignum_data + wordsize)) | vector_tag;
-    ref(s_bn, off_bignum_tag)  = (ikptr)(bignum_tag | (1 << bignum_length_shift));
+    ref(s_bn, off_bignum_tag)  = (ikptr)(bignum_tag | (1 << bignum_nlimbs_shift));
     ref(s_bn, off_bignum_data) = (ikptr)N;
     return s_bn;
   }
@@ -384,8 +435,8 @@ ika_integer_from_ullong (ikpcb * pcb, ik_ullong N)
     int	   align_size = IK_ALIGN(disp_bignum_data + sizeof(ik_ullong));
     ikptr  bn	      = ik_safe_alloc(pcb, align_size);
     bcopy((char*)(&N), (char*)(bn+disp_bignum_data), sizeof(ik_ullong));
-    /* "normalize_bignum()" wants an *untagged* pointer as argument. */
-    return normalize_bignum(NUMBER_OF_WORDS, 0, bn);
+    /* "ik_normalize_bignum()" wants an *untagged* pointer as argument. */
+    return ik_normalize_bignum(NUMBER_OF_WORDS, 0, bn);
   }
 }
 ikptr
@@ -410,7 +461,7 @@ ik_integer_to_int (ikptr x)
   else if (x == void_object)
     return 0;
   else {
-    if (bnfst_negative(ref(x, -vector_tag)))
+    if (IK_BNFST_NEGATIVE(ref(x, -vector_tag)))
       return (int)(-ref(x, off_bignum_data));
     else
       return (int)(+ref(x, off_bignum_data));
@@ -424,7 +475,7 @@ ik_integer_to_long (ikptr x)
   else if (x == void_object)
     return 0;
   else {
-    if (bnfst_negative(ref(x, -vector_tag)))
+    if (IK_BNFST_NEGATIVE(ref(x, -vector_tag)))
       return (long)(-ref(x, off_bignum_data));
     else
       return (long)(+ref(x, off_bignum_data));
@@ -438,7 +489,7 @@ ik_integer_to_uint (ikptr x)
   else if (x == void_object)
     return 0;
   else {
-    assert(! bnfst_negative(ref(x, -vector_tag)));
+    assert(! IK_BNFST_NEGATIVE(ref(x, -vector_tag)));
     return (ik_uint)(ref(x, off_bignum_data));
   }
 }
@@ -450,7 +501,7 @@ ik_integer_to_ulong (ikptr x)
   else if (x == void_object)
     return 0;
   else {
-    assert(! bnfst_negative(ref(x, -vector_tag)));
+    assert(! IK_BNFST_NEGATIVE(ref(x, -vector_tag)));
     return (ik_ulong)(ref(x, off_bignum_data));
   }
 }
@@ -463,13 +514,13 @@ ik_integer_to_llong (ikptr x)
     return 0;
   else {
     ikptr fst		   = ref(x, -vector_tag);
-    ikptr pos_one_limb_tag = (ikptr)(bignum_tag	      | (1 << bignum_length_shift));
+    ikptr pos_one_limb_tag = (ikptr)(bignum_tag	      | (1 << bignum_nlimbs_shift));
     ikptr neg_one_limb_tag = (ikptr)(pos_one_limb_tag | (1 << bignum_sign_shift));
     if (fst == pos_one_limb_tag)
       return (ik_ulong)ref(x, off_bignum_data);
     else if (fst == neg_one_limb_tag)
       return -(signed long)ref(x, off_bignum_data);
-    else if (bnfst_negative(fst))
+    else if (IK_BNFST_NEGATIVE(fst))
       return -(*((ik_llong*)(x+off_bignum_data)));
     else
       return *((ik_llong*)(x+off_bignum_data));
@@ -485,7 +536,7 @@ ik_integer_to_ullong (ikptr x)
     return 0;
   else {
     ik_ullong *	 memory = (ik_ullong *)(x + off_bignum_data);
-    assert(! bnfst_negative(ref(x, -vector_tag)));
+    assert(! IK_BNFST_NEGATIVE(ref(x, -vector_tag)));
     return *memory;
   }
 }
@@ -500,7 +551,7 @@ ik_integer_to_uint32 (ikptr x)
     return ((0 <= X) && (X <= UINT32_MAX))? ((uint32_t)X) : false_object;
   } else {
     uint32_t *	memory = (void *)(((uint8_t *)x) + off_bignum_data);
-    return (bnfst_negative(ref(x, -vector_tag)))? -(*memory) : (*memory);
+    return (IK_BNFST_NEGATIVE(ref(x, -vector_tag)))? -(*memory) : (*memory);
   }
 }
 int32_t
@@ -511,7 +562,7 @@ ik_integer_to_sint32 (ikptr x)
     return ((INT32_MIN <= X) && (X <= INT32_MAX))? ((int32_t)X) : false_object;
   } else {
     int32_t *  memory = (void *)(((uint8_t *)x) + off_bignum_data);
-    return (bnfst_negative(ref(x, -vector_tag)))? -(*memory) : (*memory);
+    return (IK_BNFST_NEGATIVE(ref(x, -vector_tag)))? -(*memory) : (*memory);
   }
 }
 uint64_t
@@ -522,7 +573,7 @@ ik_integer_to_uint64 (ikptr x)
     return ((0 <= X) && (X <= UINT64_MAX))? ((uint64_t)X) : false_object;
   } else {
     uint64_t *	memory = (void *)(((uint8_t *)x) + off_bignum_data);
-    return (bnfst_negative(ref(x, -vector_tag)))? -(*memory) : (*memory);
+    return (IK_BNFST_NEGATIVE(ref(x, -vector_tag)))? -(*memory) : (*memory);
   }
 }
 int64_t
@@ -533,8 +584,102 @@ ik_integer_to_sint64 (ikptr x)
     return ((INT64_MIN <= X) && (X <= INT64_MAX))? ((int64_t)X) : false_object;
   } else {
     int64_t *  memory = (void *)(((uint8_t *)x) + off_bignum_data);
-    return (bnfst_negative(ref(x, -vector_tag)))? -(*memory) : (*memory);
+    return (IK_BNFST_NEGATIVE(ref(x, -vector_tag)))? -(*memory) : (*memory);
   }
+}
+
+
+/** --------------------------------------------------------------------
+ ** Ratnum objects.
+ ** ----------------------------------------------------------------- */
+
+int
+ik_is_ratnum (ikptr X)
+{
+  return ((vector_tag == IK_TAGOF(X)) &&
+	  (ratnum_tag == IK_REF(X, -vector_tag)));
+}
+ikptr
+ika_ratnum_alloc_no_init (ikpcb * pcb)
+{
+  ikptr	s_rn = ik_safe_alloc(pcb, ratnum_size) | vector_tag;
+  IK_REF(s_rn, off_ratnum_tag) = ratnum_tag;
+  return s_rn;
+}
+ikptr
+ika_ratnum_alloc_and_init (ikpcb * pcb)
+{
+  ikptr	s_rn = ik_safe_alloc(pcb, ratnum_size) | vector_tag;
+  IK_REF(s_rn, off_ratnum_tag) = ratnum_tag;
+  memset((void *)(((long)s_rn) + off_ratnum_num), 0, 3 * wordsize);
+  return s_rn;
+}
+
+
+/** --------------------------------------------------------------------
+ ** Compnum objects.
+ ** ----------------------------------------------------------------- */
+
+int
+ik_is_compnum (ikptr X)
+{
+  return ((vector_tag == IK_TAGOF(X)) &&
+	  (compnum_tag == IK_REF(X, -vector_tag)));
+}
+ikptr
+ika_compnum_alloc_no_init (ikpcb * pcb)
+{
+  ikptr	s_cn = ik_safe_alloc(pcb, compnum_size) | vector_tag;
+  IK_REF(s_cn, off_compnum_tag) = compnum_tag;
+  return s_cn;
+}
+ikptr
+ika_compnum_alloc_and_init (ikpcb * pcb)
+{
+  ikptr	s_cn = ik_safe_alloc(pcb, compnum_size) | vector_tag;
+  IK_REF(s_cn, off_compnum_tag) = compnum_tag;
+  memset((void *)(((long)s_cn) + off_compnum_real), 0, 3 * wordsize);
+  return s_cn;
+}
+
+
+/** --------------------------------------------------------------------
+ ** Miscellanous functions.
+ ** ----------------------------------------------------------------- */
+
+ikptr
+ikrt_general_copy (ikptr s_dst, ikptr s_dst_start,
+		   ikptr s_src, ikptr s_src_start,
+		   ikptr s_count)
+{
+  long		src_start = IK_UNFIX(s_src_start);
+  long		dst_start = IK_UNFIX(s_dst_start);
+  size_t	count     = (size_t)IK_UNFIX(s_count);
+  uint8_t *	dst = NULL;
+  uint8_t *	src = NULL;
+
+  if (IK_IS_BYTEVECTOR(s_src)) {
+    src = IK_BYTEVECTOR_DATA_UINT8P(s_src) + src_start;
+  } else if (ikrt_is_pointer(s_src)) {
+    src = IK_POINTER_DATA_UINT8P(s_src) + src_start;
+  } else if (IK_IS_STRING(s_src)) {
+    src_start <<= 2; /* multiply by 4 */
+    src = IK_STRING_DATA_VOIDP(s_src);
+  } else
+    ik_abort("%s: invalid src value, %lu", __func__, (ik_ulong)s_src);
+
+  if (IK_IS_BYTEVECTOR(s_dst)) {
+    dst = IK_BYTEVECTOR_DATA_UINT8P(s_dst) + dst_start;
+  } else if (ikrt_is_pointer(s_dst)) {
+    dst = IK_POINTER_DATA_UINT8P(s_dst) + dst_start;
+  } else if (IK_IS_STRING(s_dst)) {
+    dst_start <<= 2; /* multiply by 4 */
+    dst = IK_STRING_DATA_VOIDP(s_dst);
+  } else
+    ik_abort("%s: invalid dst value, %lu", __func__, (ik_ulong)s_dst);
+
+  memcpy(dst, src, count);
+  return void_object;
 }
 
 /* end of file */

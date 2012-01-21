@@ -138,6 +138,12 @@ ikrt_is_pointer (ikptr x)
   return ((IK_TAGOF(x) == vector_tag) &&
 	  (IK_REF(x, -vector_tag) == pointer_tag))? true_object : false_object;
 }
+int
+ik_is_pointer (ikptr X)
+{
+  return ((IK_TAGOF(X) == vector_tag) &&
+	  (IK_REF(X, -vector_tag) == pointer_tag));
+}
 ikptr
 ikrt_pointer_is_null (ikptr x /*, ikpcb* pcb*/)
 {
@@ -167,7 +173,7 @@ ikrt_fx_to_pointer(ikptr x, ikpcb* pcb)
 ikptr
 ikrt_bn_to_pointer (ikptr x, ikpcb* pcb)
 {
-  if (bnfst_negative(IK_REF(x, -vector_tag)))
+  if (IK_BNFST_NEGATIVE(IK_REF(x, -vector_tag)))
     return ika_pointer_alloc(pcb, -IK_REF(x, off_bignum_data));
   else
     return ika_pointer_alloc(pcb, +IK_REF(x, off_bignum_data));
