@@ -3,6 +3,7 @@
 testdir				= $(srcdir)
 VICARE_SELECTED_TESTS		= $(testdir)/test-*$(file)*.sps
 VICARE_SELECTED_LONG_TESTS	= $(testdir)/long-test-*$(file)*.sps
+VICARE_SELECTED_FOREIGN_TESTS	= $(testdir)/foreign-test-*$(file)*.sps
 VICARE_SELECTED_PROOFS		= $(testdir)/proof-*$(file)*.sps
 
 VICARE_TEST_SEARCH_PATH	= $(srcdir):$(srcdir)/../lib:$(builddir)/../lib:$(srcdir)/../scheme
@@ -18,7 +19,8 @@ VICARE_ENV	= VICARE_LIBRARY_PATH=$(VICARE_TEST_SEARCH_PATH)	\
 		  LD_LIBRARY_PATH=$(builddir)/../src/.libs
 VICARE_RUN	= $(VICARE_ENV) $(GDB) $(VICARE) $(VICARE_FLAGS)
 
-.PHONY: test tests test-r6rs proof proofs
+.PHONY: test tests test-r6rs long-test long-tests
+.PHONY: proof proofs foreign-test foreign-tests
 
 test tests:
 	@echo
@@ -28,6 +30,11 @@ test tests:
 long-test long-tests:
 	@echo
 	@for f in $(VICARE_SELECTED_LONG_TESTS); do $(VICARE_RUN) $$f; done
+	@echo
+
+foreign-test foreign-tests:
+	@echo
+	@for f in $(VICARE_SELECTED_FOREIGN_TESTS); do $(VICARE_RUN) $$f; done
 	@echo
 
 proof proofs:
@@ -112,13 +119,14 @@ TESTS			=	\
 	test-ikarus-symbol-table.sps			\
 	test-ikarus-unicode.sps				\
 	\
+	test-vicare-bignums.sps				\
 	test-vicare-bytevectors.sps			\
 	test-vicare-chars.sps				\
 	test-vicare-equality.sps			\
 	test-vicare-io.sps				\
 	test-vicare-lists.sps				\
 	test-vicare-log.sps				\
-	test-vicare-ffi.sps			\
+	test-vicare-ffi.sps				\
 	test-vicare-posix.sps				\
 	test-vicare-promises.sps			\
 	test-vicare-reader.sps				\
@@ -251,6 +259,7 @@ EXTRA_DIST =	\
 	test-ikarus-symbol-table.sps			\
 	test-ikarus-unicode.sps				\
 	\
+	test-vicare-bignums.sps				\
 	test-vicare-bytevectors.sps			\
 	test-vicare-chars.sps				\
 	test-vicare-equality.sps			\
@@ -283,7 +292,10 @@ EXTRA_DIST =	\
 	test-issue-022.sps				\
 	test-issue-023.sps				\
 	test-issue-024.sps				\
-	test-issue-025-sign-in-exact-rationals.sps
+	test-issue-025-sign-in-exact-rationals.sps	\
+	\
+	foreign-test-vicare-cre2.sps
+
 
 ### end of file
 # Local Variables:

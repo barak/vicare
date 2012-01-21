@@ -37,12 +37,27 @@ iku_flonum_alloc (ikpcb * pcb, double fl)
   return F;
 }
 ikptr
-iku_cflonum_alloc (ikpcb * pcb, double re, double im)
+iku_cflonum_alloc_and_init (ikpcb * pcb, double re, double im)
 {
   IKU_DEFINE_AND_ALLOC_CFLONUM(F);
   IK_CFLONUM_REAL(F) = iku_flonum_alloc(pcb, re);
   IK_CFLONUM_IMAG(F) = iku_flonum_alloc(pcb, im);
   return F;
+}
+
+/* ------------------------------------------------------------------ */
+
+int
+ik_is_flonum (ikptr obj)
+{
+  return ((vector_tag == IK_TAGOF(obj)) &&
+	  (flonum_tag == IK_REF(obj, -vector_tag)));
+}
+int
+ik_is_cflonum (ikptr X)
+{
+  return ((vector_tag == IK_TAGOF(X)) &&
+	  (cflonum_tag == IK_REF(X, -vector_tag)));
 }
 
 

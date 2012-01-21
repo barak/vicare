@@ -34,8 +34,9 @@ programming  language; it is  the creation  of Abdulaziz  Ghuloum, which
 retired from  development in 2010.   Vicare Scheme is an  R6RS compliant
 fork of Ikarus Scheme, aiming to  become a native compiler for R6 Scheme
 producing  single   threaded  programs  running  on   Intel  x86  32-bit
-processors, with experimental support  for 64-bit machines.  "Vicare" is
-pronounced the etruscan way.
+processors, with experimental support  for 64-bit machines; it is tested
+only on GNU+Linux,  no official support for other  platforms is present.
+"Vicare" is pronounced the etruscan way.
 
   Vicare implements  an optionally included  foreign-functions interface
 based on Libffi.   The last time the maintainer  updated this paragraph,
@@ -104,14 +105,16 @@ precompile the libraries installed in the hierarchy (vicare ---).
 4.2 Install CRE2
 ----------------
 
-The  CRE2  is  a C  language  wrapper  for  the  RE2 library,  which  is
-implemented in C++.  RE2 is a fast, safe, thread-friendly alternative to
+CRE2 is a  C language wrapper for the RE2  library, which is implemented
+in  C++.    RE2  is  a   fast,  safe,  thread-friendly   alternative  to
 backtracking regular  expression engines from Google like  those used in
 PCRE, Perl, and Python.
 
   Vicare  implements an  optional  built  in interface  to  CRE2; it  is
 disabled by default, to enable  it we must give the "--with-cre2" option
-to the "configure" script.
+to the "configure" script.  When using  this option we must use also the
+--enable-shared  and  --disable-static  options  to avoid  installing  a
+useless static library.
 
   At present (Jan 6, 2012), to  install RE2 we must check out a revision
 from  the  repository  (see   Resources);  then  we  should  follow  the
@@ -166,6 +169,11 @@ enable these tests run make with the environment variable RUN_INET_TESTS
 set to something:
 
    $ make test file=vicare-posix RUN_INET_TESTS=1
+
+  When included, it is possible to run tests for the bindings to foreign
+libraries (like CRE2) with:
+
+   $ make foreign-test
 
 
 A. Credits
