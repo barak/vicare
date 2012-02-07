@@ -1,4 +1,4 @@
-vicare (0.2d6-1) unstable; urgency=low
+vicare (0.2d7-1) unstable; urgency=low
 
   * Initial release
   * Import/modify/update Ikarus packaging scripts (debian/*)
