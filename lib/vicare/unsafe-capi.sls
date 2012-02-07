@@ -114,6 +114,8 @@
     ;; delivering interprocess signals
     posix-raise				posix-kill
     posix-pause
+    posix-signal-bub-init		posix-signal-bub-final
+    posix-signal-bub-acquire		posix-signal-bub-delivered?
 
     ;; file system inspection
     posix-stat				posix-lstat
@@ -160,9 +162,15 @@
     posix-lseek
     posix-readv				posix-writev
     posix-select			posix-select-fd
+    posix-poll
     posix-fcntl				posix-ioctl
     posix-dup				posix-dup2
     posix-pipe				posix-mkfifo
+
+    ;; memory-mapped input/output
+    posix-mmap				posix-munmap
+    posix-msync				posix-mremap
+    posix-madvise
 
     ;; file system synchronisation
     glibc-sync				glibc-fsync
@@ -644,6 +652,20 @@
 (define-inline (posix-pause)
   (foreign-call "ikrt_posix_pause"))
 
+;;; --------------------------------------------------------------------
+
+(define-inline (posix-signal-bub-init)
+  (foreign-call "ikrt_posix_signal_bub_init"))
+
+(define-inline (posix-signal-bub-final)
+  (foreign-call "ikrt_posix_signal_bub_final"))
+
+(define-inline (posix-signal-bub-acquire)
+  (foreign-call "ikrt_posix_signal_bub_acquire"))
+
+(define-inline (posix-signal-bub-delivered? signum)
+  (foreign-call "ikrt_posix_signal_bub_delivered" signum))
+
 
 ;;;; file system inspection
 
@@ -868,6 +890,9 @@
 (define-inline (posix-select-fd fd sec usec)
   (foreign-call "ikrt_posix_select_fd" fd sec usec))
 
+(define-inline (posix-poll fds timeout)
+  (foreign-call "ikrt_posix_poll" fds timeout))
+
 ;;; --------------------------------------------------------------------
 
 (define-inline (posix-fcntl fd command arg)
@@ -891,6 +916,25 @@
 
 (define-inline (posix-mkfifo pathname-bv mode)
   (foreign-call "ikrt_posix_mkfifo" pathname-bv mode))
+
+
+;;;; memory-mapped input/output
+
+(define-inline (posix-mmap address length protect flags fd offset)
+  (foreign-call "ikrt_posix_mmap" address length protect flags fd offset))
+
+(define-inline (posix-munmap address length)
+  (foreign-call "ikrt_posix_munmap" address length))
+
+(define-inline (posix-msync address length flags)
+  (foreign-call "ikrt_posix_msync" address length flags))
+
+(define-inline (posix-mremap address length new-length flags)
+  (foreign-call "ikrt_posix_mremap"  address length new-length flags))
+
+(define-inline (posix-madvise address length advice)
+  (foreign-call "ikrt_posix_madvise" address length advice))
+
 
 
 ;;;; file system synchronisation

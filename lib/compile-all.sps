@@ -26,7 +26,7 @@
 
 #!r6rs
 (import
-    (only (vicare ffi))
+  (only (vicare errno))
   (only (vicare platform-constants))
   (only (vicare include))
   (only (vicare syntactic-extensions))
@@ -37,9 +37,8 @@
   (only (vicare unsafe-capi))
   (only (vicare words))
   (only (vicare installation-configuration))
-  (only (vicare glibc))
-  (only (vicare linux))
   (only (vicare gcc))
+  (only (vicare weak-hashtables))
   )
 
 ;;; end of file

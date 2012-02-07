@@ -26,10 +26,11 @@
 
 
 #!vicare
-(import (rename (vicare)
-		(parameterize	parametrise))
+(import (vicare)
   (prefix (vicare posix)
 	  px.)
+  (prefix (vicare ffi)
+	  ffi.)
   (vicare platform-constants)
   (vicare syntactic-extensions)
   (checks))
@@ -64,20 +65,20 @@
   (syntax-rules ()
     ((_ (?pathname) . ?body)
      (let ((ptn ?pathname))
-       (system (string-append "echo 123 > " ptn))
+       (px.system (string-append "echo 123 > " ptn))
        (unwind-protect
 	   (begin . ?body)
-	 (system (string-append "rm -f " ptn)))))))
+	 (px.system (string-append "rm -f " ptn)))))))
 
 
 (parametrise ((check-test-name	'errno-strings))
 
   (check
-      (errno->string EPERM)
+      (px.errno->string EPERM)
     => "EPERM")
 
   (check
-      (errno->string EEXIST)
+      (px.errno->string EEXIST)
     => "EEXIST")
 
   #t)
@@ -86,11 +87,11 @@
 (parametrise ((check-test-name	'signal-strings))
 
   (check
-      (interprocess-signal->string SIGKILL)
+      (px.interprocess-signal->string SIGKILL)
     => "SIGKILL")
 
   (check
-      (interprocess-signal->string SIGSEGV)
+      (px.interprocess-signal->string SIGSEGV)
     => "SIGSEGV")
 
   #t)
@@ -463,7 +464,7 @@
     => #t)
 
   (check
-      (let ((S (lstat "Makefile")))
+      (let ((S (px.lstat "Makefile")))
 ;;;	(check-pretty-print S)
 	(px.struct-stat? S))
     => #t)
@@ -644,7 +645,7 @@
       (with-temporary-file ("one")
   	(unwind-protect
   	    (begin
-  	      (px.posix-remove "one")
+  	      (px.remove "one")
   	      (file-exists? "one"))
   	  (px.system "rm -f one")))
     => #f)
@@ -718,10 +719,10 @@
 			   (fxior S_IRUSR S_IWUSR))))
 	  (unwind-protect
 	      (begin
-		(px.posix-write fd '#vu8(1 2 3 4) 4)
+		(px.write fd '#vu8(1 2 3 4) 4)
 		(px.lseek fd 0 SEEK_SET)
 		(let ((buffer (make-bytevector 4)))
-		  (list (px.posix-read fd buffer 4) buffer)))
+		  (list (px.read fd buffer 4) buffer)))
 	    (px.close fd)
 	    (px.system "rm -f tmp"))))
     => '(4 #vu8(1 2 3 4)))
@@ -782,9 +783,9 @@
 
   (check
       (let-values (((in ou) (px.pipe)))
-	(px.posix-write ou '#vu8(1 2 3 4) 4)
+	(px.write ou '#vu8(1 2 3 4) 4)
 	(let ((bv (make-bytevector 4)))
-	  (px.posix-read in bv 4)
+	  (px.read in bv 4)
 	  bv))
     => '#vu8(1 2 3 4))
 
@@ -793,8 +794,8 @@
 		   ((parent-from-child child-stdout)    (px.pipe)))
 	(px.fork (lambda (pid) ;parent
 		   (let ((buf (make-bytevector 1)))
-		     (px.posix-read  parent-from-child buf 1)
-		     (px.posix-write parent-to-child   '#vu8(2) 1)
+		     (px.read  parent-from-child buf 1)
+		     (px.write parent-to-child   '#vu8(2) 1)
 		     buf))
 		 (lambda () ;child
 		   (begin ;setup stdin
@@ -806,8 +807,8 @@
 		     (px.dup2 child-stdout 1)
 		     (px.close child-stdout))
 		   (let ((buf (make-bytevector 1)))
-		     (px.posix-write 1 '#vu8(1) 1)
-		     (px.posix-read  0 buf 1)
+		     (px.write 1 '#vu8(1) 1)
+		     (px.read  0 buf 1)
 ;;;		  (check-pretty-print buf)
 		     (assert (equal? buf '#vu8(2)))
 		     (exit 0)))))
@@ -864,7 +865,7 @@
     (unwind-protect
 	(check	;read ready
 	    (begin
-	      (px.posix-write ou '#vu8(1) 1)
+	      (px.write ou '#vu8(1) 1)
 	      (let-values (((r w e) (px.select #f `(,in) '() `(,in) 0 0)))
 		(list r w e)))
 	  => `((,in) () ()))
@@ -896,7 +897,7 @@
     (unwind-protect
 	(check	;read ready
 	    (begin
-	      (px.posix-write ou '#vu8(1) 1)
+	      (px.write ou '#vu8(1) 1)
 	      (let-values (((r w e) (px.select-fd in 0 0)))
 		(list r w e)))
 	  => `(,in #f #f))
@@ -911,6 +912,85 @@
 	  => `(#f ,ou #f))
       (px.close in)
       (px.close ou)))
+
+;;; --------------------------------------------------------------------
+;;; poll
+
+  (let-values (((in ou) (px.pipe)))
+    (unwind-protect
+	(check
+	    (let* ((vec (vector (vector in 0 0)
+				(vector ou 0 0)))
+		   (rv  (px.poll vec 10)))
+	      (list rv vec))
+	  => `(0 #(#(,in 0 0)
+		   #(,ou 0 0))))
+      (px.close in)
+      (px.close ou)))
+
+  (let-values (((in ou) (px.pipe)))
+    (unwind-protect
+	(check
+	    (begin
+	      (px.write ou '#vu8(1) 1)
+	      (let* ((vec (vector (vector in POLLIN 0)
+				  (vector ou POLLOUT 0)))
+		     (rv  (px.poll vec 10))
+		     (buf (make-bytevector 1)))
+		(px.read in buf 1)
+		(list rv buf vec)))
+	  => `(2 #vu8(1) #(#(,in ,POLLIN  ,POLLIN)
+			   #(,ou ,POLLOUT ,POLLOUT))))
+      (px.close in)
+      (px.close ou)))
+
+  #t)
+
+
+(parametrise ((check-test-name	'mmap))
+
+  (check
+      (let* ((page-size	4096 #;(glibc.sysconf _SC_PAGESIZE))
+	     (ptr	(px.mmap #f page-size
+				 (fxior PROT_READ PROT_WRITE)
+				 (fxior MAP_PRIVATE MAP_ANONYMOUS)
+				 0 0)))
+	(px.munmap ptr page-size)
+	(ffi.pointer? ptr))
+    => #t)
+
+  (check	;msync
+      (let* ((page-size	4096 #;(glibc.sysconf _SC_PAGESIZE))
+	     (ptr	(px.mmap #f page-size
+				 (fxior PROT_READ PROT_WRITE)
+				 (fxior MAP_PRIVATE MAP_ANONYMOUS)
+				 0 0)))
+	(px.msync ptr page-size 0)
+	(px.munmap ptr page-size)
+	(ffi.pointer? ptr))
+    => #t)
+
+  (check	;mremap
+      (let* ((page-size	4096 #;(glibc.sysconf _SC_PAGESIZE))
+	     (ptr	(px.mmap #f page-size
+				 (fxior PROT_READ PROT_WRITE)
+				 (fxior MAP_PRIVATE MAP_ANONYMOUS)
+				 0 0))
+	     (ptr	(px.mremap ptr page-size (* 2 page-size) MREMAP_MAYMOVE)))
+	(px.munmap ptr page-size)
+	(ffi.pointer? ptr))
+    => #t)
+
+  (check	;madvise
+      (let* ((page-size	4096 #;(glibc.sysconf _SC_PAGESIZE))
+	     (ptr	(px.mmap #f page-size
+				 (fxior PROT_READ PROT_WRITE)
+				 (fxior MAP_PRIVATE MAP_ANONYMOUS)
+				 0 0)))
+	(px.madvise ptr page-size MADV_NORMAL)
+	(px.munmap ptr page-size)
+	(ffi.pointer? ptr))
+    => #t)
 
   #t)
 
@@ -1167,11 +1247,11 @@
   (define run-inet-tests? ;the firewall must allow it
     (or #f (px.getenv "RUN_INET_TESTS")))
 
-  (check	;socketpair, posix-read, posix-write
+  (check	;socketpair, read, write
       (let-values (((a b) (px.socketpair PF_LOCAL SOCK_DGRAM 0)))
-	(px.posix-write a '#vu8(1 2 3 4) 4)
+	(px.write a '#vu8(1 2 3 4) 4)
 	(let ((buf (make-bytevector 4)))
-	  (px.posix-read b buf 4)
+	  (px.read b buf 4)
 	  (px.shutdown a SHUT_RDWR)
 	  (px.shutdown b SHUT_RDWR)
 	  buf))
@@ -1275,7 +1355,7 @@
   (check	;fork process, raw bytevector input/output
       (with-result
        (let* ((pathname	(string-append (px.getenv "TMPDIR") "/proof"))
-	      (sockaddr	(make-sockaddr_un pathname)))
+	      (sockaddr	(px.make-sockaddr_un pathname)))
 	 (define (parent pid)
 	   (let ((server-sock (px.socket PF_LOCAL SOCK_STREAM 0)))
 	     (unwind-protect
@@ -1288,26 +1368,26 @@
 		     (px.setsockopt/linger sock #t 1)
 		     (unwind-protect
 			 (let ((bv (make-bytevector 3)))
-			   (px.posix-write sock '#vu8(1 2 3))
-			   (px.posix-read  sock bv)
+			   (px.write sock '#vu8(1 2 3))
+			   (px.read  sock bv)
 			   (add-result bv))
 		       (px.close sock))))
 	       (px.close server-sock)
 	       (px.waitpid pid 0))))
 	 (define (child)
-	   (nanosleep 1 0) ;give parent the time to listen
+	   (px.nanosleep 1 0) ;give parent the time to listen
 	   (let ((sock (px.socket PF_LOCAL SOCK_STREAM 0)))
 	     (px.setsockopt/linger sock #t 1)
 	     (unwind-protect
 		 (let ((bv (make-bytevector 3)))
 		   (px.connect sock sockaddr)
-		   (px.posix-read sock bv)
+		   (px.read sock bv)
 		   (assert (equal? bv '#vu8(1 2 3)))
-		   (px.posix-write sock bv))
+		   (px.write sock bv))
 	       (px.close sock)))
 	   (exit 0))
 	 (when (file-exists? pathname) (px.unlink pathname))
-	 (fork parent child)
+	 (px.fork parent child)
 	 (when (file-exists? pathname) (px.unlink pathname))
 	 #t))
     => '(#t (#vu8(1 2 3))))
@@ -1315,7 +1395,7 @@
   (check	;fork process, binary port input/output
       (with-result
        (let* ((pathname	(string-append (px.getenv "TMPDIR") "/proof"))
-	      (sockaddr	(make-sockaddr_un pathname)))
+	      (sockaddr	(px.make-sockaddr_un pathname)))
 	 (define (parent pid)
 	   (let ((server-sock (px.socket PF_LOCAL SOCK_STREAM 0)))
 	     (unwind-protect
@@ -1336,7 +1416,7 @@
 	       (px.close server-sock)
 	       (px.waitpid pid 0))))
 	 (define (child)
-	   (nanosleep 1 0) ;give parent the time to listen
+	   (px.nanosleep 1 0) ;give parent the time to listen
 	   (let* ((sock (px.socket PF_LOCAL SOCK_STREAM 0))
 		  (port (make-binary-socket-input/output-port sock "*child-sock*")))
 	     (px.setsockopt/linger sock #t 1)
@@ -1349,7 +1429,7 @@
 	       (close-port port)))
 	   (exit 0))
 	 (when (file-exists? pathname) (px.unlink pathname))
-	 (fork parent child)
+	 (px.fork parent child)
 	 (when (file-exists? pathname) (px.unlink pathname))
 	 #t))
     => '(#t (#vu8(1 2 3))))
@@ -1357,7 +1437,7 @@
   (check	;fork process, textual port input/output
       (with-result
        (let* ((pathname	(string-append (px.getenv "TMPDIR") "/proof"))
-	      (sockaddr	(make-sockaddr_un pathname)))
+	      (sockaddr	(px.make-sockaddr_un pathname)))
 	 (define (parent pid)
 	   (let ((server-sock (px.socket PF_LOCAL SOCK_STREAM 0)))
 	     (unwind-protect
@@ -1379,7 +1459,7 @@
 	       (px.close server-sock)
 	       (px.waitpid pid 0))))
 	 (define (child)
-	   (nanosleep 1 0) ;give parent the time to listen
+	   (px.nanosleep 1 0) ;give parent the time to listen
 	   (let* ((sock (px.socket PF_LOCAL SOCK_STREAM 0))
 		  (port (make-textual-socket-input/output-port sock "*child-sock*"
 							       (native-transcoder))))
@@ -1394,7 +1474,7 @@
 	   (exit 0))
 	 (when (file-exists? pathname)
 	   (px.unlink pathname))
-	 (fork parent child)
+	 (px.fork parent child)
 	 (when (file-exists? pathname)
 	   (px.unlink pathname))
 	 #t))
@@ -1408,8 +1488,8 @@
 	 (pathname2	(string-append tmpdir "/proof-2")))
     (check	;fork process, raw bytevector input/output
 	(with-result
-	 (let ((sockaddr1 (make-sockaddr_un pathname1))
-	       (sockaddr2 (make-sockaddr_un pathname2)))
+	 (let ((sockaddr1 (px.make-sockaddr_un pathname1))
+	       (sockaddr2 (px.make-sockaddr_un pathname2)))
 ;;;(check-pretty-print (sockaddr_un.pathname/string sockaddr1))
 ;;;(check-pretty-print (sockaddr_un.pathname/string sockaddr2))
 	   (define (parent pid)
@@ -1417,11 +1497,11 @@
 	       (unwind-protect
 		   (let ((buffer (make-bytevector 3)))
 		     (px.bind sock sockaddr1)
-		     (nanosleep 1 0) ;give child some time
+		     (px.nanosleep 1 0) ;give child some time
 		     (px.sendto sock '#vu8(1 2 3) 3 0 sockaddr2)
 		     (let-values (((len sockaddr) (px.recvfrom sock buffer #f 0)))
 		       (add-result len)
-		       (add-result (sockaddr_un.pathname/string sockaddr))
+		       (add-result (px.sockaddr_un.pathname/string sockaddr))
 		       (add-result buffer)
 		       #t))
 		 (px.close sock)
@@ -1431,10 +1511,10 @@
 	       (unwind-protect
 		   (let ((buffer (make-bytevector 3)))
 		     (px.bind sock sockaddr2)
-		     (nanosleep 1 0) ;give parent some time
+		     (px.nanosleep 1 0) ;give parent some time
 		     (let-values (((len sockaddr) (px.recvfrom sock buffer #f 0)))
 		       (assert (equal? 3 len))
-		       (assert (equal? pathname1 (sockaddr_un.pathname/string sockaddr)))
+		       (assert (equal? pathname1 (px.sockaddr_un.pathname/string sockaddr)))
 		       (assert (equal? buffer '#vu8(1 2 3)))
 		       (px.sendto sock '#vu8(4 5 6) #f 0 sockaddr)
 		       #t))
@@ -1442,7 +1522,7 @@
 	     (exit 0))
 	   (when (file-exists? pathname1) (px.unlink pathname1))
 	   (when (file-exists? pathname2) (px.unlink pathname2))
-	   (fork parent child)
+	   (px.fork parent child)
 	   (when (file-exists? pathname1) (px.unlink pathname1))
 	   (when (file-exists? pathname2) (px.unlink pathname2))
 	   #t))
@@ -1454,7 +1534,7 @@
   (when (or #f run-inet-tests?)
     (check	;fork process, raw bytevector input/output, getpeername, getsockname
 	(with-result
-	 (let ((sockaddr (make-sockaddr_in '#vu8(127 0 0 1) 8080)))
+	 (let ((sockaddr (px.make-sockaddr_in '#vu8(127 0 0 1) 8080)))
 	   (define (parent pid)
 	     (let ((server-sock (px.socket PF_INET SOCK_STREAM 0)))
 	       (unwind-protect
@@ -1467,44 +1547,44 @@
 			   (let ((bv (make-bytevector 3)))
 			     (px.setsockopt/linger sock #t 1)
 			     (let ((sockaddr (px.getsockname sock)))
-			       (add-result (sockaddr_in.in_addr sockaddr))
-			       (add-result (sockaddr_in.in_port sockaddr)))
+			       (add-result (px.sockaddr_in.in_addr sockaddr))
+			       (add-result (px.sockaddr_in.in_port sockaddr)))
 			     (let ((sockaddr (px.getpeername sock)))
-			       (add-result (sockaddr_in.in_addr sockaddr))
+			       (add-result (px.sockaddr_in.in_addr sockaddr))
 			       ;;nobody knows the port number
-			       #;(add-result (sockaddr_in.in_port sockaddr)))
-			     (px.posix-write sock '#vu8(1 2 3))
-			     (px.posix-read  sock bv)
+			       #;(add-result (px.sockaddr_in.in_port sockaddr)))
+			     (px.write sock '#vu8(1 2 3))
+			     (px.read  sock bv)
 			     (add-result bv))
 			 (px.close sock))))
 		 (px.close server-sock)
 		 (px.waitpid pid 0))))
 	   (define (child)
-	     (nanosleep 1 0) ;give parent the time to listen
+	     (px.nanosleep 1 0) ;give parent the time to listen
 	     (let ((sock (px.socket PF_INET SOCK_STREAM 0)))
 	       (unwind-protect
 		   (let ((bv (make-bytevector 3)))
 		     (px.setsockopt/linger sock #t 1)
 		     (px.connect sock sockaddr)
 		     (let ((sockaddr (px.getpeername sock)))
-		       (assert (equal? '#vu8(127 0 0 1) (sockaddr_in.in_addr sockaddr)))
-		       (assert (equal? 8080 (sockaddr_in.in_port sockaddr))))
+		       (assert (equal? '#vu8(127 0 0 1) (px.sockaddr_in.in_addr sockaddr)))
+		       (assert (equal? 8080 (px.sockaddr_in.in_port sockaddr))))
 		     (let ((sockaddr (px.getsockname sock)))
-		       (assert (equal? '#vu8(127 0 0 1) (sockaddr_in.in_addr sockaddr)))
-		       (assert (fixnum? (sockaddr_in.in_port sockaddr))))
-		     (px.posix-read sock bv)
+		       (assert (equal? '#vu8(127 0 0 1) (px.sockaddr_in.in_addr sockaddr)))
+		       (assert (fixnum? (px.sockaddr_in.in_port sockaddr))))
+		     (px.read sock bv)
 		     (assert (equal? bv '#vu8(1 2 3)))
-		     (px.posix-write sock bv))
+		     (px.write sock bv))
 		 (px.close sock)))
 	     (exit 0))
-	   (fork parent child)
+	   (px.fork parent child)
 	   #t))
       => '(#t (#vu8(127 0 0 1) 8080 #vu8(127 0 0 1) #vu8(1 2 3)))))
 
   (when (or #f run-inet-tests?)
-    (check 'this ;fork process, raw bytevector input/output, Out Of Band data
+    (check ;fork process, raw bytevector input/output, Out Of Band data
       (with-result
-       (let ((sockaddr (make-sockaddr_in '#vu8(127 0 0 1) 8080)))
+       (let ((sockaddr (px.make-sockaddr_in '#vu8(127 0 0 1) 8080)))
 	 (define (parent pid)
 	   (let ((server-sock (px.socket PF_INET SOCK_STREAM 0)))
 	     (unwind-protect
@@ -1517,7 +1597,7 @@
 			 (let ((bv (make-bytevector 10)))
 			   (px.setsockopt/linger sock #t 1)
 			   (let loop ()
-			     (let-values  (((rd wr ex) (select-fd sock 2 0)))
+			     (let-values  (((rd wr ex) (px.select-fd sock 2 0)))
 			       (cond (ex
 				      (let ((len (px.recv sock bv #f MSG_OOB)))
 					(add-result (list 'oob (subbytevector-u8 bv 0 len)))
@@ -1532,19 +1612,19 @@
 	       (px.close server-sock)
 	       (px.waitpid pid 0))))
 	 (define (child)
-	   (nanosleep 0 1000000) ;give parent the time to listen
+	   (px.nanosleep 0 1000000) ;give parent the time to listen
 	   (let ((sock (px.socket PF_INET SOCK_STREAM 0)))
 	     (unwind-protect
 		 (let ((bv (make-bytevector 3)))
 		   (px.connect sock sockaddr)
 		   (px.setsockopt/linger sock #t 2)
 		   (px.send sock '#vu8(1 2 3) #f 0)
-		   (nanosleep 0 1000000) ;give it some thrill
+		   (px.nanosleep 0 1000000) ;give it some thrill
 		   (px.send sock '#vu8(4 5 6) #f MSG_OOB)
 		   (px.send sock '#vu8(7 8 9) #f 0))
 	       (px.close sock)))
 	   (exit 0))
-	 (fork parent child)
+	 (px.fork parent child)
 	 #t))
       => '(#t (#vu8(1 2 3) (oob #vu8(6)) #vu8(4 5) #vu8(7 8 9)))))
 
@@ -1554,7 +1634,7 @@
   (when (or #f run-inet-tests?)
     (check	;fork process, raw bytevector input/output
 	(with-result
-	 (let ((sockaddr (make-sockaddr_in6 '#vu8(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1) 8080)))
+	 (let ((sockaddr (px.make-sockaddr_in6 '#vu8(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1) 8080)))
 	   (define (parent pid)
 	     (let ((server-sock (px.socket PF_INET6 SOCK_STREAM 0)))
 	       (unwind-protect
@@ -1566,25 +1646,25 @@
 		       (px.setsockopt/linger sock #t 1)
 		       (unwind-protect
 			   (let ((bv (make-bytevector 3)))
-			     (px.posix-write sock '#vu8(1 2 3))
-			     (px.posix-read  sock bv)
+			     (px.write sock '#vu8(1 2 3))
+			     (px.read  sock bv)
 			     (add-result bv))
 			 (px.close sock))))
 		 (px.close server-sock)
 		 (px.waitpid pid 0))))
 	   (define (child)
-	     (nanosleep 1 0) ;give parent the time to listen
+	     (px.nanosleep 1 0) ;give parent the time to listen
 	     (let ((sock (px.socket PF_INET6 SOCK_STREAM 0)))
 	       (px.setsockopt/linger sock #t 1)
 	       (unwind-protect
 		   (let ((bv (make-bytevector 3)))
 		     (px.connect sock sockaddr)
-		     (px.posix-read sock bv)
+		     (px.read sock bv)
 		     (assert (equal? bv '#vu8(1 2 3)))
-		     (px.posix-write sock bv))
+		     (px.write sock bv))
 		 (px.close sock)))
 	     (exit 0))
-	   (fork parent child)
+	   (px.fork parent child)
 	   #t))
       => '(#t (#vu8(1 2 3)))))
 
@@ -1594,21 +1674,21 @@
   (when (or #f run-inet-tests?)
     (check	;fork process, raw bytevector input/output
 	(with-result
-	 (let ((sockaddr1 (make-sockaddr_in '#vu8(127 0 0 1) 8080))
-	       (sockaddr2 (make-sockaddr_in '#vu8(127 0 0 1) 8081)))
+	 (let ((sockaddr1 (px.make-sockaddr_in '#vu8(127 0 0 1) 8080))
+	       (sockaddr2 (px.make-sockaddr_in '#vu8(127 0 0 1) 8081)))
 	   (define (parent pid)
 	     (let ((sock (px.socket PF_INET SOCK_DGRAM 0)))
 	       (unwind-protect
 		   (let ((buffer (make-bytevector 3)))
 		     (px.bind sock sockaddr1)
 		     (px.setsockopt/int sock SOL_SOCKET SO_REUSEADDR #t)
-		     (nanosleep 0 1000000) ;give child some time
+		     (px.nanosleep 0 1000000) ;give child some time
 		     (px.sendto sock '#vu8(1 2 3) #f 0 sockaddr2)
 		     (let-values (((len sockaddr) (px.recvfrom sock buffer #f 0)))
 		       (add-result len)
 		       (add-result (bytevector-copy buffer))
-		       (add-result (sockaddr_in.in_addr sockaddr))
-		       (add-result (sockaddr_in.in_port sockaddr))))
+		       (add-result (px.sockaddr_in.in_addr sockaddr))
+		       (add-result (px.sockaddr_in.in_port sockaddr))))
 		 (px.close sock)
 		 (px.waitpid pid 0))))
 	   (define (child)
@@ -1617,26 +1697,26 @@
 		   (let ((buffer (make-bytevector 3)))
 		     (px.bind sock sockaddr2)
 		     (px.setsockopt/linger sock #t 1)
-		     (nanosleep 0 1000000) ;give parent some time
+		     (px.nanosleep 0 1000000) ;give parent some time
 		     (let-values (((len sockaddr) (px.recvfrom sock buffer #f 0)))
 		       (assert (equal? 3 len))
 		       (assert (equal? '#vu8(1 2 3) buffer))
-		       (assert (equal? '#vu8(127 0 0 1) (sockaddr_in.in_addr sockaddr)))
-		       (assert (equal? 8080 (sockaddr_in.in_port sockaddr)))
+		       (assert (equal? '#vu8(127 0 0 1) (px.sockaddr_in.in_addr sockaddr)))
+		       (assert (equal? 8080 (px.sockaddr_in.in_port sockaddr)))
 		       (px.sendto sock '#vu8(4 5 6) #f 0 sockaddr)))
 		 (px.close sock)))
 	     (exit 0))
-	   (fork parent child)
+	   (px.fork parent child)
 	   #t))
       => '(#t (3 #vu8(4 5 6) #vu8(127 0 0 1) 8081))))
 
   (when (or #f run-inet-tests?)
     (check	;raw bytevector input/output
 	(with-result
-	 (let ((sockaddr1	(make-sockaddr_in '#vu8(127 0 0 1) 8080))
-	       (sockaddr2	(make-sockaddr_in '#vu8(127 0 0 1) 8081))
-	       (sock1	(px.socket PF_INET SOCK_DGRAM 0))
-	       (sock2	(px.socket PF_INET SOCK_DGRAM 0)))
+	 (let ((sockaddr1	(px.make-sockaddr_in '#vu8(127 0 0 1) 8080))
+	       (sockaddr2	(px.make-sockaddr_in '#vu8(127 0 0 1) 8081))
+	       (sock1		(px.socket PF_INET SOCK_DGRAM 0))
+	       (sock2		(px.socket PF_INET SOCK_DGRAM 0)))
 	   (unwind-protect
 	       (let ((buffer (make-bytevector 3)))
 		 (px.bind sock1 sockaddr1)
@@ -1647,14 +1727,14 @@
 		 (let-values (((len sockaddr) (px.recvfrom sock2 buffer #f 0)))
 		   (add-result len)
 		   (add-result (bytevector-copy buffer))
-		   (add-result (sockaddr_in.in_addr sockaddr))
-		   (add-result (sockaddr_in.in_port sockaddr))
+		   (add-result (px.sockaddr_in.in_addr sockaddr))
+		   (add-result (px.sockaddr_in.in_port sockaddr))
 		   (px.sendto sock2 '#vu8(4 5 6) #f 0 sockaddr)
 		   (let-values (((len sockaddr) (px.recvfrom sock1 buffer #f 0)))
 		     (add-result len)
 		     (add-result (bytevector-copy buffer))
-		     (add-result (sockaddr_in.in_addr sockaddr))
-		     (add-result (sockaddr_in.in_port sockaddr))))
+		     (add-result (px.sockaddr_in.in_addr sockaddr))
+		     (add-result (px.sockaddr_in.in_port sockaddr))))
 		 #t)
 	     (px.close sock1)
 	     (px.close sock2))))
@@ -1668,34 +1748,168 @@
 (parametrise ((check-test-name	'time))
 
   (check-pretty-print (list 'clock (px.clock)))
-  (check-pretty-print (list 'time  (px.posix-time)))
+  (check-pretty-print (list 'time  (px.time)))
   (check-pretty-print (list 'timeofday  (px.gettimeofday)))
 
 ;;; --------------------------------------------------------------------
 
   (check
-      (struct-tms? (px.times))
+      (px.struct-tms? (px.times))
     => #t)
 
   (check-pretty-print (px.times))
 
 ;;; --------------------------------------------------------------------
 
-  (check-pretty-print (px.localtime (px.posix-time)))
-  (check-pretty-print (px.gmtime    (px.posix-time)))
+  (check-pretty-print (px.localtime (px.time)))
+  (check-pretty-print (px.gmtime    (px.time)))
 
   (check
-      (let ((T (px.posix-time)))
+      (let ((T (px.time)))
 	(equal? T (px.timelocal (px.localtime T))))
     => #t)
 
   (check
-      (let ((T (px.posix-time)))
+      (let ((T (px.time)))
 	(equal? T (px.timegm (px.gmtime T))))
     => #t)
 
   (check-pretty-print
-   (list 'strftime (px.strftime/string "%a %h %d %H:%M:%S %Y" (px.localtime (px.posix-time)))))
+   (list 'strftime (px.strftime/string "%a %h %d %H:%M:%S %Y" (px.localtime (px.time)))))
+
+  #t)
+
+
+(parametrise ((check-test-name	'bub))
+
+;;; use raise
+
+  (check
+      (unwind-protect
+	  (begin
+	    (px.signal-bub-init)
+	    (px.raise SIGUSR1)
+	    (px.signal-bub-acquire)
+	    (list (px.signal-bub-delivered? SIGUSR1)
+		  (px.signal-bub-delivered? SIGUSR2)))
+	(px.signal-bub-final))
+    => '(#t #f))
+
+  (check
+      (unwind-protect
+	  (begin
+	    (px.signal-bub-init)
+	    (px.signal-bub-acquire)
+	    (list (px.signal-bub-delivered? SIGUSR1)
+		  (px.signal-bub-delivered? SIGUSR2)))
+	(px.signal-bub-final))
+    => '(#f #f))
+
+  (check
+      (unwind-protect
+	  (begin
+	    (px.signal-bub-init)
+	    (px.raise SIGUSR2)
+	    (px.signal-bub-acquire)
+	    (list (px.signal-bub-delivered? SIGUSR1)
+		  (px.signal-bub-delivered? SIGUSR2)))
+	(px.signal-bub-final))
+    => '(#f #t))
+
+  (check
+      (unwind-protect
+	  (begin
+	    (px.signal-bub-init)
+	    (px.raise SIGUSR1)
+	    (px.raise SIGUSR2)
+	    (px.signal-bub-acquire)
+	    (list (px.signal-bub-delivered? SIGUSR1)
+		  (px.signal-bub-delivered? SIGUSR2)))
+	(px.signal-bub-final))
+    => '(#t #t))
+
+;;; --------------------------------------------------------------------
+;;; use kill
+
+  (check
+      (unwind-protect
+	  (begin
+	    (px.signal-bub-init)
+	    (px.kill (px.getpid) SIGUSR1)
+	    (px.signal-bub-acquire)
+	    (list (px.signal-bub-delivered? SIGUSR1)
+		  (px.signal-bub-delivered? SIGUSR2)))
+	(px.signal-bub-final))
+    => '(#t #f))
+
+  (check
+      (unwind-protect
+	  (begin
+	    (px.signal-bub-init)
+	    (px.signal-bub-acquire)
+	    (list (px.signal-bub-delivered? SIGUSR1)
+		  (px.signal-bub-delivered? SIGUSR2)))
+	(px.signal-bub-final))
+    => '(#f #f))
+
+  (check
+      (unwind-protect
+	(begin
+	    (px.signal-bub-init)
+	    (px.kill (px.getpid) SIGUSR2)
+	    (px.signal-bub-acquire)
+	    (list (px.signal-bub-delivered? SIGUSR1)
+		  (px.signal-bub-delivered? SIGUSR2)))
+	(px.signal-bub-final))
+    => '(#f #t))
+
+  (check
+      (unwind-protect
+	  (begin
+	    (px.signal-bub-init)
+	    (px.kill (px.getpid) SIGUSR1)
+	    (px.kill (px.getpid) SIGUSR2)
+	    (px.signal-bub-acquire)
+	    (list (px.signal-bub-delivered? SIGUSR1)
+		  (px.signal-bub-delivered? SIGUSR2)))
+	(px.signal-bub-final))
+    => '(#t #t))
+
+;;; --------------------------------------------------------------------
+
+  (check	;test clearing the flag
+      (unwind-protect
+	  (begin
+	    (px.signal-bub-init)
+	    (px.raise SIGUSR1)
+	    (px.signal-bub-acquire)
+	    (let ((res (px.signal-bub-delivered? SIGUSR1)))
+	      (list res (px.signal-bub-delivered? SIGUSR2))))
+	(px.signal-bub-final))
+    => '(#t #f))
+
+;;; --------------------------------------------------------------------
+
+  (check
+      (unwind-protect
+	  (begin
+	    (px.signal-bub-init)
+	    (px.raise SIGUSR1)
+	    (px.signal-bub-acquire)
+	    (px.signal-bub-all-delivered))
+	(px.signal-bub-final))
+    => `(,SIGUSR1))
+
+  (check
+      (unwind-protect
+	  (begin
+	    (px.signal-bub-init)
+	    (px.raise SIGUSR1)
+	    (px.raise SIGUSR2)
+	    (px.signal-bub-acquire)
+	    (px.signal-bub-all-delivered))
+	(px.signal-bub-final))
+    => `(,SIGUSR1 ,SIGUSR2))
 
   #t)
 

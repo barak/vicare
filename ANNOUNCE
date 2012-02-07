@@ -1,4 +1,4 @@
-Subject: [announce] Vicare Scheme revision 0.2d6
+Subject: [announce] Vicare Scheme revision 0.2d7
 
                              Vicare Scheme
                              =============
@@ -37,6 +37,94 @@ this project has a mailing list:
 collection of R6 Scheme libraries:
 
 	      <http://marcomaggi.github.com/nausicaa.html>
+
+
+Notes for revision 0.2d7
+------------------------
+
+* Boot images were regenerated.
+
+* Added PARAMETRISE as alias for PARAMETERIZE.
+
+* Parameter functions now accept 0, 1 or 2 values and work as follows:
+
+    (let ((the-value <init-value>)
+          (guard <guard-func>))
+      (case-lambda
+        (()
+         the-value)
+        ((new-value)
+         (set! the-value (guard new-value)))
+        ((new-value guard?)
+         (if guard?
+             (set! the-value (guard new-value))
+           (set! the-value new-value)))))
+
+* BACKWARDS INCOMPATIBILITY The  function MAKE-PARAMETER does *not* pass
+  the  parameter's  initialisation  value  through  the  guard  function
+  anymore.
+
+* POSSIBLE BACKWARDS INCOMPATIBILITY The PARAMETERIZE syntax applies the
+  parameter's guard  function when setting  a new value, but  does *not*
+  apply it when restoring the original parameter's value.
+
+* Added  command  line  option  to  the "vicare"  executable  to  enable
+  entering a  debugging REPL whenever the interprocess  signal SIGINT is
+  received.  It was enabled by default, now it is disabled by default.
+
+* Added  functions  ASCII->STRING and  STRING->ASCII  to convert  Scheme
+  strings to and from bytevectors holding ASCII representations.
+
+* Functions acting  on pointers, allocating  raw memory and acting  on C
+  strings, that  were exported by (vicare  ffi) but do  not need Libffi,
+  are  now exported  by (vicare)  and  (ikarus) and  also reexported  by
+  (vicare ffi).  This change should be backwards compatible.
+
+* Syntax  bindings associated  to  the "errno"  variable, including  the
+  error  code constants,  are now  exported by  the new  library (vicare
+  errno).     The   constants   are    also   reexported    by   (vicare
+  platform-constants).   The  CASE-ERRNO  and  ERRNO-CODE  syntaxes  are
+  reexported  by   (vicare  ffi).   This  change   should  be  backwards
+  compatible.
+
+* Added library (vicare weak-hashtables) implementing hashtables holding
+  weak references to keys and strong references to values.
+
+* Added   "--disable-posix",  "--disable-glibc"   and  "--disable-linux"
+  options  to  the "configure"  script  to  disable  inclusion of  POSIX
+  bindings, GNU C Library specific bindings and Linux specific bindings.
+
+* BACKWARDS  INCOMPATIBILITY Scheme  functions for  POSIX  bindings have
+  been  moved out  of the  boot  image; they  are only  exported by  the
+  (vicare  posix) library.   POSIX functions  whose names  were prefixed
+  with "posix-" to avoid collision are now unprefixed:
+
+     posix-read		-> read
+     posix-write	-> write
+     posix-remove	-> remove
+     posix-time		-> time
+
+  RAISE-SIGNAL has been renamed  to RAISE.  Collision between names from
+  (vicare) and  names from  (vicare posix) can  be avoided  by prefixing
+  bindings from (vicare posix) in the import spec; example:
+
+     (import (vicare)
+       (prefix (vicare posix) px.))
+
+* Added POSIX functions for memory-mapped input/output:
+
+    mmap		munmap
+    msync		mremap
+    madvise
+
+* Added POSIX function POLL.
+
+* Added  to  (vicare  posix)  simple  block/unblock  (BUB)  interprocess
+  signals API.
+
+* When "--enable-libffi"  is not used:  the library (vicare ffi)  is not
+  installed   anymore.     Fixed   bug   causing    build   error   when
+  "--enable-libffi" is not used.
 
 
 Notes for revision 0.2d6
