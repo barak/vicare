@@ -1,7 +1,7 @@
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ(2.67)
-AC_INIT([vicare],[0.2d6],[marco.maggi-ipsu@poste.it])
+AC_PREREQ(2.68)
+AC_INIT([vicare],[0.2d7],[marco.maggi-ipsu@poste.it])
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE
 LT_PREREQ([2.2])
@@ -34,6 +34,37 @@ AC_ARG_ENABLE([arguments-validation],
    AC_MSG_RESULT([yes])])
 
 AC_SUBST([VICARE_ARGUMENTS_VALIDATION],[$vicare_ARGUMENTS_VALIDATION])
+
+AC_ARG_ENABLE([posix],
+  [AS_HELP_STRING([--disable-posix],
+     [disable bindings to GNU C Library (default is enable)])],
+  [case "${enableval}" in
+     yes) vicare_posix_bindings=true ;;
+     no)  vicare_posix_bindings=false ;;
+     *) AC_MSG_ERROR([bad value ${enableval} for --enable-posix]) ;;
+   esac],[vicare_posix_bindings=true])
+AM_CONDITIONAL([WANT_POSIX],[test x$vicare_posix_bindings = xtrue])
+
+AC_ARG_ENABLE([glibc],
+  [AS_HELP_STRING([--disable-glibc],
+     [disable bindings to GNU C Library (default is enable)])],
+  [case "${enableval}" in
+     yes) vicare_glibc_bindings=true ;;
+     no)  vicare_glibc_bindings=false ;;
+     *) AC_MSG_ERROR([bad value ${enableval} for --enable-glibc]) ;;
+   esac],[vicare_glibc_bindings=true])
+AM_CONDITIONAL([WANT_GLIBC],[test x$vicare_glibc_bindings = xtrue])
+
+AC_ARG_ENABLE([linux],
+  [AS_HELP_STRING([--disable-linux],
+     [disable bindings to GNU C Library (default is enable)])],
+  [case "${enableval}" in
+     yes) vicare_linux_bindings=true ;;
+     no)  vicare_linux_bindings=false ;;
+     *) AC_MSG_ERROR([bad value ${enableval} for --enable-linux]) ;;
+   esac],[vicare_linux_bindings=true])
+AM_CONDITIONAL([WANT_LINUX],[test x$vicare_linux_bindings = xtrue])
+
 
 #page
 #### basic system inspection
@@ -93,19 +124,93 @@ AC_CHECK_HEADERS([assert.h dlfcn.h errno.h fcntl.h signal.h \
                   sys/time.h sys/types.h sys/wait.h time.h \
                   unistd.h])
 
-AC_CHECK_HEADERS([arpa/inet.h dirent.h fstab.h ftw.h grp.h inttypes.h limits.h mntent.h net/if.h netinet/in.h netdb.h paths.h pwd.h signal.h termios.h sys/mman.h sys/mount.h sys/select.h sys/socket.h sys/times.h sys/timex.h sys/types.h sys/un.h sys/utsname.h sys/uio.h utime.h sys/ioctl.h math.h complex.h fnmatch.h glob.h regex.h wordexp.h])
+AC_CHECK_HEADERS([arpa/inet.h dirent.h fstab.h ftw.h grp.h inttypes.h limits.h mntent.h net/if.h netinet/in.h netdb.h paths.h pwd.h signal.h termios.h sys/mman.h sys/mount.h poll.h sys/select.h sys/socket.h sys/times.h sys/timex.h sys/types.h sys/un.h sys/utsname.h sys/uio.h utime.h sys/ioctl.h math.h complex.h fnmatch.h glob.h regex.h wordexp.h])
+
+AC_HEADER_TIME
 
 AC_C_CONST
 AC_C_INLINE
 AC_C_RESTRICT
+AC_TYPE_LONG_LONG_INT
+AC_TYPE_UNSIGNED_LONG_LONG_INT
+AC_TYPE_MODE_T
+AC_TYPE_OFF_T
+AC_TYPE_PID_T
 AC_TYPE_SIZE_T
-AC_HEADER_TIME
-AC_STRUCT_TM
+AC_TYPE_SSIZE_T
+AC_TYPE_UID_T
+AC_TYPE_INT8_T
+AC_TYPE_INT16_T
+AC_TYPE_INT32_T
+AC_TYPE_INT64_T
+AC_TYPE_UINT8_T
+AC_TYPE_UINT16_T
+AC_TYPE_UINT32_T
+AC_TYPE_UINT64_T
+
+dnl Declared obsolete by GNU Autoconf.
+dnl
+dnl AC_STRUCT_TM
 
 AC_CACHE_SAVE
 
 #page
-#### other system inspection
+#### checks for library functions
+
+AC_FUNC_FORK
+AC_FUNC_MALLOC
+AC_FUNC_MEMCMP
+AC_FUNC_MMAP
+AC_FUNC_STRFTIME
+AC_FUNC_STRTOD
+AC_CHECK_FUNCS([bzero gettimeofday memmove memset mmap munmap sqrt strerror getaddrinfo])
+AC_CHECK_FUNCS([stat lstat realpath unlink mkdir])
+AC_CHECK_TYPES([struct tm],,,[VICARE_INCLUDES])
+AC_CHECK_FUNCS([getenv])
+AC_CHECK_FUNCS([sigaltstack sigfillset sigprocmask sigaction])
+AC_CHECK_TYPES([struct timespec])
+
+AC_CACHE_SAVE
+
+#page
+#### tests for specific features
+
+AC_CACHE_CHECK([if unsetenv has return value],
+  [vicare_cv_UNSETENV_HAS_RETURN_VALUE],
+  [AC_COMPILE_IFELSE([AC_LANG_SOURCE([AC_INCLUDES_DEFAULT
+int main (void)
+{
+  int retval = unsetenv("PATH");
+  return 0;
+}])],
+    [vicare_cv_UNSETENV_HAS_RETURN_VALUE=1],
+    [vicare_cv_UNSETENV_HAS_RETURN_VALUE=0])])
+AC_DEFINE_UNQUOTED([UNSETENV_HAS_RETURN_VALUE],
+  $vicare_cv_UNSETENV_HAS_RETURN_VALUE,
+  [whether the function unsetenv has a return value])
+
+AC_DEFUN([VICARE_SIZEOF],
+  [AC_CACHE_CHECK([the size of '$1'],
+    [$2],
+    [AC_COMPUTE_INT([$2],
+      [sizeof($1)],[AC_INCLUDES_DEFAULT],[$2="#f"])])
+  $3="$$2"
+  AC_SUBST([$3])])
+
+VICARE_SIZEOF([char],[vicare_cv_sizeof_char],[SIZEOF_CHAR])
+VICARE_SIZEOF([short],[vicare_cv_sizeof_short],[SIZEOF_SHORT])
+VICARE_SIZEOF([int],[vicare_cv_sizeof_int],[SIZEOF_INT])
+VICARE_SIZEOF([long],[vicare_cv_sizeof_long],[SIZEOF_LONG])
+VICARE_SIZEOF([long long],[vicare_cv_sizeof_long_long],[SIZEOF_LONG_LONG])
+
+VICARE_SIZEOF([size_t],[vicare_cv_sizeof_size_t],[SIZEOF_SIZE_T])
+VICARE_SIZEOF([ssize_t],[vicare_cv_sizeof_ssize_t],[SIZEOF_SSIZE_T])
+VICARE_SIZEOF([off_t],[vicare_cv_sizeof_off_t],[SIZEOF_OFF_T])
+
+AC_CACHE_SAVE
+
+#page
+#### POSIX system inspection
 
 AC_CHECK_MEMBER([struct stat.st_atimespec],
    AC_DEFINE(HAVE_STAT_ST_ATIMESPEC, 1,
@@ -165,152 +270,50 @@ AC_CHECK_MEMBER([struct stat.st_ctime_usec],
    [],
    [[#include <sys/stat.h>]])
 
-#page
-#### checks for library functions
-
-AC_FUNC_FORK
-AC_FUNC_MALLOC
-AC_FUNC_MEMCMP
-AC_FUNC_MMAP
-AC_FUNC_STAT
-AC_FUNC_STRFTIME
-AC_FUNC_STRTOD
-AC_CHECK_FUNCS([sigaltstack bzero gettimeofday memmove memset munmap setenv sqrt strerror getaddrinfo])
-
-AC_CACHE_SAVE
-
-#page
-#### external libraries
-
-dnl AC_CHECK_LIB(m,sin)
-AC_CHECK_LIB(pthread, main)
-
-AC_CHECK_HEADERS([gmp.h],,[AC_MSG_ERROR([
-ERROR: Cannot find libgmp.
-ERROR: You might want to supply CFLAGS=-I</path/to/include> (containing
-ERROR: the gmp.h header file), and LDFLAGS=-L</path/to/lib> (containing
-ERROR: libgmp.so) if libgmp is installed in a non-standard location.
-ERROR: libgmp can be obtained from <http://gmplib.org>.])])
-
-# check that gmp is present
-AC_CHECK_LIB([gmp],[__gmpn_add],[],[AC_MSG_ERROR([
-ERROR: Cannot find libgmp.
-ERROR: You might want to supply CFLAGS=-I</path/to/include> (containing
-ERROR: the gmp.h header file), and LDFLAGS=-L</path/to/lib> (containing
-ERROR: libgmp.so) if libgmp is installed in a non-standard location.
-ERROR: libgmp can be obtained from <http://gmplib.org>.])])
-
 dnl --------------------------------------------------------------------
-dnl Optional binding to Libffi
 
-AC_ARG_ENABLE([libffi],
-  AS_HELP_STRING([--enable-libffi],[enable support for libffi (default is check)]),
-  [true],[enable_libffi=check])
-
-libffi_val=0
-if test "$enable_libffi" != no; then
-  AC_CHECK_HEADER([ffi.h],[have_ffi_h=yes],[have_ffi_h=no])
-  AC_CHECK_LIB([ffi],[ffi_call],[have_libffi=yes],[have_libffi=no])
-  if test "$have_libffi" = yes && test "$have_ffi_h" = yes; then
-    libffi_val=1
-    LIBS="$LIBS -lffi"
-  elif test "$enable_libffi" = yes; then
-    if test "$have_ffi_h" = no; then
-      AC_MSG_ERROR([ffi.h cannot be found.
-Please specify the location of the header file using
-  ./configure CPPFLAGS=-I<path/to/ffi.h>   <other-options ...>
-])
-    fi
-    if test "$have_libffi" = no; then
-      AC_MSG_ERROR([libffi cannot be found.
-Please specify the location of the library file using
-  ./configure LDFLAGS=-L<path/to/libffi.ld|dylib|so|etc.>  <other-options ...>
-])
-    fi
-  else
-    AC_MSG_WARN([libffi not found -- FFI disabled])
-  fi
-fi # "$enable_ffi" != no
-
-AC_DEFINE_UNQUOTED([ENABLE_LIBFFI],[$libffi_val],[adds support for Libffi])
-
-dnl --------------------------------------------------------------------
-dnl Check for Libiconv (optional)
-
-AC_ARG_WITH([iconv],
-  AS_HELP_STRING([--with-iconv],[enable support for iconv (default is no)]),
-  [true],[enable_iconv=no])
-
-iconv_val=0
-if test "$enable_iconv" != no; then
-  AC_CHECK_HEADER([iconv.h],[have_iconv_h=yes],[have_iconv_h=no])
-  AC_CHECK_LIB([iconv],[iconv_open],[have_iconv=yes],[have_iconv=no])
-  if test "$have_iconv" = yes && test "$have_iconv_h" = yes; then
-    iconv_val=1
-    LIBS="$LIBS -liconv"
-  elif test "$enable_iconv" = yes; then
-    if test "$have_iconv_h" = no; then
-      AC_MSG_ERROR([iconv.h cannot be found.
-Please specify the location of the header file using
-  ./configure CPPFLAGS=-I<path/to/iconv.h>   <other-options ...>
-])
-    fi
-    if test "$have_iconv" = no; then
-      AC_MSG_ERROR([iconv cannot be found.
-Please specify the location of the library file using
-  ./configure LDFLAGS=-L<path/to/iconv.ld|dylib|so|etc.>  <other-options ...>
-])
-    fi
-  else
-    AC_MSG_WARN([iconv not found -- ICONV disabled])
-  fi
-fi # "$enable_iconv" != no
-
-AC_DEFINE_UNQUOTED([ENABLE_ICONV],[$iconv_val],[adds support for iconv])
-
-dnl --------------------------------------------------------------------
-dnl Check for CRE2 (optional)
-
-AC_ARG_WITH([cre2],
-  AS_HELP_STRING([--with-cre2],[enable support for CRE2 (default is no)]),
-  [true],[enable_cre2=no])
-
-cre2_val=0
-CRE2_LIBS=
-if test "$enable_cre2" != no; then
-   dnl No need to check for "re2.h" header file.
-   AC_CHECK_LIB([re2],[main],
-     [have_re2=yes],
-     [AC_MSG_WARN([test for RE2 library failed])])
-   AC_CHECK_LIB([cre2],[cre2_version_string],[have_cre2=yes],[have_cre2=no],[-lre2])
-   AC_CHECK_HEADERS([cre2.h],[have_cre2_h=yes],[have_cre2_h=no])
-  if test "$have_cre2" = yes && test "$have_cre2_h" = yes; then
-    cre2_val=1
-    CRE2_LIBS="-lcre2 -lre2"
-    AC_MSG_NOTICE([CRE2 successfully enabled])
-  elif test "$enable_cre2" = yes; then
-    if test "$have_cre2_h" = no; then
-      AC_MSG_ERROR([cre2.h cannot be found.
-Please specify the location of the header file using
-  ./configure CPPFLAGS=-I<path/to/cre2.h>   <other-options ...>
-])
-    fi
-    if test "$have_cre2" = no; then
-      AC_MSG_ERROR([CRE2 cannot be found.
-Please specify the location of the library file using
-  ./configure LDFLAGS=-L<path/to/cre2.ld|dylib|so|etc.>  <other-options ...>
-])
-    fi
-  else
-    AC_MSG_WARN([cre2 not found -- CRE2 disabled])
-  fi
-else
-  AC_MSG_NOTICE([CRE2 was not requested])
-fi # "$enable_cre2" != no
-
-AC_DEFINE_UNQUOTED([ENABLE_CRE2],[$cre2_val],[adds support for CRE2])
-AM_CONDITIONAL([WANT_CRE2],[test x$cre2_val = x1])
-AC_SUBST([CRE2_LIBS])
+AM_COND_IF([WANT_POSIX],[
+  AC_CHECK_FUNCS([setenv unsetenv])
+  AC_CHECK_DECLS([environ])
+  AC_CHECK_FUNCS([getpid getppid])
+  AC_CHECK_FUNCS([system fork execv execve execvp])
+  AC_CHECK_FUNCS([waitpid wait])
+  VICARE_CHECK_WMACROS([WIFEXITED WEXITSTATUS WIFSIGNALED WTERMSIG WCOREDUMP WIFSTOPPED WSTOPSIG])
+  AC_CHECK_FUNCS([raise kill pause])
+  AC_CHECK_FUNCS([fstat access])
+  AC_CHECK_FUNCS([chown fchown chmod fchmod umask utime utimes lutimes futimes])
+  AC_CHECK_FUNCS([link symlink readlink remove rename])
+  AC_CHECK_FUNCS([rmdir getcwd chdir fchdir opendir fdopendir readdir closedir rewinddir telldir seekdir])
+  AC_CHECK_FUNCS([open close read pread write pwrite lseek readv writev poll select fcntl ioctl dup dup2 pipe mkfifo])
+  AC_CHECK_FUNCS([msync mremap madvise])
+  AC_CHECK_TYPES([struct sockaddr_un],,,[VICARE_INCLUDES])
+  AC_CHECK_TYPES([struct sockaddr_in],,,[VICARE_INCLUDES])
+  AC_CHECK_TYPES([struct sockaddr_in6],,,[VICARE_INCLUDES])
+  AC_CHECK_TYPES([struct in_addr],,,[VICARE_INCLUDES])
+  AC_CHECK_TYPES([struct in6_addr],,,[VICARE_INCLUDES])
+  AC_CHECK_FUNCS([inet_aton inet_ntoa inet_pton inet_ntop])
+  AC_CHECK_TYPES([struct hostent],,,[VICARE_INCLUDES])
+  AC_CHECK_FUNCS([gethostbyname gethostbyname2 gethostbyaddr sethostent gethostent endhostent])
+  AC_CHECK_TYPES([struct addrinfo],,,[VICARE_INCLUDES])
+  AC_CHECK_FUNCS([getaddrinfo gai_strerror])
+  AC_CHECK_TYPES([struct protoent],,,[VICARE_INCLUDES])
+  AC_CHECK_FUNCS([getprotobyname getprotobynumber setprotoent getprotoent endprotoent])
+  AC_CHECK_TYPES([struct servent],,,[VICARE_INCLUDES])
+  AC_CHECK_FUNCS([getservbyname getservbyport setservent getservent endservent])
+  AC_CHECK_TYPES([struct netent],,,[VICARE_INCLUDES])
+  AC_CHECK_FUNCS([getnetbyname getnetbyaddr setnetent getnetent endnetent])
+  AC_CHECK_FUNCS([socket shutdown socketpair connect listen accept bind getpeername getsockname])
+  AC_CHECK_FUNCS([send recv sendto recvfrom])
+  AC_CHECK_FUNCS([getsockopt setsockopt])
+  AC_CHECK_FUNCS([getuid getgid geteuid getegid getgroups seteuid setuid setreuid setegid setgid setregid getlogin])
+  AC_CHECK_TYPES([struct passwd],,,[VICARE_INCLUDES])
+  AC_CHECK_FUNCS([getpwuid getpwnam setpwent getpwent endpwent])
+  AC_CHECK_TYPES([struct group],,,[VICARE_INCLUDES])
+  AC_CHECK_FUNCS([getgrgid getgrnam setgrent getgrent endgrent])
+  AC_CHECK_FUNCS([ctermid setsid getsid getpgrp setpgid tcgetpgrp tcsetpgrp tcgetsid])
+  AC_CHECK_TYPES([struct tms],,,[VICARE_INCLUDES])
+  AC_CHECK_FUNCS([clock time times localtime_r gmtime_r timelocal timegm strftime nanosleep mktime])
+  ])
 
 AC_CACHE_SAVE
 
@@ -514,14 +517,6 @@ AC_CACHE_SAVE
 #page
 #### miscellaneous platform constants
 
-AC_DEFUN([VICARE_CONSTANT_TEST],[VICARE_VALUEOF_TEST([$1],[$1])])
-AC_DEFUN([VICARE_CONSTANT_TESTS],[m4_map_args_w($1,[VICARE_CONSTANT_TEST(],[)])])
-
-AC_DEFUN([VICARE_STRING_CONSTANT_TEST],[VICARE_STRINGOF_TEST([$1],[$1])])
-AC_DEFUN([VICARE_STRING_CONSTANT_TESTS],[m4_map_args_w($1,[VICARE_STRING_CONSTANT_TEST(],[)])])
-
-AC_DEFUN([VICARE_DOUBLEOF_TESTS],[m4_map_args_w($1,[VICARE_DOUBLEOF_TEST(],[)])])
-
 VICARE_CONSTANT_TESTS([CHAR_BIT SCHAR_MIN SCHAR_MAX UCHAR_MAX CHAR_MIN CHAR_MAX SHRT_MIN SHRT_MAX USHRT_MAX INT_MIN INT_MAX UINT_MAX LONG_MIN LONG_MAX ULONG_MAX LONG_LONG_MIN LONG_LONG_MAX ULONG_LONG_MAX WCHAR_MAX RAND_MAX])
 
 ## constants for waitpid and similar
@@ -572,6 +567,11 @@ VICARE_CONSTANT_TEST([O_NOATIME])
 ## These are Linux specific.
 VICARE_CONSTANT_TESTS([O_CLOEXEC O_DIRECT O_DIRECTORY O_LARGEFILE O_NOFOLLOW FD_CLOEXEC])
 
+## Memory-mapped input/output.
+VICARE_CONSTANT_TESTS([MAP_PRIVATE MAP_SHARED MAP_FIXED MAP_ANON MAP_ANONYMOUS MAP_32BITS MAP_DENYWRITE MAP_EXECUTABLE MAP_FILE MAP_GROWSDOWN MAP_LOCKED MAP_NONBLOCK MAP_NORESERVE MAP_POPULATE MAP_STACK MAP_AUTOGROW MAP_AUTORESRV MAP_COPY PROT_READ PROT_WRITE PROT_EXEC PROT_NONE MS_SYNC MS_ASYNC MREMAP_MAYMOVE])
+VICARE_CONSTANT_TESTS([MADV_NORMAL MADV_RANDOM MADV_SEQUENTIAL MADV_WILLNEED MADV_DONTNEED])
+VICARE_CONSTANT_TESTS([POSIX_MADV_NORMAL POSIX_MADV_RANDOM POSIX_MADV_SEQUENTIAL POSIX_MADV_WILLNEED POSIX_MADV_DONTNEED])
+
 AC_CACHE_SAVE
 
 ## ioctl action selection
@@ -598,11 +598,11 @@ VICARE_CONSTANT_TESTS([ITIMER_REAL ITIMER_VIRTUAL ITIMER_PROF])
 ## miscellaneous
 VICARE_CONSTANT_TESTS([EOF MAXSYMLINKS MAXPATHLEN])
 
-## mmap constants
-VICARE_CONSTANT_TESTS([MAP_PRIVATE MAP_SHARED MAP_FIXED MAP_ANON MAP_ANONYMOUS MAP_32BITS MAP_DENYWRITE MAP_EXECUTABLE MAP_FILE MAP_GROWSDOWN MAP_LOCKED MAP_NONBLOCK MAP_NORESERVE MAP_POPULATE MAP_STACK MAP_AUTOGROW MAP_AUTORESRV MAP_COPY PROT_READ PROT_WRITE PROT_EXEC PROT_NONE MS_SYNC MS_ASYNC MREMAP_MAYMOVE])
-
 ## select related symbols
 VICARE_CONSTANT_TESTS([FD_SETSIZE])
+
+## poll related symbols
+VICARE_CONSTANT_TESTS([POLLIN POLLPRI POLLOUT POLLRDHUP POLLERR POLLHUP POLLNVAL])
 
 ## max size of string for cuserid()
 VICARE_CONSTANT_TESTS([L_cuserid])
@@ -701,85 +701,33 @@ VICARE_CONSTANT_TESTS([WRDE_BADCHAR WRDE_BADVAL WRDE_CMDSUB WRDE_NOSPACE WRDE_SY
 AC_CACHE_SAVE
 
 #page
-#### tests for specific features
-
-AC_CACHE_CHECK([if unsetenv has return value],
-  [vicare_cv_UNSETENV_HAS_RETURN_VALUE],
-  [AC_COMPILE_IFELSE([AC_LANG_SOURCE([AC_INCLUDES_DEFAULT
-int main (void)
-{
-  int retval = unsetenv("PATH");
-  return 0;
-}])],
-    [vicare_cv_UNSETENV_HAS_RETURN_VALUE=1],
-    [vicare_cv_UNSETENV_HAS_RETURN_VALUE=0])])
-AC_DEFINE_UNQUOTED([UNSETENV_HAS_RETURN_VALUE],
-  $vicare_cv_UNSETENV_HAS_RETURN_VALUE,
-  [whether the function unsetenv has a return value])
-
-AC_DEFUN([VICARE_SIZEOF],
-  [AC_CACHE_CHECK([the size of '$1'],
-    [$2],
-    [AC_COMPUTE_INT([$2],
-      [sizeof($1)],[AC_INCLUDES_DEFAULT],[$2="#f"])])
-  $3="$$2"
-  AC_SUBST([$3])])
-
-VICARE_SIZEOF([char],[vicare_cv_sizeof_char],[SIZEOF_CHAR])
-VICARE_SIZEOF([short],[vicare_cv_sizeof_short],[SIZEOF_SHORT])
-VICARE_SIZEOF([int],[vicare_cv_sizeof_int],[SIZEOF_INT])
-VICARE_SIZEOF([long],[vicare_cv_sizeof_long],[SIZEOF_LONG])
-VICARE_SIZEOF([long long],[vicare_cv_sizeof_long_long],[SIZEOF_LONG_LONG])
-
-VICARE_SIZEOF([size_t],[vicare_cv_sizeof_size_t],[SIZEOF_SIZE_T])
-VICARE_SIZEOF([ssize_t],[vicare_cv_sizeof_ssize_t],[SIZEOF_SSIZE_T])
-
-AC_CACHE_SAVE
-
-#page
 #### tests for GNU C Library specific features
 
-AC_CHECK_FUNCS([clearenv dirfd mkstemp mkdtemp sync fsync fdatasync])
-AC_CHECK_FUNCS([if_nametoindex if_indextoname if_nameindex])
-AC_CHECK_FUNCS([creal cimag])
-AC_CHECK_FUNCS([csin ccos ctan casin cacos catan])
-AC_CHECK_FUNCS([cexp clog clog10 csqrt cpow])
-AC_CHECK_FUNCS([sinh cosh tanh csinh ccosh ctanh asinh acosh atanh casinh cacosh catanh])
-AC_CHECK_FUNCS([erf erfc lgamma_r tgamma j0 j1 jn y0 y1 yn])
-AC_CHECK_FUNCS([rand srand])
-AC_CHECK_FUNCS([fnmatch glob regcomp regexec regfree regerror])
-AC_CHECK_FUNCS([wordexp wordfree])
-AC_CHECK_FUNCS([sysconf pathconf fpathconf confstr])
-AC_CHECK_FUNCS([iconv_open iconv_close iconv])
+AM_COND_IF([WANT_GLIBC],[
+  AC_CHECK_FUNCS([clearenv dirfd mkstemp mkdtemp sync fsync fdatasync])
+  AC_CHECK_FUNCS([if_nametoindex if_indextoname if_nameindex])
+  AC_CHECK_FUNCS([creal cimag])
+  AC_CHECK_FUNCS([csin ccos ctan casin cacos catan])
+  AC_CHECK_FUNCS([cexp clog clog10 csqrt cpow])
+  AC_CHECK_FUNCS([sinh cosh tanh csinh ccosh ctanh asinh acosh atanh casinh cacosh catanh])
+  AC_CHECK_FUNCS([erf erfc lgamma_r tgamma j0 j1 jn y0 y1 yn])
+  AC_CHECK_FUNCS([rand srand])
+  AC_CHECK_FUNCS([fnmatch glob regcomp regexec regfree regerror])
+  AC_CHECK_FUNCS([wordexp wordfree])
+  AC_CHECK_FUNCS([sysconf pathconf fpathconf confstr])
+  AC_CHECK_FUNCS([iconv_open iconv_close iconv])])
 
 AC_CACHE_SAVE
 
 #page
 #### tests for GNU+Linux specific features
 
-AC_CACHE_CHECK([availability of WIFCONTINUED],
-  [vicare_cv_HAVE_WIFCONTINUED],
-  [AC_COMPILE_IFELSE([AC_LANG_SOURCE([AC_INCLUDES_DEFAULT
-#ifdef HAVE_SYS_WAIT_H
-#  include <sys/wait.h>
-#endif
-int main (void)
-{
-  int status = 0;
-  int retval = WIFCONTINUED(status);
-  return 0;
-}])],
-    [vicare_cv_HAVE_WIFCONTINUED=1],
-    [vicare_cv_HAVE_WIFCONTINUED=0])])
-AC_DEFINE_UNQUOTED([HAVE_WIFCONTINUED],
-  $vicare_cv_HAVE_WIFCONTINUED,
-  [whether the Linux specific WIFCONTINUED macro is available])
+AM_COND_IF([WANT_LINUX],[
+  VICARE_CHECK_WMACRO([WIFCONTINUED])
 
-dnl --------------------------------------------------------------------
-
-AC_CACHE_CHECK([availability of waitid],
-  [vicare_cv_HAVE_WAITID],
-  [AC_COMPILE_IFELSE([AC_LANG_SOURCE([AC_INCLUDES_DEFAULT
+  AC_CACHE_CHECK([availability of waitid],
+    [vicare_cv_HAVE_WAITID],
+    [AC_COMPILE_IFELSE([AC_LANG_SOURCE([AC_INCLUDES_DEFAULT
 #ifdef HAVE_SYS_TYPES_H
 #  include <sys/types.h>
 #endif
@@ -795,13 +743,150 @@ int main (void)
   int retval = waitid(idtype, id, &info, options);
   return 0;
 }])],
-    [vicare_cv_HAVE_WAITID=1],
-    [vicare_cv_HAVE_WAITID=0])])
-AC_DEFINE_UNQUOTED([HAVE_WAITID],
-  $vicare_cv_HAVE_WAITID,
-  [whether the Linux specific waitid function is available])
+      [vicare_cv_HAVE_WAITID=1],
+      [vicare_cv_HAVE_WAITID=0])])
+  AC_DEFINE_UNQUOTED([HAVE_WAITID],
+    $vicare_cv_HAVE_WAITID,
+    [whether the Linux specific waitid function is available])
+])
 
 dnl --------------------------------------------------------------------
+
+AC_CACHE_SAVE
+
+#page
+#### external libraries
+
+dnl AC_CHECK_LIB(m,sin)
+AC_CHECK_LIB(pthread, main)
+
+AC_CHECK_HEADERS([gmp.h],,[AC_MSG_ERROR([
+ERROR: Cannot find libgmp.
+ERROR: You might want to supply CFLAGS=-I</path/to/include> (containing
+ERROR: the gmp.h header file), and LDFLAGS=-L</path/to/lib> (containing
+ERROR: libgmp.so) if libgmp is installed in a non-standard location.
+ERROR: libgmp can be obtained from <http://gmplib.org>.])])
+
+# check that gmp is present
+AC_CHECK_LIB([gmp],[__gmpn_add],[],[AC_MSG_ERROR([
+ERROR: Cannot find libgmp.
+ERROR: You might want to supply CFLAGS=-I</path/to/include> (containing
+ERROR: the gmp.h header file), and LDFLAGS=-L</path/to/lib> (containing
+ERROR: libgmp.so) if libgmp is installed in a non-standard location.
+ERROR: libgmp can be obtained from <http://gmplib.org>.])])
+
+dnl --------------------------------------------------------------------
+dnl Optional binding to Libffi
+
+AC_ARG_ENABLE([libffi],
+  AS_HELP_STRING([--enable-libffi],[enable support for libffi (default is check)]),
+  [true],[enable_libffi=check])
+
+libffi_val=0
+if test "$enable_libffi" != no; then
+  AC_CHECK_HEADER([ffi.h],[have_ffi_h=yes],[have_ffi_h=no])
+  AC_CHECK_LIB([ffi],[ffi_call],[have_libffi=yes],[have_libffi=no])
+  if test "$have_libffi" = yes && test "$have_ffi_h" = yes; then
+    libffi_val=1
+    LIBS="$LIBS -lffi"
+  elif test "$enable_libffi" = yes; then
+    if test "$have_ffi_h" = no; then
+      AC_MSG_ERROR([ffi.h cannot be found.
+Please specify the location of the header file using
+  ./configure CPPFLAGS=-I<path/to/ffi.h>   <other-options ...>
+])
+    fi
+    if test "$have_libffi" = no; then
+      AC_MSG_ERROR([libffi cannot be found.
+Please specify the location of the library file using
+  ./configure LDFLAGS=-L<path/to/libffi.ld|dylib|so|etc.>  <other-options ...>
+])
+    fi
+  else
+    AC_MSG_WARN([libffi not found -- FFI disabled])
+  fi
+fi # "$enable_ffi" != no
+
+AC_DEFINE_UNQUOTED([ENABLE_LIBFFI],[$libffi_val],[adds support for Libffi])
+AM_CONDITIONAL([WANT_LIBFFI],[test x$enable_libffi = xyes])
+
+dnl --------------------------------------------------------------------
+dnl Check for Libiconv (optional)
+
+AC_ARG_WITH([iconv],
+  AS_HELP_STRING([--with-iconv],[enable support for iconv (default is no)]),
+  [true],[enable_iconv=no])
+
+iconv_val=0
+if test "$enable_iconv" != no; then
+  AC_CHECK_HEADER([iconv.h],[have_iconv_h=yes],[have_iconv_h=no])
+  AC_CHECK_LIB([iconv],[iconv_open],[have_iconv=yes],[have_iconv=no])
+  if test "$have_iconv" = yes && test "$have_iconv_h" = yes; then
+    iconv_val=1
+    LIBS="$LIBS -liconv"
+  elif test "$enable_iconv" = yes; then
+    if test "$have_iconv_h" = no; then
+      AC_MSG_ERROR([iconv.h cannot be found.
+Please specify the location of the header file using
+  ./configure CPPFLAGS=-I<path/to/iconv.h>   <other-options ...>
+])
+    fi
+    if test "$have_iconv" = no; then
+      AC_MSG_ERROR([iconv cannot be found.
+Please specify the location of the library file using
+  ./configure LDFLAGS=-L<path/to/iconv.ld|dylib|so|etc.>  <other-options ...>
+])
+    fi
+  else
+    AC_MSG_WARN([iconv not found -- ICONV disabled])
+  fi
+fi # "$enable_iconv" != no
+
+AC_DEFINE_UNQUOTED([ENABLE_ICONV],[$iconv_val],[adds support for iconv])
+
+dnl --------------------------------------------------------------------
+dnl Check for CRE2 (optional)
+
+AC_ARG_WITH([cre2],
+  AS_HELP_STRING([--with-cre2],[enable support for CRE2 (default is no)]),
+  [true],[enable_cre2=no])
+
+cre2_val=0
+CRE2_LIBS=
+if test "$enable_cre2" != no; then
+   dnl No need to check for "re2.h" header file.
+   AC_CHECK_LIB([re2],[main],
+     [have_re2=yes],
+     [AC_MSG_WARN([test for RE2 library failed])])
+   AC_CHECK_LIB([cre2],[cre2_version_string],[have_cre2=yes],[have_cre2=no],[-lre2])
+   AC_CHECK_HEADERS([cre2.h],[have_cre2_h=yes],[have_cre2_h=no])
+  if test "$have_cre2" = yes && test "$have_cre2_h" = yes; then
+    cre2_val=1
+    CRE2_LIBS="-lcre2 -lre2"
+    AC_MSG_NOTICE([CRE2 successfully enabled])
+  elif test "$enable_cre2" = yes; then
+    if test "$have_cre2_h" = no; then
+      AC_MSG_ERROR([cre2.h cannot be found.
+Please specify the location of the header file using
+  ./configure CPPFLAGS=-I<path/to/cre2.h>   <other-options ...>
+])
+    fi
+    if test "$have_cre2" = no; then
+      AC_MSG_ERROR([CRE2 cannot be found.
+Please specify the location of the library file using
+  ./configure LDFLAGS=-L<path/to/cre2.ld|dylib|so|etc.>  <other-options ...>
+])
+    fi
+  else
+    AC_MSG_WARN([cre2 not found -- CRE2 disabled])
+  fi
+else
+  AC_MSG_NOTICE([CRE2 was not requested])
+fi # "$enable_cre2" != no
+
+AC_DEFINE_UNQUOTED([ENABLE_CRE2],[$cre2_val],[adds support for CRE2])
+AM_CONDITIONAL([WANT_CRE2],[test x$cre2_val = x1])
+AC_SUBST([CRE2_LIBS])
 
 AC_CACHE_SAVE
 
@@ -809,7 +894,7 @@ AC_CACHE_SAVE
 #### finish
 
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_FILES(Makefile src/Makefile scheme/Makefile doc/Makefile lib/Makefile tests/Makefile lib/vicare/installation-configuration.sls lib/vicare/platform-constants.sls lib/vicare/words.sls)
+AC_CONFIG_FILES(Makefile src/Makefile scheme/Makefile doc/Makefile lib/Makefile tests/Makefile lib/vicare/installation-configuration.sls lib/vicare/errno.sls lib/vicare/platform-constants.sls lib/vicare/words.sls)
 AC_OUTPUT #(Makefile src/Makefile scheme/Makefile doc/Makefile)
 
 ### end of file

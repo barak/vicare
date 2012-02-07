@@ -55,6 +55,9 @@
 		  load
 		  load-r6rs-script)
 	    loading.)
+    (prefix (only (ikarus.posix)
+		  getenv)
+	    posix.)
     (only (vicare syntactic-extensions)
 	  define-inline))
 
@@ -646,6 +649,11 @@ Other options:
    --prompt STRING
         Use STRING as prompt for the REPL.  Defaults to \"vicare\".
 
+   --repl-on-sigint
+        When  this option  is  used an  interprocess  signal handler  is
+	registered at program startup to enter a debugging REPL whenever
+	a SIGINT signal is received.
+
    -d
    --debug
         Turn  on debugging  mode.  Unhandled  exceptions in  the program
@@ -705,7 +713,7 @@ Consult Vicare Scheme User's Guide for more details.\n\n")
 	    ls))
   (with-run-time-config (cfg)
     (library-path (append cfg.search-path
-			  (cond ((getenv "VICARE_LIBRARY_PATH")
+			  (cond ((posix.getenv "VICARE_LIBRARY_PATH")
 				 => split-path)
 				(else '(".")))
 			  (list config.vicare-lib-dir)))
@@ -750,9 +758,9 @@ Consult Vicare Scheme User's Guide for more details.\n\n")
     (with-run-time-config (cfg)
       (case cfg.rcfiles
 	((#t)
-	 (cond ((getenv "VICARE_RC_FILES")
+	 (cond ((posix.getenv "VICARE_RC_FILES")
 		=> split-path)
-	       ((getenv "HOME")
+	       ((posix.getenv "HOME")
 		=> (lambda (home)
 		     (let ((f (string-append home "/.vicarerc")))
 		       (if (file-exists? f)
