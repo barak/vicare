@@ -1,19 +1,20 @@
 ## Process this file with automake to produce Makefile.in
 
-libvicaredir		= $(pkglibdir)/vicare
+libvicaredir		= $(libdir)/scheme
 
 EXTRA_DIST		= compile-all.sps			\
 			  compile-ffi.sps			\
 			  compile-posix.sps			\
 			  compile-glibc.sps			\
 			  compile-linux.sps			\
+			  compile-readline.sps			\
 			  compile-cre2.sps			\
 			  vicare/errno.sls.in			\
 			  vicare/platform-constants.sls.in	\
 			  vicare/words.sls.in			\
 			  vicare/installation-configuration.sls.in
 
-dist_libvicare_DATA	= \
+nobase_dist_libvicare_DATA	= \
 	vicare/errno.sls			\
 	vicare/platform-constants.sls		\
 	vicare/include.sls			\
@@ -29,23 +30,27 @@ dist_libvicare_DATA	= \
 	vicare/weak-hashtables.sls
 
 if WANT_LIBFFI
-dist_libvicare_DATA	+= vicare/ffi.sls
+nobase_dist_libvicare_DATA	+= vicare/ffi.sls
 endif
 
 if WANT_POSIX
-dist_libvicare_DATA	+= vicare/posix.sls
+nobase_dist_libvicare_DATA	+= vicare/posix.sls
 endif
 
 if WANT_GLIBC
-dist_libvicare_DATA	+= vicare/glibc.sls
+nobase_dist_libvicare_DATA	+= vicare/glibc.sls
 endif
 
 if WANT_LINUX
-dist_libvicare_DATA	+= vicare/linux.sls
+nobase_dist_libvicare_DATA	+= vicare/linux.sls
+endif
+
+if WANT_READLINE
+nobase_dist_libvicare_DATA	+= vicare/readline.sls
 endif
 
 if WANT_CRE2
-dist_libvicare_DATA	+= vicare/cre2.sls
+nobase_dist_libvicare_DATA	+= vicare/cre2.sls
 endif
 
 ## --------------------------------------------------------------------
@@ -78,6 +83,9 @@ endif
 if WANT_LINUX
 	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-linux.sps
 endif
+if WANT_READLINE
+	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-readline.sps
+endif
 if WANT_CRE2
 	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-cre2.sps
 endif
@@ -95,6 +103,9 @@ if WANT_GLIBC
 endif
 if WANT_LINUX
 	$(VICARE_INST_RUN) --compile-dependencies $(srcdir)/compile-linux.sps
+endif
+if WANT_READLINE
+	$(VICARE_INST_RUN) --compile-dependencies $(srcdir)/compile-readline.sps
 endif
 if WANT_CRE2
 	$(VICARE_INST_RUN) --compile-dependencies $(srcdir)/compile-cre2.sps

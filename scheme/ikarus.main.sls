@@ -20,6 +20,7 @@
 (library (ikarus startup)
   (export
     vicare-lib-dir
+    scheme-lib-dir
     vicare-version
     vicare-revision
     bootfile
@@ -58,6 +59,11 @@
     (prefix (only (ikarus.posix)
 		  getenv)
 	    posix.)
+    (only (ikarus cafe)
+	  cafe-input-port)
+    (only (ikarus.readline)
+	  readline-enabled?
+	  make-readline-input-port)
     (only (vicare syntactic-extensions)
 	  define-inline))
 
@@ -149,6 +155,10 @@
    more-file-extensions
 		;Turn  on search  for more  library file  extension than
 		;".vicare.sls" and ".sls".
+
+   raw-repl
+		;If true  do not create  a readline console  input port,
+		;even when the readline interface is available.
    ))
 
 (define-inline (run-time-config-load-libraries-register! cfg pathname)
@@ -193,7 +203,8 @@
 	      (CFG.PROGRAM-OPTIONS	(%dot-id ".program-options"))
 	      (CFG.NO-GREETINGS		(%dot-id ".no-greetings"))
 	      (CFG.SEARCH-PATH		(%dot-id ".search-path"))
-	      (CFG.MORE-FILE-EXTENSIONS	(%dot-id ".more-file-extensions")))
+	      (CFG.MORE-FILE-EXTENSIONS	(%dot-id ".more-file-extensions"))
+	      (CFG.RAW-REPL		(%dot-id ".raw-repl")))
 	   #'(let-syntax
 		 ((CFG.EXEC-MODE
 		   (identifier-syntax
@@ -256,7 +267,11 @@
 		    (_
 		     (run-time-config-more-file-extensions ?cfg))
 		    ((set! _ ?val)
-		     (set-run-time-config-more-file-extensions! ?cfg ?val)))))
+		     (set-run-time-config-more-file-extensions! ?cfg ?val))))
+
+		  (CFG.RAW-REPL
+		   (identifier-syntax
+		    (run-time-config-raw-repl ?cfg))))
 	       . ?body)))))))
 
 
@@ -294,6 +309,7 @@
 			  #f		;no-greetings
 			  '()		;search-path
 			  #f		;more-file-extensions
+			  #f		;raw-repl
 			  ))
 
   (let next-option ((args	(command-line-arguments))
@@ -422,6 +438,10 @@
 
 	  ((%option= "--more-file-extensions")
 	   (set-run-time-config-more-file-extensions! cfg #t)
+	   (next-option (cdr args) k))
+
+	  ((%option= "--raw-repl")
+	   (set-run-time-config-raw-repl! cfg #t)
 	   (next-option (cdr args) k))
 
 ;;; --------------------------------------------------------------------
@@ -654,6 +674,10 @@ Other options:
 	registered at program startup to enter a debugging REPL whenever
 	a SIGINT signal is received.
 
+   --raw-repl
+	Do not create a readline console input port even if the readline
+	interface is available.
+
    -d
    --debug
         Turn  on debugging  mode.  Unhandled  exceptions in  the program
@@ -716,7 +740,8 @@ Consult Vicare Scheme User's Guide for more details.\n\n")
 			  (cond ((posix.getenv "VICARE_LIBRARY_PATH")
 				 => split-path)
 				(else '(".")))
-			  (list config.vicare-lib-dir)))
+			  (list config.scheme-lib-dir
+				config.vicare-lib-dir)))
     (when cfg.more-file-extensions
       (library-extensions (%prefix "/main"
 				   (%prefix ".vicare" '(".sls" ".ss" ".scm")))))))
@@ -872,6 +897,9 @@ Consult Vicare Scheme User's Guide for more details.\n\n")
       (display "*** vicare warning: optimization level artificially set to 0\n"
 	       (current-error-port)))
     (optimize-level 0)
+
+    (when (and (readline-enabled?) (not cfg.raw-repl))
+      (cafe-input-port (make-readline-input-port)))
 
     (cond ((eq? 'repl cfg.exec-mode)
 	   (command-line-arguments (cons "*interactive*" cfg.program-options)))

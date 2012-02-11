@@ -250,6 +250,25 @@
       	     (list (char? obj) obj eof))
       	 => (list #t ?result #t)))))
 
+  (define-syntax read-char-not-eof
+    (syntax-rules ()
+      ((_ ?input ?result)
+       (check
+      	   (let* ((port (open-string-input-port ?input))
+		  (obj  (read port))
+		  (eof	(port-eof? port)))
+      	     (list (char? obj) obj eof))
+      	 => (list #t ?result #f)))))
+
+  (define-syntax read-custom-named-char
+    (syntax-rules ()
+      ((_ ?input ?output)
+       (check
+      	   (let* ((str  ?input)
+      		  (port (open-string-input-port str)))
+      	     (read port))
+      	 => ?output))))
+
 ;;; --------------------------------------------------------------------
 
   (read-char-and-eof "#\\A"		(integer->char 65))
@@ -304,6 +323,15 @@
   (read-char-and-eof "#\\x123"		#\x123)
   (read-char-and-eof "#\\xFAF"		#\xFAF)
 
+;;; --------------------------------------------------------------------
+;;; custom named characters
+
+  ;;These are still #\{ chars.
+  (read-char-and-eof "#\\{"		#\{)
+  (read-char-not-eof "#\\{ "		#\{)
+
+  (read-custom-named-char "#!(char-names (lambda . #\\x0E88)) #\\{lambda}" #\x0E88)
+
   #t)
 
 
@@ -320,6 +348,15 @@
       		  (port (open-string-input-port str)))
       	     (read port))
       	 => (string ?result-chars ...)))))
+
+  (define-syntax read-string-with-custom-named-char
+    (syntax-rules ()
+      ((_ ?input ?output)
+       (check
+      	   (let* ((str  ?input)
+      		  (port (open-string-input-port str)))
+      	     (read port))
+      	 => ?output))))
 
   (define lf	#\x000A)
   (define cr	#\x000D)
@@ -391,6 +428,11 @@
 
   (read-string (#\A       backslash space cr nel space space #\Z) (#\A #\Z))
   (read-string (#\A space backslash space cr nel space space #\Z) (#\A space #\Z))
+
+;;; --------------------------------------------------------------------
+;;; custom named characters
+
+  (read-string-with-custom-named-char "#!(char-names (lambda . #\\x0E88)) \"\\{lambda}\"" "\x0E88;")
 
   #t)
 
@@ -914,6 +956,16 @@
   (read-bv-and-eof "#vc8n(1.2+3.4i 5.6-7.8i)"	,(c8n-list->bytevector '(1.2+3.4i 5.6-7.8i)))
   (read-bv-and-eof "#vc8n(-1.2+3.4i -5.6-7.8i)"	,(c8n-list->bytevector '(-1.2+3.4i -5.6-7.8i)))
 
+;;; --------------------------------------------------------------------
+;;; encoded bytevectors
+
+  (read-bv-and-eof "#ve(ascii   \"ciao\")"	,(string->ascii   "ciao"))
+  (read-bv-and-eof "#ve(latin1  \"ciao\")"	,(string->latin1  "ciao"))
+  (read-bv-and-eof "#ve(utf8    \"ciao\")"	,(string->utf8    "ciao"))
+  (read-bv-and-eof "#ve(utf16le \"ciao\")"	,(string->utf16le "ciao"))
+  (read-bv-and-eof "#ve(utf16be \"ciao\")"	,(string->utf16be "ciao"))
+  (read-bv-and-eof "#ve(utf16n  \"ciao\")"	,(string->utf16n  "ciao"))
+
   #t)
 
 
@@ -941,6 +993,43 @@
   (doit-unquoted "(#1# #1# #1=ciao #1#)" (ciao ciao ciao ciao))
   (doit-unquoted "(#1# #1# #1# #1=ciao)" (ciao ciao ciao ciao))
 
+
+  #t)
+
+
+(parametrise ((check-test-name	'case-sensitive))
+
+  (define-syntax read-and-eof
+    (syntax-rules ()
+      ((_ ?input ?output)
+       (check
+	   (let* ((port (open-string-input-port ?input))
+		  (sexp (read port))
+		  (eof  (port-eof? port)))
+	     (list eof sexp))
+	 => '(#t ?output)))
+      ((_ ?input ?output1 ?output2)
+       (check
+	   (let* ((port (open-string-input-port ?input))
+		  (sex1 (read port))
+		  (sex2 (read port))
+		  (eof  (port-eof? port)))
+	     (list eof sex1 sex2))
+	 => '(#t ?output1 ?output2)))))
+
+;;; --------------------------------------------------------------------
+
+  (read-and-eof "#ci(1 2 3)"		(1 2 3))
+  (read-and-eof "#cs(1 2 3)"		(1 2 3))
+
+  (read-and-eof "#ci(1 A 3)"		(1 a 3))
+  (read-and-eof "#cs(1 A 3)"		(1 A 3))
+
+  (read-and-eof "#ci CIAO #cs CIAO"	ciao CIAO)
+  (read-and-eof "#ci CIAO CIAO"		ciao CIAO)
+
+  (read-and-eof "#ci(A #csB C)"		(a B c))
+  (read-and-eof "#ci(A #cs B C)"	(a B c))
 
   #t)
 

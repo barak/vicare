@@ -1,7 +1,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.68)
-AC_INIT([vicare],[0.2d7],[marco.maggi-ipsu@poste.it])
+AC_INIT([vicare],[0.2d8],[marco.maggi-ipsu@poste.it])
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE
 LT_PREREQ([2.2])
@@ -35,6 +35,8 @@ AC_ARG_ENABLE([arguments-validation],
 
 AC_SUBST([VICARE_ARGUMENTS_VALIDATION],[$vicare_ARGUMENTS_VALIDATION])
 
+dnl --------------------------------------------------------------------
+
 AC_ARG_ENABLE([posix],
   [AS_HELP_STRING([--disable-posix],
      [disable bindings to GNU C Library (default is enable)])],
@@ -44,6 +46,8 @@ AC_ARG_ENABLE([posix],
      *) AC_MSG_ERROR([bad value ${enableval} for --enable-posix]) ;;
    esac],[vicare_posix_bindings=true])
 AM_CONDITIONAL([WANT_POSIX],[test x$vicare_posix_bindings = xtrue])
+
+dnl --------------------------------------------------------------------
 
 AC_ARG_ENABLE([glibc],
   [AS_HELP_STRING([--disable-glibc],
@@ -55,6 +59,8 @@ AC_ARG_ENABLE([glibc],
    esac],[vicare_glibc_bindings=true])
 AM_CONDITIONAL([WANT_GLIBC],[test x$vicare_glibc_bindings = xtrue])
 
+dnl --------------------------------------------------------------------
+
 AC_ARG_ENABLE([linux],
   [AS_HELP_STRING([--disable-linux],
      [disable bindings to GNU C Library (default is enable)])],
@@ -64,7 +70,6 @@ AC_ARG_ENABLE([linux],
      *) AC_MSG_ERROR([bad value ${enableval} for --enable-linux]) ;;
    esac],[vicare_linux_bindings=true])
 AM_CONDITIONAL([WANT_LINUX],[test x$vicare_linux_bindings = xtrue])
-
 
 #page
 #### basic system inspection
@@ -118,13 +123,15 @@ AC_SEARCH_LIBS(socket, socket,, [AC_MSG_ERROR([Cannot find socket])])
 
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([assert.h dlfcn.h errno.h fcntl.h signal.h \
-                  stdint.h stdlib.h string.h strings.h \
-                  sys/mman.h sys/resource.h sys/stat.h \
-                  sys/time.h sys/types.h sys/wait.h time.h \
+AC_CHECK_HEADERS([assert.h dlfcn.h errno.h fcntl.h signal.h     \
+                  stdint.h stdlib.h string.h strings.h stdarg.h \
+                  errno.h stddef.h                              \
+                  sys/mman.h sys/resource.h sys/stat.h          \
+                  sys/time.h sys/types.h sys/wait.h time.h      \
                   unistd.h])
 
 AC_CHECK_HEADERS([arpa/inet.h dirent.h fstab.h ftw.h grp.h inttypes.h limits.h mntent.h net/if.h netinet/in.h netdb.h paths.h pwd.h signal.h termios.h sys/mman.h sys/mount.h poll.h sys/select.h sys/socket.h sys/times.h sys/timex.h sys/types.h sys/un.h sys/utsname.h sys/uio.h utime.h sys/ioctl.h math.h complex.h fnmatch.h glob.h regex.h wordexp.h])
+AC_CHECK_HEADERS([sys/epoll.h])
 
 AC_HEADER_TIME
 
@@ -566,6 +573,7 @@ VICARE_CONSTANT_TEST([O_NOATIME])
 
 ## These are Linux specific.
 VICARE_CONSTANT_TESTS([O_CLOEXEC O_DIRECT O_DIRECTORY O_LARGEFILE O_NOFOLLOW FD_CLOEXEC])
+VICARE_CONSTANT_TESTS([EPOLL_CLOEXEC EPOLL_CTL_ADD EPOLL_CTL_MOD EPOLL_CTL_DEL EPOLLIN EPOLLOUT EPOLLRDHUP EPOLLPRI EPOLLERR EPOLLHUP EPOLLET EPOLLONESHOT])
 
 ## Memory-mapped input/output.
 VICARE_CONSTANT_TESTS([MAP_PRIVATE MAP_SHARED MAP_FIXED MAP_ANON MAP_ANONYMOUS MAP_32BITS MAP_DENYWRITE MAP_EXECUTABLE MAP_FILE MAP_GROWSDOWN MAP_LOCKED MAP_NONBLOCK MAP_NORESERVE MAP_POPULATE MAP_STACK MAP_AUTOGROW MAP_AUTORESRV MAP_COPY PROT_READ PROT_WRITE PROT_EXEC PROT_NONE MS_SYNC MS_ASYNC MREMAP_MAYMOVE])
@@ -748,6 +756,9 @@ int main (void)
   AC_DEFINE_UNQUOTED([HAVE_WAITID],
     $vicare_cv_HAVE_WAITID,
     [whether the Linux specific waitid function is available])
+
+  AC_CHECK_TYPES([struct epoll_event],,,[VICARE_INCLUDES])
+  AC_CHECK_FUNCS([epoll_create epoll_create1 epoll_ctl epoll_wait])
 ])
 
 dnl --------------------------------------------------------------------
@@ -758,7 +769,6 @@ AC_CACHE_SAVE
 #### external libraries
 
 dnl AC_CHECK_LIB(m,sin)
-AC_CHECK_LIB(pthread, main)
 
 AC_CHECK_HEADERS([gmp.h],,[AC_MSG_ERROR([
 ERROR: Cannot find libgmp.
@@ -776,73 +786,126 @@ ERROR: libgmp.so) if libgmp is installed in a non-standard location.
 ERROR: libgmp can be obtained from <http://gmplib.org>.])])
 
 dnl --------------------------------------------------------------------
+dnl Optional linking with pthreads
+
+AC_ARG_WITH([pthread],
+  AS_HELP_STRING([--with-pthread],[link executable with pthread (default is no)]),
+  [true],[with_pthread=no])
+vicare_with_pthread=no
+if test x$with_pthread != xno; then
+   vicare_with_pthread=yes
+   AC_CHECK_LIB([pthread],[main])
+fi
+AM_CONDITIONAL([WANT_PTHREAD],[test x$vicare_with_pthread = xyes])
+
+dnl --------------------------------------------------------------------
 dnl Optional binding to Libffi
 
-AC_ARG_ENABLE([libffi],
-  AS_HELP_STRING([--enable-libffi],[enable support for libffi (default is check)]),
-  [true],[enable_libffi=check])
+AC_ARG_WITH([libffi],
+  AS_HELP_STRING([--with-libffi],[add support for libffi (default is check)]),
+  [true],[with_libffi=check])
 
-libffi_val=0
-if test "$enable_libffi" != no; then
-  AC_CHECK_HEADER([ffi.h],[have_ffi_h=yes],[have_ffi_h=no])
-  AC_CHECK_LIB([ffi],[ffi_call],[have_libffi=yes],[have_libffi=no])
-  if test "$have_libffi" = yes && test "$have_ffi_h" = yes; then
-    libffi_val=1
+vicare_with_libffi=no
+if test x$with_libffi = xyes || test x$with_libffi = xcheck
+then
+  # Check for libffi header and library.
+  AC_CHECK_HEADER([ffi.h],[vicare_have_libffi_h=yes],[vicare_have_libffi_h=no])
+  AC_CHECK_LIB([ffi],[ffi_call],[vicare_have_libffi=yes],[vicare_have_libffi=no])
+  if test "$vicare_have_libffi" = yes && test "$vicare_have_libffi_h" = yes
+  then
+    # Both the library and the header were found: success!
+    AC_MSG_NOTICE([libffi support enabled])
+    AC_DEFINE([HAVE_LIBFFI],[1],[define if you have a libffi library])
+    vicare_with_libffi=yes
     LIBS="$LIBS -lffi"
-  elif test "$enable_libffi" = yes; then
-    if test "$have_ffi_h" = no; then
+  elif test "$with_libffi" = yes; then
+    # The user requested libffi support or die, but either the header or
+    # the library or both were not found.
+    if test "$vicare_have_libffi_h" = no; then
       AC_MSG_ERROR([ffi.h cannot be found.
 Please specify the location of the header file using
   ./configure CPPFLAGS=-I<path/to/ffi.h>   <other-options ...>
 ])
     fi
-    if test "$have_libffi" = no; then
+    if test "$vicare_have_libffi" = no; then
       AC_MSG_ERROR([libffi cannot be found.
 Please specify the location of the library file using
   ./configure LDFLAGS=-L<path/to/libffi.ld|dylib|so|etc.>  <other-options ...>
 ])
     fi
   else
+    # The user requested a check for optional libffi support, but either
+    # the header or the library or both were not found.
     AC_MSG_WARN([libffi not found -- FFI disabled])
   fi
-fi # "$enable_ffi" != no
-
-AC_DEFINE_UNQUOTED([ENABLE_LIBFFI],[$libffi_val],[adds support for Libffi])
-AM_CONDITIONAL([WANT_LIBFFI],[test x$enable_libffi = xyes])
+fi
+AM_CONDITIONAL([WANT_LIBFFI],[test x$vicare_with_libffi = xyes])
 
 dnl --------------------------------------------------------------------
 dnl Check for Libiconv (optional)
 
 AC_ARG_WITH([iconv],
-  AS_HELP_STRING([--with-iconv],[enable support for iconv (default is no)]),
-  [true],[enable_iconv=no])
+  AS_HELP_STRING([--with-iconv],[enable support for iconv (default is check)]),
+  [true],[with_iconv=check])
 
-iconv_val=0
-if test "$enable_iconv" != no; then
-  AC_CHECK_HEADER([iconv.h],[have_iconv_h=yes],[have_iconv_h=no])
-  AC_CHECK_LIB([iconv],[iconv_open],[have_iconv=yes],[have_iconv=no])
-  if test "$have_iconv" = yes && test "$have_iconv_h" = yes; then
-    iconv_val=1
+vicare_with_iconv=no
+if test x$with_iconv = xyes || test x$with_iconv = xcheck
+then
+  # Check for iconv header and library.
+  AC_CHECK_HEADER([iconv.h],[vicare_have_iconv_h=yes],[vicare_have_iconv_h=no])
+  AC_CHECK_LIB([iconv],[iconv_open],[vicare_have_iconv=yes],[vicare_have_iconv=no])
+  if test "$vicare_have_iconv" = yes && test "$vicare_have_iconv_h" = yes
+  then
+    # Both the library and the header were found: success!
+    AC_MSG_NOTICE([iconv support enabled])
+    AC_DEFINE([HAVE_LIBICONV],[1],[define if you have an iconv library])
+    vicare_with_iconv=yes
     LIBS="$LIBS -liconv"
-  elif test "$enable_iconv" = yes; then
-    if test "$have_iconv_h" = no; then
-      AC_MSG_ERROR([iconv.h cannot be found.
-Please specify the location of the header file using
-  ./configure CPPFLAGS=-I<path/to/iconv.h>   <other-options ...>
-])
+  elif test "$with_iconv" = yes; then
+    # The user requested iconv support  or die, but either the header or
+    # the library or both were not found.
+    if test "$vicare_have_iconv_h" = no; then
+      AC_MSG_ERROR([iconv.h cannot be found.])
     fi
-    if test "$have_iconv" = no; then
-      AC_MSG_ERROR([iconv cannot be found.
-Please specify the location of the library file using
-  ./configure LDFLAGS=-L<path/to/iconv.ld|dylib|so|etc.>  <other-options ...>
-])
+    if test "$vicare_have_iconv" = no; then
+      AC_MSG_ERROR([iconv library cannot be found.])
     fi
   else
-    AC_MSG_WARN([iconv not found -- ICONV disabled])
+    # The user requested a check  for optional iconv support, but either
+    # the header or the library or both were not found.
+    AC_MSG_WARN([iconv not found -- support disabled])
   fi
-fi # "$enable_iconv" != no
+fi
+AM_CONDITIONAL([WANT_LIBICONV],[test x$vicare_with_iconv = xyes])
 
-AC_DEFINE_UNQUOTED([ENABLE_ICONV],[$iconv_val],[adds support for iconv])
+dnl --------------------------------------------------------------------
+dnl Optional binding for GNU Readline or compatible library
+
+AC_ARG_WITH([readline],
+  AS_HELP_STRING([--with-readline],
+    [enable support for GNU readline or compatible (default is check)]),
+  [true],[with_readline=check])
+
+vicare_with_readline=no
+if test x$with_readline = xyes || test x$with_readline = xcheck
+then
+  AX_LIB_READLINE
+  if test "$ax_cv_lib_readline" != "no"
+  then
+    vicare_with_readline=yes
+  else
+    if test x$with_readline = xyes ; then
+      # The user requested support readline or die, but readline was not
+      # found.
+      AC_MSG_ERROR([GNU Readline or compatible not found])
+    else
+      # The user  requested optional support for  readline, and readline
+      # was not found.
+      AC_MSG_WARN([GNU Readline or compatible not found])
+    fi
+  fi
+fi
+AM_CONDITIONAL([WANT_READLINE],[test x$vicare_with_readline = xyes])
 
 dnl --------------------------------------------------------------------
 dnl Check for CRE2 (optional)

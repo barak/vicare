@@ -78,6 +78,17 @@
 (define current-library-file
   (make-parameter #f))
 
+;;Used to turn on or  off case sensitivity for identifiers.  The default
+;;for R6RS is case sensitive identifiers.  Sensitivity can be changed on
+;;the fly with the #ci<form> and #cs<form> syntaxes.
+(define case-insensitive?
+  (make-parameter #f))
+
+;;Used to define  custom character names.  With the  syntax "\{name}" in
+;;strings.
+(define custom-named-chars
+  (make-parameter #f))
+
 (define-inline (reverse-list->string ell)
   ;;There are more efficient ways to do this, but ELL is usually short.
   ;;
@@ -464,6 +475,18 @@
 
 
 ;;;; public functions
+;;
+;;There are multiple entry points for the reader:
+;;
+;;  read
+;;  get-datum
+;;  get-annotated-datum
+;;
+;;but:   READ    is   a    wrapper   for   GET-DATUM;    GET-DATUM   and
+;;GET-ANNOTATED-DATUM call READ-EXPR.
+;;
+;;READ-EXPR can call itself recursively.
+;;
 
 (define read
   ;;Defined by  R6RS.  Read an external representation  from the textual
@@ -504,7 +527,8 @@
   (define who 'get-datum)
   (%assert-argument-is-source-code-port who port)
   (let-values (((expr expr/ann locations kont)
-		(read-expr port EMPTY-LOCATIONS-COLLECTION void)))
+		(parametrise ((custom-named-chars (make-eq-hashtable)))
+		  (read-expr port EMPTY-LOCATIONS-COLLECTION void))))
     (if (null? locations)
 	expr
       (begin
@@ -528,7 +552,8 @@
       x))
   (%assert-argument-is-source-code-port who port)
   (let-values (((expr expr/ann locations kont)
-		(read-expr port EMPTY-LOCATIONS-COLLECTION void)))
+		(parametrise ((custom-named-chars (make-eq-hashtable)))
+		  (read-expr port EMPTY-LOCATIONS-COLLECTION void))))
     (if (null? locations)
 	(%return-annotated expr/ann)
       (begin
@@ -540,10 +565,18 @@
 	  (%return-annotated expr/ann))))))
 
 
-;;;; Public functions used by Vicare itself
+;;;; public functions used by Vicare itself
 ;;
 ;;These  functions  are exported  by  this  library  but not  listed  in
 ;;"makefile.sps", so they are not visible to client code.
+;;
+;;The following functions are entry points to the reader:
+;;
+;;   read-source-file
+;;   read-script-source-file
+;;   read-library-source-file
+;;
+;;but all of them call GET-ANNOTATED-DATUM.
 ;;
 
 (define (read-library-source-file filename)
@@ -822,7 +855,7 @@
 
 	;;symbol
 	((initial? ch)
-	 (finish-tokenisation-of-identifier (cons ch '()) port))
+	 (finish-tokenisation-of-identifier (cons ch '()) port #t))
 
 	;;string
 	((unsafe.char= #\" ch)
@@ -853,7 +886,7 @@
 		 ;;peculiar identifier: -> <subsequent>*
 		 ((unsafe.char= ch1 #\>)
 		  (get-char-and-track-textual-position port)
-		  (finish-tokenisation-of-identifier '(#\> #\-) port))
+		  (finish-tokenisation-of-identifier '(#\> #\-) port #t))
 
 		 ;;number
 		 (else
@@ -868,11 +901,11 @@
 	((unsafe.char= #\| ch)
 	 (when (port-in-r6rs-mode? port)
 	   (%error "|symbol| syntax is invalid in #!r6rs mode"))
-	 (finish-tokenisation-of-identifier/bar '() port))
+	 (finish-tokenisation-of-identifier/bar '() port #t))
 
 	;;symbol whose first char is a backslash sequence, "\x41;-ciao"
 	((unsafe.char= #\\ ch)
-	 (finish-tokenisation-of-identifier/backslash '() port))
+	 (finish-tokenisation-of-identifier/backslash '() port #t))
 
 ;;;Unused for now.
 ;;;
@@ -903,6 +936,8 @@
   ;;(ref . <n>)			The token is a graph syntax reference: #<N>#
   ;;vparen			The token is a vector.
   ;;comment-paren		The token is a comment list.
+  ;;case-sensitive		The token is a case sensitive directive.
+  ;;case-insensitive		The token is a case insensitive directive.
   ;;
   ;;When the token is a bytevector: the return value is the return value
   ;;of ADVANCE-TOKENISATION-OF-BYTEVECTORS.
@@ -967,7 +1002,7 @@
 		 (%error-1 "invalid syntax" "#!(")
 	       'comment-paren))
 	    (else
-	     (let* ((token (finish-tokenisation-of-identifier '() port))
+	     (let* ((token (finish-tokenisation-of-identifier '() port #t))
 		    (sym   (cdr token)))
 	       (case sym
 		 ((vicare ikarus)
@@ -1061,6 +1096,17 @@
    ((or (unsafe.char= ch #\d) (unsafe.char= ch #\D)) #;(memq ch '(#\d #\D))
     (cons 'datum (parse-string port (list ch #\#) 10 10 #f)))
 
+   ((unsafe.char= ch #\c)
+    (let ((ch1 (get-char-and-track-textual-position port)))
+      (cond ((eof-object? ch1)
+	     (%unexpected-eof-error))
+	    ((unsafe.char= ch1 #\i)
+	     'case-insensitive)
+	    ((unsafe.char= ch1 #\s)
+	     'case-sensitive)
+	    (else
+	     (%error-1 "invalid syntax" (string #\# #\c ch1))))))
+
 ;;;((unsafe.char= #\@ ch) DEAD: Unfixable due to port encoding
 ;;;                 that does not allow mixing binary and
 ;;;                 textual data in the same port.
@@ -1123,6 +1169,8 @@
   ;;vc8b			The token is a c8b bytevector.
   ;;vc8n			The token is a c8n bytevector.
   ;;
+  ;;ve				The toekn is a ve bytevector.
+  ;;
   ;;Correct sequences of chars:
   ;;
   ;; ch  ch1  ch2  ch3  ch4  ch5  datum
@@ -1162,6 +1210,8 @@
   ;; v   f    8    b    (         #vf8b
   ;; v   f    8    n    (         #vf8n
   ;;
+  ;; v   e    (                   #ve
+  ;;
   (define-inline (%error msg . args)
     (die/p port 'tokenize msg . args))
   (define-inline (%error-1 msg . args)
@@ -1195,6 +1245,10 @@
        (when (port-in-r6rs-mode? port)
 	 (%error "invalid #vc syntax in #!r6rs mode" "#vc"))
        (%read-cflonum))
+      ((unsafe.char= #\e ch1)
+       (when (port-in-r6rs-mode? port)
+	 (%error "invalid #ve syntax in #!r6rs mode" "#ve"))
+       (%read-encoded))
       (else
        (%invalid-sequence-of-chars #\# #\v ch1))))
 
@@ -1415,6 +1469,11 @@
 
 ;;; --------------------------------------------------------------------
 
+  (define-inline (%read-encoded)
+    (%read-open-paren 've #\# #\v #\e))
+
+;;; --------------------------------------------------------------------
+
   (%read-second-tag-char))
 
 
@@ -1529,7 +1588,7 @@
 ;;  <digit>         -> 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 ;;
 
-(define (finish-tokenisation-of-identifier accumulated-chars port)
+(define (finish-tokenisation-of-identifier accumulated-chars port honour-sensitivity?)
   ;;To be called when one or more characters starting an identifier have
   ;;been read from PORT and  we must finish the identifier tokenisation.
   ;;Read the remaining characters and return:
@@ -1538,11 +1597,16 @@
   ;;
   ;;where <SYM> is the tokenised symbol.
   ;;
-  `(datum . ,(string->symbol
-	      (reverse-list->string
-	       (%accumulate-identifier-chars accumulated-chars port)))))
+  ;;If HONOUR-SENSITIVITY?  is true honour the  current case sensititivy
+  ;;setting.
+  ;;
+  (let* ((str (reverse-list->string (%accumulate-identifier-chars accumulated-chars port)))
+	 (sym (string->symbol (if (and honour-sensitivity? (case-insensitive?))
+				  (string-foldcase str)
+				str))))
+    `(datum . ,sym)))
 
-(define (finish-tokenisation-of-identifier/bar accumulated-chars port)
+(define (finish-tokenisation-of-identifier/bar accumulated-chars port honour-sensitivity?)
   ;;To be called  when one or more characters  starting an identifier in
   ;;bar  syntax  have  been  read  from  PORT and  we  must  finish  the
   ;;identifier tokenisation.  Read the remaining characters and return:
@@ -1551,11 +1615,13 @@
   ;;
   ;;where <SYM> is the tokenised symbol.
   ;;
-  `(datum . ,(string->symbol
-	      (reverse-list->string
-	       (%accumulate-identifier-chars/bar accumulated-chars port)))))
+  (let* ((str (reverse-list->string (%accumulate-identifier-chars/bar accumulated-chars port)))
+	 (sym (string->symbol (if (and honour-sensitivity? (case-insensitive?))
+				  (string-foldcase str)
+				str))))
+    `(datum . ,sym)))
 
-(define (finish-tokenisation-of-identifier/backslash accumulated-chars port)
+(define (finish-tokenisation-of-identifier/backslash accumulated-chars port honour-sensitivity?)
   ;;To be called  when a backslash character starting  an identifier has
   ;;been read from PORT and  we must finish the identifier tokenisation.
   ;;Read the remaining characters and return:
@@ -1564,9 +1630,11 @@
   ;;
   ;;where <SYM> is the tokenised symbol.
   ;;
-  (cons 'datum (string->symbol
-		(reverse-list->string
-		 (%accumulate-identifier-chars/backslash '() port #f)))))
+  (let* ((str (reverse-list->string (%accumulate-identifier-chars/backslash '() port #f)))
+	 (sym (string->symbol (if (and honour-sensitivity? (case-insensitive?))
+				  (string-foldcase str)
+				str))))
+    `(datum . ,sym)))
 
 ;;Three functions are involved in accumulating identifier's chars:
 ;;
@@ -1716,7 +1784,8 @@
 			 vu32l vu32b vu32n  vs32l vs32b vs32n
 			 vu64l vu64b vu64n  vs64l vs64b vs64n
 			 vf4l  vf4b  vf4n   vf8l  vf8b  vf8n
-			 vc4l  vc4b  vc4n   vc8l  vc8b  vc8n))
+			 vc4l  vc4b  vc4n   vc8l  vc8b  vc8n
+			 ve))
 	   (let-values
 	       (((bv bv/ann locations kont)
 		 (cond ((eq? token 'vu8)
@@ -1796,6 +1865,8 @@
 			(finish-tokenisation-of-bytevector-c8b port locations kont 0 '()))
 		       ((eq? token 'vc8n)
 			(finish-tokenisation-of-bytevector-c8n port locations kont 0 '()))
+		       ((eq? token 've)
+			(finish-tokenisation-of-bytevector-ve  port locations kont))
 		       )))
 	     (values bv (annotate bv bv/ann pos) locations kont)))
 
@@ -1807,6 +1878,18 @@
 	     ;;Go on with the next token.
 	     (let-values (((token pos) (start-tokenising/pos port)))
 	       (finalise-tokenisation port locations kont token pos))))
+
+	  ((eq? token 'case-sensitive)
+	   (let-values (((expr expr/ann locations kont)
+			 (parametrise ((case-insensitive? #f))
+			   (read-expr port locations kont))))
+	     (values expr expr/ann locations kont)))
+
+	  ((eq? token 'case-insensitive)
+	   (let-values (((expr expr/ann locations kont)
+			 (parametrise ((case-insensitive? #t))
+			   (read-expr port locations kont))))
+	     (values expr expr/ann locations kont)))
 
 	  ((pair? token)
 	   (%process-pair-token token))
@@ -1988,6 +2071,12 @@
 	 (else
 	  (%error-1 "invalid character in inline hex escape while reading string" ch1))))
 
+      ;;inline named char "\{name}"
+      ((unsafe.char= #\{ ch)
+       (when (port-in-r6rs-mode? port)
+	 (%error "invalid custom named character syntax in R6RS mode"))
+       (recurse (cons (%parse-escape-named-char) ls)))
+
       ;;Consume the sequence:
       ;;
       ;;  \<intraline whitespace><line ending><intraline whitespace>
@@ -2041,7 +2130,7 @@
 
   (define-inline (%parse-escape-hex-sequence ch first-digit)
     ;;Read from  PORT characters composing  an escaped character  in hex
-    ;;format "\xHHHH;" and return the resulting character.
+    ;;format "\xHHHH;" and recurse using the resulting character.
     ;;
     ;;CH is the first character  in the hex sequence; FIRST-DIGIT is the
     ;;fixnum representing the first digit in the hex sequence, it is the
@@ -2059,6 +2148,19 @@
 	(else
 	 (%error-1 "invalid char in escape sequence while reading string"
 		   (reverse-list->string (cons chX accum)))))))
+
+  (define-inline (%parse-escape-named-char)
+    ;;Read  from PORT  characters  composing a  custom named  character:
+    ;;"\{name}" and return the resulting character
+    ;;
+    (let ((token (finish-tokenisation-of-identifier '() port #f)))
+      (%read-char-no-eof (port chX)
+	((unsafe.char= chX #\})
+	 (let* ((name (cdr token))
+		(ch   (hashtable-ref (custom-named-chars) name #f)))
+	   (or ch (%error "unknown named char in escape sequence while reading string" name))))
+	(else
+	 (%error-1 "invalid char in escape sequence while reading string")))))
 
   (define (%discard-trailing-intraline-whitespace ls port ch)
     ;;Analyse CH,  and then chars read from  PORT, discarding whitespace
@@ -2171,6 +2273,24 @@
 					(reverse-list->string (cons chX accumulated)))))))))
 	       (else
 		(%error "invalid character sequence" (string #\# #\\ ch1))))))
+
+      ;;Read the char "#\{" or a custom named character "#\{name}".
+      ((unsafe.char= #\{ ch)
+       (let ((ch1 (peek-char port)))
+	 (cond ((or (eof-object? ch1)
+		    (delimiter? ch1))
+		'(datum . #\{))
+	       (else
+		(when (port-in-r6rs-mode? port)
+		  (%error "invalid custom named character syntax in R6RS mode"))
+		(let ((token (finish-tokenisation-of-identifier '() port #f)))
+		  (%read-char-no-eof (port chX)
+		    ((unsafe.char= chX #\})
+		     (let* ((name (cdr token))
+			    (ch   (hashtable-ref (custom-named-chars) name #f)))
+		       (cons 'datum (or ch (%error "unknown custom named character" name)))))
+		    (else
+		     (%error "invalid syntax in standalone custom named character"))))))))
 
       ;;It is a normal character.
       (else
@@ -2340,12 +2460,12 @@
 
 (define-syntax read-char*
   (syntax-rules ()
-    ((_ port ls str who case-insensitive? delimited?)
-     (%read-char* port ls str who case-insensitive? delimited?))
+    ((_ port ls str who case-insensitive-char? delimited?)
+     (%read-char* port ls str who case-insensitive-char? delimited?))
     ((_ port ls str who)
      (%read-char* port ls str who #f #f))))
 
-(define (%read-char* port ls str who case-insensitive? delimited?)
+(define (%read-char* port ls str who case-insensitive-char? delimited?)
   ;;Read multiple characters from PORT expecting them to be the chars in
   ;;the string STR; this function is  used to read a chunk of token.  If
   ;;successful return  unspecified values; if  an error occurs  raise an
@@ -2356,8 +2476,8 @@
   ;;better error message.  WHO must  be a string describing the expected
   ;;token.
   ;;
-  ;;If CASE-INSENSITIVE? is true: the comparison between characters read
-  ;;from PORT and characters drawn from STR is case insensitive.
+  ;;If CASE-INSENSITIVE-CHAR? is true: the comparison between characters
+  ;;read from PORT and characters drawn from STR is case insensitive.
   ;;
   ;;If DELIMITED? is true: after the chars in STR have been successfully
   ;;read from PORT, a lookahead is performed on PORT and the result must
@@ -2384,9 +2504,9 @@
       (let ((ch (get-char-and-track-textual-position port)))
 	(cond ((eof-object? ch)
 	       (%error (format "invalid eof inside ~a" who)))
-	      ((or (and (not case-insensitive?)
+	      ((or (and (not case-insensitive-char?)
 			(unsafe.char= ch (string-ref str i)))
-		   (and case-insensitive?
+		   (and case-insensitive-char?
 			(unsafe.char= (char-downcase ch) (string-ref str i))))
 	       (loop (add1 i) (cons ch ls)))
 	      (else
@@ -2622,7 +2742,7 @@
 		(let ((v (%make-bv count ls)))
 		  (values v v locs kont)))
 	       ((eq? token 'rbrack)
-		(%error-1 "unexpected ) while reading a bytevector"))
+		(%error-1 "unexpected ] while reading a bytevector"))
 	       ((eq? token 'dot)
 		(%error-1 "unexpected . while reading a bytevector"))
 	       (else
@@ -2848,6 +2968,64 @@
   16				     ;number of bytes in word
   bytevector-cflonum-double-ne-set!) ;setter
 
+;;; --------------------------------------------------------------------
+
+(define (finish-tokenisation-of-bytevector-ve port locs kont)
+  (define-inline (%error msg . irritants)
+    (die/p port 'vicare-reader msg . irritants))
+  (define-inline (%error-1 msg . irritants)
+    (die/p-1 port 'vicare-reader msg . irritants))
+
+  (let-values (((token pos) (start-tokenising/pos port)))
+    (cond ((eof-object? token)
+	   (%error "unexpected EOF while reading a bytevector"))
+	  ((eq? token 'rparen)
+	   (%error-1 "unexpected ) while reading a bytevector"))
+	  ((eq? token 'rbrack)
+	   (%error-1 "unexpected ] while reading a bytevector"))
+	  ((eq? token 'dot)
+	   (%error-1 "unexpected . while reading a bytevector"))
+	  (else
+	   (let-values
+	       (((encoding encoding^ locs1 kont1)
+		 (finalise-tokenisation port locs kont token pos)))
+	     (unless (and (symbol? encoding)
+			  (memq encoding '(ascii latin1 utf8 utf16be utf16le utf16n)))
+	       (die/ann encoding^ 'vicare-reader
+			"expected encoding symbol for this bytevector type" encoding))
+	     (let-values (((token pos) (start-tokenising/pos port)))
+	       (cond ((eof-object? token)
+		      (%error "unexpected EOF while reading a bytevector"))
+		     ((eq? token 'rparen)
+		      (%error-1 "unexpected ) while reading a bytevector"))
+		     ((eq? token 'rbrack)
+		      (%error-1 "unexpected ] while reading a bytevector"))
+		     ((eq? token 'dot)
+		      (%error-1 "unexpected . while reading a bytevector"))
+		     (else
+		      (let-values
+			  (((string string^ locs1 kont1)
+			    (finalise-tokenisation port locs kont token pos)))
+			(unless (string? string)
+			  (die/ann string^ 'vicare-reader
+				   "expected data string for this bytevector type" string))
+			(let-values (((token pos) (start-tokenising/pos port)))
+			  (cond ((eof-object? token)
+				 (%error "unexpected EOF while reading a bytevector"))
+				((eq? token 'rparen)
+				 (let ((v (case encoding
+					    ((ascii)	(string->ascii		string))
+					    ((latin1)	(string->latin1		string))
+					    ((utf8)	(string->utf8		string))
+					    ((utf16be)	(string->utf16be	string))
+					    ((utf16le)	(string->utf16le	string))
+					    ((utf16n)	(string->utf16n		string))
+					    (else
+					     (%error "invalid bytevector encoding" encoding)))))
+				   (values v v locs kont)))
+				(else
+				 (%error-1 "unexpected token while reading a bytevector" token)))))))))))))
+
 
 (define (%process-comment-list port ls)
   ;;Called when a comment list syntax has been read "#!(<datum> ...)" to
@@ -2858,6 +3036,11 @@
   (unless (null? ls)
     (case (car ls)
       ((load-shared-library)
+       ;;Cause a foreign shared library to be loaded immediately or when
+       ;;the FASL file is loaded.  The format of the comment list is:
+       ;;
+       ;;  #!(load-shared-library "library-id")
+       ;;
        (cond ((null? (cdr ls))
 	      (%error "expected argument to load-shared-library"))
 	     ((not (null? (cddr ls)))
@@ -2869,6 +3052,21 @@
 		      (register-filename-foreign-library (current-library-file) libid)
 		      (autoload-filename-foreign-library libid))
 		  (%error "expected string argument to load-shared-library"))))))
+      ((char-names)
+       ;;Define a  set of named  characters.  The format of  the comment
+       ;;list is:
+       ;;
+       ;;   #!(char-names (<name> . <char>) ...)
+       ;;
+       (when (port-in-r6rs-mode? port)
+	 (%error "invalid custom named character definition in R6RS mode"))
+       (let ((table (custom-named-chars)))
+	 (for-each (lambda (entry)
+		     (if (and (symbol? (car entry))
+			      (char?   (cdr entry)))
+			 (hashtable-set! table (car entry) (cdr entry))
+		       (%error "invalid entry in custom character names definition")))
+	   (cdr ls))))
       (else
        (%error "invalid comment list")))))
 
