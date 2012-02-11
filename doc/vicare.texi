@@ -1281,8 +1281,35 @@ requested at installation--time with command line options for the
 @command{configure} script.
 
 @menu
+* overview foreign readline::   Interface to @gnu{} Readline.
 * overview foreign cre2::       Interface to @cretwo{}.
 @end menu
+
+@c page
+@node overview foreign readline
+@subsection Interface to @gnu{} Readline
+
+
+@gnu{} Readline is a library implementing advanced command line editing
+features for programs providing a @repl{} interface.  When given the
+@option{--with-readline} configuration option, the @command{configure}
+script will search for @gnu{} Readline or a compatible library and, if
+found, the interface will be enabled.  @ref{iklib readline} for the
+@api{} documentation.
+
+The home page of @gnu{} Readline is at:
+
+@center @url{http://www.gnu.org/software/readline/}
+
+@noindent
+a compatible alternative is Editline:
+
+@center @url{http://www.s11n.net/editline/}
+
+@noindent
+and another possible replacement is Libedit:
+
+@center @url{http://sourceforge.net/projects/libedit/}
 
 @c page
 @node overview foreign cre2
@@ -1487,6 +1514,10 @@ When this option is used an interprocess signal handler is registered at
 program startup to enter a debugging @repl{} whenever a @code{SIGINT}
 signal is received.
 
+@item --raw-repl
+Do not create a readline console input port even if the readline
+interface is available.
+
 @item -d
 @itemx --debug
 Turn on debugging mode.  With this unhandled exceptions in the program
@@ -1690,6 +1721,9 @@ name is a common error.
 @subsection How @value{PRJNAME} finds libraries
 
 
+@findex library-path
+
+
 In @value{PRJNAME}, a library is a file with the same name as the last
 component of the library name.  For example, the library
 @library{sample} will correspond to a file named @file{sample.sls}
@@ -1700,12 +1734,12 @@ extensions @code{.ss} and @code{.scm} when the command line option
 rather than libraries.
 
 @value{PRJNAME} has a search algorithm for libraries that is similar to
-those used in other languages.  Its search path comprises a series of
-directories.  When we try to import a library whose name contains just
-one component, @value{PRJNAME} will examine each directory in the search
-path for a file with a matching name.  Importing a library whose name is
-a list of components causes @value{PRJNAME} to match to a series of
-subdirectories with matching names.
+those used in other languages.  @value{PRJNAME}'s search path comprises
+a series of directories; when we try to import a library whose name
+contains just one component, @value{PRJNAME} will examine each directory
+in the search path for a file with a matching name.  Importing a library
+whose name is a list of components causes @value{PRJNAME} to match to a
+series of subdirectories with matching names.
 
 Here is an example of each case:
 
@@ -1723,36 +1757,57 @@ sample}, not @library{sample}.
 @end itemize
 
 @cindex @env{VICARE_LIBRARY_PATH}
-@value{PRJNAME} always places its own libraries at the end of the search
-path.  Other library directories can be added to the search path in two
-ways: by modifying an environment variable, or by setting
-@value{PRJNAME}'s @func{library-path} parameter.  @value{PRJNAME}
-consults the environment variable @env{VICARE_LIBRARY_PATH} at the
-beginning of execution, and places each of the directories there into
-its search path.  The search path is then set to the value of the
-parameter @func{library-path}, which can be updated as necessary.
+@value{PRJNAME}'s own Scheme libraries are installed in the directory
+@code{$(libdir)/scheme}, for example on @gnu{}+Linux systems
+@file{/usr@//local@//lib@//scheme}, and are under the @code{(vicare
+---)} hierarchy.  Additional libraries, and the boot image, are
+installed in the directory @code{$(libdir)/vicare}.  User libraries that
+are meant to be usable by @value{PRJNAME} should be installed in the
+@code{$(libdir)/scheme} directory.
+
+@value{PRJNAME} always places its own library directories at the end of
+the search path, so, as example, the default value of the search path on
+@gnu{}+Linux systems has the following directories:
+
+@example
+/usr/local/lib/scheme
+/usr/local/lib/vicare
+@end example
+
+@noindent
+other library directories can be added to the search path in two ways:
+by modifying an environment variable, or by setting @value{PRJNAME}'s
+@func{library-path} parameter.  @value{PRJNAME} consults the environment
+variable @env{VICARE_LIBRARY_PATH} at the beginning of execution, and
+places each of the directories there into its search path.  The search
+path is then set to the value of the parameter @func{library-path},
+which can be updated as necessary.
+
+In the following example session: the user sets
+@env{VICARE_LIBRARY_PATH}; the settings are reflected in the value of
+@code{(library-path)}; a further directory is then set during the
+session:
 
 @example
 $ export VICARE_LIBRARY_PATH=$HOME/scheme:/tmp/library
 $ echo $VICARE_LIBRARY_PATH
-/home/someuser/scheme:/tmp/library
+/home/marco/scheme:/tmp/library
 $ @value{RAWEXECUTABLE}
 ...
 
 > (library-path)
-("/home/someuser/scheme" "/tmp/library"
-  "/home/someuser/local/lib/vicare")
+("/home/marco/scheme"
+ "/tmp/library"
+ "/usr/local/lib/scheme"
+ "/usr/local/lib/vicare")
 > (library-path (cons "/opt/sw/extra-libraries" (library-path)))
 > (library-path)
-("/opt/sw/extra-libraries" "/home/someuser/scheme"
-  "/tmp/library" "/home/someuser/local/lib/vicare")
+("/opt/sw/extra-libraries"
+ "/home/marco/scheme"
+ "/tmp/library"
+ "/usr/local/lib/scheme"
+ "/usr/local/lib/vicare")
 @end example
-
-@noindent
-In this example, the user sets @env{VICARE_LIBRARY_PATH} before the
-session; the settings are reflected in the value of
-@code{(library-path)}.  A further directory is then set during the
-session.
 
 In programs intended to be distributed, you should resist the urge to
 set @code{(library-path)}, as the user's file hierarchies might not
@@ -1921,6 +1976,7 @@ of @rnrs{6}; @library{vicare} exports the same bindings of
 * iklib memory::                Memory management.
 * iklib cstrings::              Raw C strings.
 * iklib errno::                 Interface to @code{errno}.
+* iklib readline::              Readline interface.
 * iklib misc::                  Miscellaneous functions.
 @end menu
 
@@ -2021,6 +2077,7 @@ Return @true{} if @var{obj} is a condition object of type
 @menu
 * iklib reader mode::           Textual input port modes.
 * iklib reader bv::             Additional bytevector syntaxes.
+* iklib reader chars::          Custom named characters.
 * iklib reader stx::            Miscellaneous additional syntaxes.
 * iklib reader fun::            Additional reader functions.
 @end menu
@@ -2190,6 +2247,83 @@ Read a bytevector of double--precision cflonums stored in little, big
 and native endianness, real part first.
 @end deffn
 
+
+@deffn {Reader Syntax} {#ve(@var{encoding} @var{data})}
+Read a bytevector in some encoding which is supposed to be easy to type
+for human beings.  @var{encoding} is a symbol representing the encoding
+format, @var{data} is a datum to convert to bytevector.  At present the
+following encodings are supported:
+
+@table @code
+@item ascii
+Convert the Scheme string @var{data} to a bytevector using the function
+@func{string->ascii}.
+
+@item latin1
+Convert the Scheme string @var{data} to a bytevector using the function
+@func{string->latin1}.
+
+@item utf8
+Convert the Scheme string @var{data} to a bytevector using the function
+@func{string->utf8}.
+
+@item utf16be
+Convert the Scheme string @var{data} to a bytevector using the function
+@func{string->utf16be}.
+
+@item utf16le
+Convert the Scheme string @var{data} to a bytevector using the function
+@func{string->utf16le}.
+
+@item utf16n
+Convert the Scheme string @var{data} to a bytevector using the function
+@func{string->utf16n}.
+@end table
+@end deffn
+
+@c page
+@node iklib reader chars
+@subsection Custom named characters
+
+
+The following syntaxes are available only when the input port mode is
+set to @code{vicare}.
+
+
+@deffn {Reader Syntax} {#!(char-names (@meta{name} . @meta{char}) ...)}
+Add new custom named characters to the internal table for the current
+reading operation.  Each @meta{name} must be a Scheme identifier
+starting with a @meta{constituent} character as defined by @rnrs{6};
+each @meta{char} must be a Scheme character.
+
+@example
+#!(char-names
+    (lambda . #\x0E88))
+@end example
+@end deffn
+
+
+@deffn {Reader Syntax} {#\@{@meta{name}@}}
+Reader syntax for standalone custom named characters.  @meta{name} must
+be an identifier previously defined with the @code{char-names} comment
+list defined above.
+
+@example
+#\@{lambda@}            @result{} #\xE88
+@end example
+@end deffn
+
+
+@deffn {Reader Syntax} {\@{@meta{name}@}}
+Reader syntax for custom named characters embedded in strings.
+@meta{name} must be an identifier previously defined with the
+@code{char-names} comment list defined above.
+
+@example
+"\@{lambda@}"           @result{} "\xE88;"
+@end example
+@end deffn
+
 @c page
 @node iklib reader stx
 @subsection Miscellaneous additional syntaxes
@@ -2280,6 +2414,29 @@ Condition components:
   3. &message: "invalid syntax: #!e"
 > #!vicare #!eof
 $
+@end example
+@end deffn
+
+
+@deffn {Reader Syntax} #ci @var{form}
+@deffnx {Reader Syntax} #cs @var{form}
+Switch between case sensitive and case insensitive identifiers; the
+default for @rnrs{6} source code is case sensitive.  When @code{#ci} is
+read: the next form read has case insensitive identifiers.  When
+@code{#cs} is read: the next form read has case sensitive identifiers.
+
+@example
+#ci(1 2 3)              @result{} (1 2 3)
+#cs(1 2 3)              @result{} (1 2 3)
+
+#ci(1 A 3)              @result{} (1 a 3)
+#cs(1 A 3)              @result{} (1 A 3)
+
+#ci CIAO #cs CIAO       @result{} ciao CIAO
+#ci CIAO CIAO           @result{} ciao CIAO
+
+#ci(A #csB C)           @result{} (a B c)
+#ci(A #cs B C)          @result{} (a B c)
 @end example
 @end deffn
 
@@ -2472,8 +2629,11 @@ Every time a new cafe is started, the prompt is changed to reflect the
 depth of the current cafe (i.e. how many eof objects is takes to exit
 the outermost cafe).
 
-Input and output performed by the cafe can be changed by the
-@func{console-input-port} and @func{console-output-port} parameters.
+When the readline interface is not used, input and output performed by
+the cafe can be changed by the @func{console-input-port} and
+@func{console-output-port} parameters; when readline support is
+available and used, the @repl{} input is performed through a readline
+input port.
 
 If an error occurs during reading, evaluating, or printing an
 expression, then the error message is printed to the error--port and the
@@ -4950,8 +5110,9 @@ values: the @eof{} object or a fixnum representing first octet, the
 
 
 @defun console-input-port
-Return the default value of the @func{current-input-port} parameter.  It
-is used by the @repl{} and the debugger.
+Return the default value of the @func{current-input-port} parameter.
+When the readline interface is not used, this port is used by the
+@repl{} and the debugger.
 @end defun
 
 
@@ -6156,6 +6317,45 @@ The mechanism is such that the following form:
 performs a foreign--function call and evaluates to two values: the
 return value from the foreign function and the value of the C variable
 @code{errno} right after the foreign call.
+@end defun
+
+@c page
+@node iklib readline
+@section Readline interface
+
+
+The following bindings are exported by the libraries @library{vicare},
+@library{ikarus}.  An extended @api{} for @gnu{} Readline is available
+through the @library{vicare readline} library; @ref{readline} for
+details.
+
+
+@defun readline-enabled?
+Return @true{} is support for readline is enabled, return @false{}
+otherwise.  When this function returns @false{}: no other readline
+functions must be called, lest the process be aborted.
+@end defun
+
+
+@defun readline
+@defunx readline @var{prompt}
+Read a single line and return it as a Scheme string @strong{not}
+terminated by a newline character.  @var{prompt} must be @false{}, a
+bytevector or a string to be used as input prompt; when @false{} or not
+present: no prompt will be displayed.
+@end defun
+
+
+@defun make-readline-input-port
+@defunx make-readline-input-port @var{prompt-maker}
+Return a custom textual input port reading character through
+@func{readline}.
+
+@var{prompt-maker} must be a @false{} or a thunk, when not used it
+defaults to @false{}; the thunk, when evaluated, must return a string or
+bytevector representing the input prompt in @ascii{} characters; if the
+return value is @false{} or @var{prompt-maker} is not used: no prompt
+will be displayed.
 @end defun
 
 @c page
@@ -10800,7 +11000,7 @@ they can be excluded at compile time by giving the option
 
 All the constants needed to use the interface are available as
 identifier syntaxes exported by the @library{vicare platform-constants}
-library; if a constant value is not exported file a feature request for
+library; if a constant value is not exported, file a feature request for
 the project.  If a constant is not defined on a platform: its value is
 set to @false{}.
 
@@ -10810,6 +11010,7 @@ behaviour is undefined.
 @menu
 * linux env::                   Operating system environment variables.
 * linux status::                Process termination status.
+* linux epoll::                 Polling for events on file descriptors.
 @end menu
 
 @c page
@@ -10878,6 +11079,145 @@ process termination status, for example the return value of
 Interface to the Linux specific C macro @cfunc{WIFCONTINUED}.  Return
 true if the process was resumed by delivery of @code{SIGCONT}.
 @end defun
+
+@c page
+@node linux epoll
+@section Polling for events on file descriptors
+
+
+For details on the @api{} we should refer to the following manual pages:
+@code{epoll(7)}, @code{epoll_create(2)}, @code{epoll_ctl(2)},
+@code{epoll_wait(2)}.  The following bindings are exported by the
+@library{vicare linux} library.
+
+
+@defun epoll-create
+@defunx epoll-create @var{size}
+@defunx epoll-create1 @var{flags}
+Interfaces to the C language functions @cfunc{epoll_create} and
+@cfunc{epoll_create1}.  Open an epoll descriptor and return it as
+fixnum.  When @var{size} is not used: it defaults to @math{16}.  If an
+error occurs: raise an exception.
+@end defun
+
+
+@defun epoll-ctl @var{epfd} @var{op} @var{fd}
+@defunx epoll-ctl @var{epfd} @var{op} @var{fd} @var{event}
+Interface to the C language function @cfunc{epoll_ctl}.  Control
+interface for an epoll descriptor.  Return unspecified values.  If an
+error occurs: raise an exception.
+
+@var{epfd} is the return value of a previous call to
+@func{epoll-create}.  @var{op} is a fixnum representing an OR
+combination of flags: @code{EPOLL_CTL_ADD}, @code{EPOLL_CTL_MOD},
+@code{EPOLL_CTL_DEL}.  @var{fd} is a fixnum representing the file
+descriptor subject of the action.  @var{event} is a pointer object
+referencing a @code{struct epoll_event}; when @var{event} is @false{} or
+not used: it defaults to the @cnull{} pointer.
+@end defun
+
+
+@defun epoll-wait @var{epfd} @var{event} @var{maxevents} @var{timeout-ms}
+Interface to the C language function @cfunc{epoll_wait}.  Wait for an
+I/O event on an epoll descriptor.  Return a fixnum representing the
+number of file descriptors ready for the requested events; the return
+value is zero if no file descriptors are ready.  If an error occurs:
+raise an exception.
+
+@var{epfd} is the return value of a previous call to
+@func{epoll-create}.  @var{event} is a poiner object referencing an
+array of @code{struct epoll_event} holding @var{maxevents} entries;
+@var{maxevents} is a non--negative fixnum.  @var{timeout-ms} is an exact
+integer in the range of a C language @code{int}, it represents a timeout
+time in milliseconds; when set to @code{-1} causes the call to block
+until at least one file descriptor is ready.
+@end defun
+
+
+To allow for faster operations, the @code{struct epoll_event} instances
+handled by the epoll functions are meant to be allocated on raw memory.
+
+
+@defun epoll-event-alloc @var{number-of-entries}
+Allocate with @cfunc{malloc} an array of @code{struct epoll_event}
+capable of holding @var{number-of-entries} structures.  If successful
+return a pointer object, else raise an exception.
+@end defun
+
+
+@defun epoll-event-size
+Return the number of bytes needed to hold an instance of @code{struct
+epoll_event}.
+@end defun
+
+
+@defun epoll-event-set-events! @var{events-array} @var{index} @var{new-value}
+@defunx epoll-event-ref-events @var{events-array} @var{index}
+Mutator and accessor for the field @code{events} of the @code{struct
+epoll_event} entry at @var{index}.
+@end defun
+
+
+@defun epoll-event-set-data-ptr! @var{events-array} @var{index} @var{new-value}
+@defunx epoll-event-ref-data-ptr @var{events-array} @var{index}
+Mutator and accessor for the field @code{data.ptr} of the @code{struct
+epoll_event} entry at @var{index}.
+@end defun
+
+
+@defun epoll-event-set-data-fd! @var{events-array} @var{index} @var{new-value}
+@defunx epoll-event-ref-data-fd @var{events-array} @var{index}
+Mutator and accessor for the field @code{data.fd} of the @code{struct
+epoll_event} entry at @var{index}.
+@end defun
+
+
+@defun epoll-event-set-data-u32! @var{events-array} @var{index} @var{new-value}
+@defunx epoll-event-ref-data-u32 @var{events-array} @var{index}
+Mutator and accessor for the field @code{data.u32} of the @code{struct
+epoll_event} entry at @var{index}.
+@end defun
+
+
+@defun epoll-event-set-data-u64! @var{events-array} @var{index} @var{new-value}
+@defunx epoll-event-ref-data-u64 @var{events-array} @var{index}
+Mutator and accessor for the field @code{data.u4} of the @code{struct
+epoll_event} entry at @var{index}.
+@end defun
+
+
+Here is a meaningless example showing the mechanics of the epoll @api{}:
+
+@smallexample
+(import (vicare)
+  (prefix (vicare linux)
+          linux.)
+  (prefix (vicare posix)
+          px.)
+  (vicare platform-constants)
+  (vicare syntactic-extensions))
+
+(let-values (((in ou) (px.pipe)))
+  (unwind-protect
+      (let ((epfd (linux.epoll-create)))
+        (unwind-protect
+            (let ((sizeof-struct (vector (linux.epoll-event-size))))
+              (with-local-storage sizeof-struct
+                (lambda (event)
+                  (linux.epoll-event-set-events!  event 0 EPOLLIN)
+                  (linux.epoll-event-set-data-fd! event 0 in)
+                  (linux.epoll-ctl epfd EPOLL_CTL_ADD in event)))
+              (px.write ou '#vu8(1))
+              (with-local-storage sizeof-struct
+                (lambda (events)
+                  (linux.epoll-wait epfd events 1 -1)
+                  (linux.epoll-event-ref-data-fd events 0) @result{} in
+                  (linux.epoll-event-ref-events events 0)  @result{} EPOLLIN
+                  ))))
+          (px.close epfd)))
+    (px.close in)
+    (px.close ou))
+@end smallexample
 
 @c page
 @node syslib
@@ -14042,6 +14382,7 @@ be @code{AF_INET} or @code{AF_INET6}.
 
 @menu
 * errno::                       More features for @code{errno}.
+* readline::                    Extended interface to @gnu{} Readline.
 * gcc::                         A toy library interface to @gcc{}.
 * wtables::                     Weak hashtables.
 @end menu
@@ -14095,6 +14436,35 @@ the auxiliary keyword exported by @library{rnrs}.  Example:
 The @meta{code} must be symbols representing @code{errno} codes, they
 are @strong{not} meant to be binding identifiers.
 @end deffn
+
+@c page
+@node readline
+@section Extended interface to @gnu{} Readline
+
+
+The library @library{vicare readline} extends the basic readline @api{}
+exported by @library{vicare} (@pxref{iklib readline}) with features
+specific to the @gnu{} Readline library.  The following bindings:
+
+@example
+readline-enabled?
+readline
+make-readline-input-port
+@end example
+
+@noindent
+exported by @library{vicare} are reexported by @library{vicare
+readline}.
+
+
+@defun rl-version
+If support for readline is enabled and the linked library is @gnu{}
+Readline: return an exact integer representing the @gnu{} Readline
+version number as encoded in the C symbol @code{RL_READLINE_VERSION};
+else return @false{}.  When this function returns @false{}: no other
+@gnu{} Readline functions must be called, lest the process be aborted.
+@end defun
+
 
 @c page
 @node gcc
@@ -15647,19 +16017,28 @@ Return a pointer referencing the first byte in the data area of
 @deftypefun ikptr ika_bytevector_alloc (ikpcb * @var{pcb}, long @var{requested_number_of_bytes})
 Allocate, initialise and return a new bytevector capable of holding the
 specified number of bytes.  The contents of the data area are
-unspecified.
+unspecified.  The requested bytevector length @strong{must} be in the
+range of fixnums.
 @end deftypefun
 
 
 @deftypefun ikptr ik_bytevector_from_cstring (ikpcb * @var{pcb}, const char * @var{cstr})
 Allocate, initialise and return a new bytevector and copy the contents
 of the @asciiz{} string referenced by @var{cstr} in the data area.
+
+@strong{NOTE} If the string length is greater than the maximum positive
+fixnum: the string is @strong{silently truncated} to a length equal to
+the maximum positive fixnum.
 @end deftypefun
 
 
 @deftypefun ikptr ik_bytevector_from_cstring_len (ikpcb * @var{pcb}, const char * @var{cstr}, size_t @var{len})
 Allocate, initialise and return a new bytevector and copy the @var{len}
 bytes of the @ascii{} string referenced by @var{cstr} in the data area.
+
+@strong{NOTE} If the string length is greater than the maximum positive
+fixnum: the string is @strong{silently truncated} to a length equal to
+the maximum positive fixnum.
 @end deftypefun
 
 
@@ -15667,6 +16046,10 @@ bytes of the @ascii{} string referenced by @var{cstr} in the data area.
 Allocate, initialise and return a new bytevector and copy in the data
 area @var{length} bytes from of the memory block referenced by
 @var{memory}.
+
+@strong{NOTE} If the memory block length is greater than the maximum
+positive fixnum: the block is @strong{silently truncated} to a length
+equal to the maximum positive fixnum.
 @end deftypefun
 
 

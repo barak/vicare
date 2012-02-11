@@ -29,18 +29,49 @@
  ** ----------------------------------------------------------------- */
 
 #include "internals.h"
-#include <dirent.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <time.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <sys/param.h>
-#include <sys/resource.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/wait.h>
+#ifdef HAVE_DIRENT_H
+#  include <dirent.h>
+#endif
+#ifdef HAVE_FCNTL_H
+#  include <fcntl.h>
+#endif
+#ifdef HAVE_SIGNAL_H
+#  include <signal.h>
+#endif
+#ifdef HAVE_TIME_H
+#  include <time.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#  include <unistd.h>
+#endif
+#ifdef HAVE_SYS_EPOLL_H
+#  include <sys/epoll.h>
+#endif
+#ifdef HAVE_SYS_MMAN_H
+#  include <sys/mman.h>
+#endif
+#ifdef HAVE_SYS_PARAM_H
+#  include <sys/param.h>
+#endif
+#ifdef HAVE_SYS_RESOURCE_H
+#  include <sys/resource.h>
+#endif
+#ifdef HAVE_SYS_STAT_H
+#  include <sys/stat.h>
+#endif
+#ifdef HAVE_SYS_TIME_H
+#  include <sys/time.h>
+#endif
+#ifdef HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_WAIT_H
+#  include <sys/wait.h>
+#endif
+
+/* file descriptors */
+#define IK_FD_TO_NUM(fd)		IK_FIX(fd)
+#define IK_NUM_TO_FD(fd)		IK_UNFIX(fd)
 
 static IK_UNUSED void
 feature_failure_ (const char * funcname)
@@ -91,5 +122,212 @@ ikrt_linux_waitid (ikptr fx_idtype, ikptr fx_id, ikptr struct_info, ikptr fx_opt
   feature_failure(__func__);
 #endif
 }
+
+
+/** --------------------------------------------------------------------
+ ** Epoll.
+ ** ----------------------------------------------------------------- */
+
+ikptr
+ikrt_linux_epoll_create (ikptr s_size)
+{
+#ifdef HAVE_EPOLL_CREATE
+  int   size = ik_integer_to_int(s_size);
+  int	rv;
+  errno = 0;
+  rv    = epoll_create(size);
+  return (-1 != rv)? IK_FD_TO_NUM(rv) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_linux_epoll_create1 (ikptr s_flags)
+{
+#ifdef HAVE_EPOLL_CREATE1
+  int   flags = ik_integer_to_int(s_flags);
+  int	rv;
+  errno = 0;
+  rv    = epoll_create1(flags);
+  return (-1 != rv)? IK_FD_TO_NUM(rv) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_linux_epoll_ctl (ikptr s_epfd, ikptr s_op, ikptr s_fd, ikptr s_event_struct)
+{
+#ifdef HAVE_EPOLL_CTL
+  struct epoll_event *	event = (false_object == s_event_struct)?
+    NULL : IK_POINTER_DATA_VOIDP(s_event_struct);
+  int	rv;
+  errno = 0;
+  rv    = epoll_ctl(IK_NUM_TO_FD(s_epfd),
+		    ik_integer_to_int(s_op),
+		    IK_NUM_TO_FD(s_fd), event);
+  return (0 == rv)? IK_FIX(0) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_linux_epoll_wait (ikptr s_epfd, ikptr s_events_array,
+		       ikptr s_maxevents, ikptr s_timeout_ms, ikpcb * pcb)
+{
+#ifdef HAVE_EPOLL_WAIT
+  struct epoll_event *	event = IK_POINTER_DATA_VOIDP(s_events_array);
+  int	rv;
+  errno = 0;
+  rv    = epoll_wait(IK_NUM_TO_FD(s_epfd), event,
+		     ik_integer_to_int(s_maxevents),
+		     ik_integer_to_int(s_timeout_ms));
+  return (-1 != rv)? ika_integer_from_int(pcb, rv) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_linux_epoll_event_alloc (ikptr s_number_of_entries, ikpcb * pcb)
+{
+#ifdef HAVE_STRUCT_EPOLL_EVENT
+  void * event = malloc(IK_UNFIX(s_number_of_entries) * sizeof(struct epoll_event));
+  return (event)? ika_pointer_alloc(pcb, (ik_ulong)event) : false_object;
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_linux_epoll_event_size (void)
+{
+#ifdef HAVE_STRUCT_EPOLL_EVENT
+  return IK_FIX(sizeof(struct epoll_event));
+#else
+  feature_failure(__func__);
+#endif
+}
+
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_linux_epoll_event_set_events (ikptr s_events_array, ikptr s_index, ikptr s_field_events)
+{
+#ifdef HAVE_STRUCT_EPOLL_EVENT
+  struct epoll_event *	event = IK_POINTER_DATA_VOIDP(s_events_array);
+  event[IK_UNFIX(s_index)].events = ik_integer_to_uint32(s_field_events);
+  return void_object;
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_linux_epoll_event_ref_events (ikptr s_events_array, ikptr s_index, ikpcb * pcb)
+{
+#ifdef HAVE_STRUCT_EPOLL_EVENT
+  struct epoll_event *	event = IK_POINTER_DATA_VOIDP(s_events_array);
+  return ika_integer_from_uint32(pcb, event[IK_UNFIX(s_index)].events);
+#else
+  feature_failure(__func__);
+#endif
+}
+
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_linux_epoll_event_set_data_ptr (ikptr s_events_array, ikptr s_index, ikptr s_field_ptr)
+{
+#ifdef HAVE_STRUCT_EPOLL_EVENT
+  struct epoll_event *	event = IK_POINTER_DATA_VOIDP(s_events_array);
+  event[IK_UNFIX(s_index)].data.ptr = IK_POINTER_DATA_VOIDP(s_field_ptr);
+  return void_object;
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_linux_epoll_event_ref_data_ptr (ikptr s_events_array, ikptr s_index, ikpcb * pcb)
+{
+#ifdef HAVE_STRUCT_EPOLL_EVENT
+  struct epoll_event *	event = IK_POINTER_DATA_VOIDP(s_events_array);
+  return ika_pointer_alloc(pcb, (ik_ulong)event[IK_UNFIX(s_index)].data.ptr);
+#else
+  feature_failure(__func__);
+#endif
+}
+
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_linux_epoll_event_set_data_fd (ikptr s_events_array, ikptr s_index, ikptr s_field_fd)
+{
+#ifdef HAVE_STRUCT_EPOLL_EVENT
+  struct epoll_event *	event = IK_POINTER_DATA_VOIDP(s_events_array);
+  event[IK_UNFIX(s_index)].data.fd = IK_NUM_TO_FD(s_field_fd);
+  return void_object;
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_linux_epoll_event_ref_data_fd (ikptr s_events_array, ikptr s_index, ikpcb * pcb)
+{
+#ifdef HAVE_STRUCT_EPOLL_EVENT
+  struct epoll_event *	event = IK_POINTER_DATA_VOIDP(s_events_array);
+  return IK_FD_TO_NUM(event[IK_UNFIX(s_index)].data.fd);
+#else
+  feature_failure(__func__);
+#endif
+}
+
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_linux_epoll_event_set_data_u32 (ikptr s_events_array, ikptr s_index, ikptr s_field_u32)
+{
+#ifdef HAVE_STRUCT_EPOLL_EVENT
+  struct epoll_event *	event = IK_POINTER_DATA_VOIDP(s_events_array);
+  event[IK_UNFIX(s_index)].data.u32 = ik_integer_to_uint32(s_field_u32);
+  return void_object;
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_linux_epoll_event_ref_data_u32 (ikptr s_events_array, ikptr s_index, ikpcb * pcb)
+{
+#ifdef HAVE_STRUCT_EPOLL_EVENT
+  struct epoll_event *	event = IK_POINTER_DATA_VOIDP(s_events_array);
+  return ika_integer_from_uint32(pcb, event[IK_UNFIX(s_index)].data.u32);
+#else
+  feature_failure(__func__);
+#endif
+}
+
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_linux_epoll_event_set_data_u64 (ikptr s_events_array, ikptr s_index, ikptr s_field_u64)
+{
+#ifdef HAVE_STRUCT_EPOLL_EVENT
+  struct epoll_event *	event = IK_POINTER_DATA_VOIDP(s_events_array);
+  event[IK_UNFIX(s_index)].data.u64 = ik_integer_to_uint64(s_field_u64);
+  return void_object;
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_linux_epoll_event_ref_data_u64 (ikptr s_events_array, ikptr s_index, ikpcb * pcb)
+{
+#ifdef HAVE_STRUCT_EPOLL_EVENT
+  struct epoll_event *	event = IK_POINTER_DATA_VOIDP(s_events_array);
+  return ika_integer_from_uint64(pcb, event[IK_UNFIX(s_index)].data.u64);
+#else
+  feature_failure(__func__);
+#endif
+}
+
 
 /* end of file */

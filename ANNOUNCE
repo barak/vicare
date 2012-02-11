@@ -1,4 +1,4 @@
-Subject: [announce] Vicare Scheme revision 0.2d7
+Subject: [announce] Vicare Scheme revision 0.2d8
 
                              Vicare Scheme
                              =============
@@ -37,6 +37,72 @@ this project has a mailing list:
 collection of R6 Scheme libraries:
 
 	      <http://marcomaggi.github.com/nausicaa.html>
+
+
+Notes for revision 0.2d8
+------------------------
+
+* Added  configuration  option  "--with-pthread"  to link  the  "vicare"
+  executable with the pthread library.  The executable was always linked
+  with pthread before, now it is *not* by default.
+
+* Changed default  for configuration option "--with-iconv"  from "no" to
+  "check", when  the option is  not specified: the  configuration script
+  checks if  an iconv library is available,  but it does not  fail if it
+  does not find it.
+
+* CONFIGURATION  BACKWARDS   INCOMPATIBILITY  The  configuration  option
+  "--enable-libffi"  has been renamed  to "--with-libffi".   Its default
+  value  has  changed from  "no"  to "check",  when  the  option is  not
+  specified:  the configuration  script checks  if a  libffi  library is
+  available, but it does not fail if it does not find it.
+
+* Added   configuration  option   "--with-readline"  enabling   a  basic
+  interface to GNU Readline or compatible library.  By default, when the
+  option  is  not  specified:  the  configuration  script  checks  if  a
+  compatible library is  available, but it does not fail  if it does not
+  find  it.   The  following  bindings  are  exported  by  (vicare)  and
+  (icarus):
+
+     readline-enabled?
+     readline
+     make-readline-input-port
+
+* The C language functions allocating Scheme bytevectors by copying from
+  raw memory blocks will *silently  truncate* the input if its length is
+  greater than the most positive fixnum.  (This is dirty, I know.)
+
+* BACKWARDS INCOMPATIBILITY Libraries in  the (vicare ---) hierarchy are
+  now   installed    under   "$(libdir)/scheme"   rather    than   under
+  "$(libdir)/vicare"; the LIBRARY-PATH parameter now includes both these
+  directories.     The   boot   image    is   still    installed   under
+  "$(libdir)/vicare".
+
+* Added  reader syntax  "#ve(<encoding> <data>)"  to read  bytevector in
+  some  form of  encoding.   At present  it  supports converting  Scheme
+  strings to  bytevectors using the  conversion function: string->ascii,
+  string->latin1, string->utf8, etc.  Example:
+
+     #ve(ascii "hello\n") => #vu8(104 101 108 108 111 10)
+
+* Added  reader syntaxes "#ci<form>"  and "#cs<form>"  to read  the next
+  form with case insensitive or case sensitive identifiers.  When a case
+  insensitive  identifier is  read: its  string name  is  passed through
+  STRING-FOLDCASE.   (These  syntaxes should  be  like  the Chicken  and
+  Racket ones.)
+
+* Added reader syntaxes for custom named characters:
+
+    ;define "lambda" as synonym for #\x0E88
+    #!(char-names (lambda . #\x0E88))
+
+    ;standalone character
+    #\{lambda}		=> #\x0E88
+
+    ;character embedded in string
+    "\{lambda}"		=> "\x0E88;"
+
+* Added support for epoll API to (vicare linux).
 
 
 Notes for revision 0.2d7
