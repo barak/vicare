@@ -26,7 +26,35 @@
     make-c-callout-maker		make-c-callout-maker/with-errno
     make-c-callback-maker		free-c-callback
 
+    ;; system agnostic shared libraries interface
+    open-shared-object			close-shared-object
+    lookup-shared-object
+
+    &shared-object-error
+    make-shared-object-error
+    shared-object-error?
+
+    &shared-object-opening-error
+    make-shared-object-opening-error
+    shared-object-opening-error?
+    condition-shared-object-opening-name
+
+    &shared-object-closing-error
+    make-shared-object-closing-error
+    shared-object-closing-error?
+    condition-shared-object-closing-so-handle
+
+    &shared-object-lookup-error
+    make-shared-object-lookup-error
+    shared-object-lookup-error?
+    condition-shared-object-lookup-so-handle
+    condition-shared-object-lookup-foreign-symbol
+
+    &out-of-memory-error
+    make-out-of-memory-error		out-of-memory-error?
+
 ;;; --------------------------------------------------------------------
+;;; reexports from (vicare)
 
     ;; pointer values
     pointer?
@@ -41,30 +69,38 @@
     malloc				guarded-malloc
     realloc				guarded-realloc
     calloc				guarded-calloc
+    malloc*				guarded-malloc*
+    realloc*				guarded-realloc*
+    calloc*				guarded-calloc*
     free				memcmp
     memcpy				memmove
     memset				memory-copy
-    bytevector->memory			memory->bytevector
-    bytevector->guarded-memory
+    bytevector->memory			bytevector->memory*
+    bytevector->guarded-memory		bytevector->guarded-memory*
+    memory->bytevector
 
     with-local-storage
 
     ;; C arrays of C strings
-    bytevectors->argv			argv->bytevectors
-    strings->argv			argv->strings
-    bytevectors->guarded-argv
-    strings->guarded-argv
     argv-length
+    argv->bytevectors			argv->strings
+    bytevectors->argv			bytevectors->argv*
+    bytevectors->guarded-argv		bytevectors->guarded-argv*
+    strings->argv			strings->argv*
+    strings->guarded-argv		strings->guarded-argv*
 
     ;; C strings
     strlen
     strcmp				strncmp
-    strdup				strndup
-    guarded-strdup			guarded-strndup
-    cstring->bytevector
-    bytevector->cstring			bytevector->guarded-cstring
-    cstring->string
-    string->cstring			string->guarded-cstring
+    strdup				strdup*
+    strndup				strndup*
+    guarded-strdup			guarded-strdup*
+    guarded-strndup			guarded-strndup*
+    cstring->bytevector			cstring->string
+    bytevector->cstring			bytevector->cstring*
+    bytevector->guarded-cstring		bytevector->guarded-cstring*
+    string->cstring			string->cstring*
+    string->guarded-cstring		string->guarded-cstring*
 
     ;; errno interface
     errno
@@ -103,6 +139,79 @@
     pointer-set-c-pointer!)
   (import (vicare)
     (ikarus system $foreign)
-    (vicare errno)))
+    (vicare errno))
+
+
+;;;; condition objects
+
+(define-condition-type &shared-object-error &error
+  make-shared-object-error shared-object-error?)
+
+(define-condition-type &shared-object-opening-error &shared-object-error
+  make-shared-object-opening-error shared-object-opening-error?
+  (name condition-shared-object-opening-name))
+
+(define-condition-type &shared-object-closing-error &shared-object-error
+  make-shared-object-closing-error shared-object-closing-error?
+  (so-handle		condition-shared-object-closing-so-handle))
+
+(define-condition-type &shared-object-lookup-error &shared-object-error
+  make-shared-object-lookup-error shared-object-lookup-error?
+  (so-handle		condition-shared-object-lookup-so-handle)
+  (foreign-symbol	condition-shared-object-lookup-foreign-symbol))
+
+
+;;;; system agnostic API to load libraries
+
+(define open-shared-object
+  ;;Open the shared library  identified by the string SHARED-OBJECT-NAME
+  ;;and return a library descriptor.
+  ;;
+  ;;DLOPEN returns a  pointer to the external library  descriptor, or #f
+  ;;if an error occurred.
+  ;;
+  (case-lambda
+   (()
+    ;;Self-opening the process should never fail.
+    (dlopen))
+   ((shared-object-name)
+    (define who 'open-shared-object)
+    (or (dlopen shared-object-name #f #f)
+	(raise
+	 (condition (make-shared-object-opening-error shared-object-name)
+		    (make-who-condition who)
+		    (make-message-condition (dlerror))))))))
+
+(define (close-shared-object so-handle)
+  ;;Close the shared object referenced by SO-HANDLE.
+  ;;
+  ;;DLCLOSE returns  a pointer  to the external  entity, or #f  when the
+  ;;symbol is not found.
+  ;;
+  (define who 'lookup-shared-object)
+  (or (dlclose so-handle)
+      (raise
+       (condition (make-shared-object-closing-error so-handle)
+		  (make-who-condition who)
+		  (make-message-condition (dlerror))))))
+
+(define (lookup-shared-object so-handle foreign-symbol)
+  ;;Look up the foreign symbol  selected by the string FOREIGN-SYMBOL in
+  ;;the shared library identified by SO-HANDLE.
+  ;;
+  ;;DLSYM  returns a  pointer to  the external  entity, or  #f  when the
+  ;;symbol is not found.
+  ;;
+  (define who 'lookup-shared-object)
+  (or (dlsym so-handle foreign-symbol)
+      (raise
+       (condition (make-shared-object-lookup-error so-handle foreign-symbol)
+		  (make-who-condition who)
+		  (make-message-condition (dlerror))))))
+
+
+;;;; done
+
+)
 
 ;;; end of file

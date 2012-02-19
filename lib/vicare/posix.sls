@@ -132,6 +132,8 @@
     mmap				munmap
     msync				mremap
     madvise
+    mlock				munlock
+    mlockall				munlockall
 
     ;; sockets
     make-sockaddr_un
@@ -221,6 +223,8 @@
     localtime				gmtime
     timelocal				timegm
     strftime				strftime/string
+    setitimer				getitimer
+    alarm
     nanosleep
 
     make-struct-timeval			struct-timeval?
@@ -241,6 +245,14 @@
     struct-tm-tm_isdst			struct-tm-tm_gmtoff
     struct-tm-tm_zone
 
+    make-struct-itimerval		struct-itimerval?
+    struct-itimerval-it_interval	struct-itimerval-it_value
+
+    ;; system configuration
+    sysconf
+    pathconf		fpathconf
+    confstr		confstr/string
+
     ;; miscellaneous functions
     file-descriptor?)
   (import (except (vicare)
@@ -250,16 +262,14 @@
     (prefix (only (vicare $posix)
 		  errno->string)
 	    posix.)
-    (prefix (only (vicare ffi)
-		  pointer?)
-	    ffi.)
     (vicare syntactic-extensions)
     (vicare platform-constants)
     (prefix (vicare unsafe-capi)
 	    capi.)
     (prefix (vicare unsafe-operations)
 	    unsafe.)
-    (vicare words))
+    (prefix (vicare words)
+	    words.))
 
 
 ;;;; helpers
@@ -271,18 +281,6 @@
   (and (fixnum? obj)
        (unsafe.fx>= obj 0)
        (unsafe.fx<  obj FD_SETSIZE)))
-
-(define-inline (%platform-int? obj)
-  (and (or (fixnum? obj) (bignum? obj))
-       (<= INT_MIN obj INT_MAX)))
-
-(define-inline (%platform-size_t? obj)
-  (and (or (fixnum? obj) (bignum? obj))
-       (<= 0 obj SIZE_T_MAX)))
-
-(define-inline (%platform-off_t? obj)
-  (and (or (fixnum? obj) (bignum? obj))
-       (<= OFF_T_MIN obj OFF_T_MAX)))
 
 
 ;;;; arguments validation
@@ -318,15 +316,15 @@
   (assertion-violation who "expected boolean or fixnum as argument" obj))
 
 (define-argument-validation (pointer who obj)
-  (ffi.pointer? obj)
+  (pointer? obj)
   (assertion-violation who "expected pointer as argument" obj))
 
 (define-argument-validation (pointer/false who obj)
-  (or (not obj) (ffi.pointer? obj))
+  (or (not obj) (pointer? obj))
   (assertion-violation who "expected false or pointer as argument" obj))
 
 (define-argument-validation (fixnum/pointer/false who obj)
-  (or (not obj) (fixnum? obj) (ffi.pointer? obj))
+  (or (not obj) (fixnum? obj) (pointer? obj))
   (assertion-violation who "expected false, fixnum or pointer as argument" obj))
 
 (define-argument-validation (exact-integer who obj)
@@ -376,12 +374,12 @@
   (assertion-violation who "expected struct stat instance as argument" obj))
 
 (define-argument-validation (secs who obj)
-  (word-u32? obj)
+  (words.word-u32? obj)
   (assertion-violation who
     "expected exact integer in the range [0, 2^32-1] as seconds count argument" obj))
 
 (define-argument-validation (nsecs who obj)
-  (and (word-u32? obj)
+  (and (words.word-u32? obj)
        (<= 0 obj 999999999))
 ;;;              987654321
   (assertion-violation who
@@ -412,7 +410,7 @@
     "expected non-negative exact integer as directory stream position argument" obj))
 
 (define-argument-validation (offset who obj)
-  (%platform-off_t? obj)
+  (words.off_t? obj)
   (assertion-violation who
     "expected platform off_t exact integer as offset argument" obj))
 
@@ -445,17 +443,17 @@
     "expected exact integer or 32-bit bytevector as network address argument" obj))
 
 (define-argument-validation (platform-int who obj)
-  (%platform-int? obj)
+  (words.signed-int? obj)
   (assertion-violation who
     "expected exact integer in platform's \"int\" range as argument" obj))
 
 (define-argument-validation (platform-int/boolean who obj)
-  (or (boolean? obj) (%platform-int? obj))
+  (or (boolean? obj) (words.signed-int? obj))
   (assertion-violation who
     "expected boolean or exact integer in platform's \"int\" range as argument" obj))
 
 (define-argument-validation (platform-size_t who obj)
-  (%platform-size_t? obj)
+  (words.size_t? obj)
   (assertion-violation who
     "expected exact integer in platform's \"size_t\" range as argument" obj))
 
@@ -471,6 +469,30 @@
 					    (fixnum? (unsafe.vector-ref vec 2))))
 				     obj))
   (assertion-violation who "expected vector of data for poll as argument" obj))
+
+(define-argument-validation (itimerval who obj)
+  (and (struct-itimerval? obj)
+       (let ((T (struct-itimerval-it_interval obj)))
+	 (and (struct-timeval? T)
+	      (words.signed-long? (struct-timeval-tv_sec  T))
+	      (words.signed-long? (struct-timeval-tv_usec T))))
+       (let ((T (struct-itimerval-it_value obj)))
+	 (and (struct-timeval? T)
+	      (words.signed-long? (struct-timeval-tv_sec  T))
+	      (words.signed-long? (struct-timeval-tv_usec T)))))
+  (assertion-violation who "expected struct-itimerval as argument" obj))
+
+;;; --------------------------------------------------------------------
+
+(define-argument-validation (unsigned-int who obj)
+  (words.unsigned-int? obj)
+  (assertion-violation who
+    "expected exact integer representing a C language \"unsigned int\" as argument" obj))
+
+(define-argument-validation (signed-int who obj)
+  (words.signed-int? obj)
+  (assertion-violation who
+    "expected exact integer representing a C language \"signed int\" as argument" obj))
 
 
 ;;;; errors handling
@@ -1707,7 +1729,7 @@
        (file-descriptor	fd)
        (offset		offset))
     (let ((rv (capi.posix-mmap address length protect flags fd offset)))
-      (if (ffi.pointer? rv)
+      (if (pointer? rv)
 	  rv
 	(%raise-errno-error who rv address length protect flags fd offset)))))
 
@@ -1738,7 +1760,7 @@
        (platform-size_t	new-length)
        (fixnum		flags))
     (let ((rv (capi.posix-mremap address length new-length flags)))
-      (if (ffi.pointer? rv)
+      (if (pointer? rv)
 	  rv
 	(%raise-errno-error who rv address length new-length flags)))))
 
@@ -1752,6 +1774,37 @@
       (unless (unsafe.fxzero? rv)
 	(%raise-errno-error who rv address length advice)))))
 
+(define (mlock address length)
+  (define who 'mlock)
+  (with-arguments-validation (who)
+      ((pointer		address)
+       (platform-size_t	length))
+    (let ((rv (capi.posix-mlock address length)))
+      (unless (unsafe.fxzero? rv)
+	(%raise-errno-error who rv address length)))))
+
+(define (munlock address length)
+  (define who 'munlock)
+  (with-arguments-validation (who)
+      ((pointer		address)
+       (platform-size_t	length))
+    (let ((rv (capi.posix-munlock address length)))
+      (unless (unsafe.fxzero? rv)
+	(%raise-errno-error who rv address length)))))
+
+(define (mlockall flags)
+  (define who 'mlock)
+  (with-arguments-validation (who)
+      ((fixnum		flags))
+    (let ((rv (capi.posix-mlockall flags)))
+      (unless (unsafe.fxzero? rv)
+	(%raise-errno-error who rv flags)))))
+
+(define (munlockall)
+  (define who 'mlock)
+  (let ((rv (capi.posix-munlockall)))
+    (unless (unsafe.fxzero? rv)
+      (%raise-errno-error who rv))))
 
 
 ;;;; sockets
@@ -2749,6 +2802,19 @@
 
 ;;; --------------------------------------------------------------------
 
+(define-struct struct-itimerval
+  (it_interval it_value))
+
+(define (%struct-itimerval-printer S port sub-printer)
+  (define-inline (%display thing)
+    (display thing port))
+  (%display "#[\"struct-itimerval\"")
+  (%display " it_interval=")		(%display (struct-itimerval-it_interval S))
+  (%display " it_value=")		(%display (struct-itimerval-it_value    S))
+  (%display "]"))
+
+;;; --------------------------------------------------------------------
+
 (define (clock)
   (exact (capi.posix-clock)))
 
@@ -2834,6 +2900,90 @@
 	  (values (car rv) (cdr rv))
 	(%raise-errno-error who rv secs nsecs)))))
 
+;;; --------------------------------------------------------------------
+
+(define (setitimer which new)
+  (define who 'setitimer)
+  (with-arguments-validation (who)
+      ((fixnum		which)
+       (itimerval	new))
+    (let ((rv (capi.posix-setitimer which new)))
+      (unless (unsafe.fxzero? rv)
+	(%raise-errno-error who rv which new)))))
+
+(define (getitimer which)
+  (define who 'getitimer)
+  (with-arguments-validation (who)
+      ((fixnum		which))
+    (let* ((old (make-struct-itimerval
+		 (make-struct-timeval 0 0)
+		 (make-struct-timeval 0 0)))
+	   (rv  (capi.posix-getitimer which old)))
+      (if (unsafe.fxzero? rv)
+	  old
+	(%raise-errno-error who rv which old)))))
+
+(define (alarm seconds)
+  (define who 'alarm)
+  (with-arguments-validation (who)
+      ((unsigned-int	seconds))
+    (capi.posix-alarm seconds)))
+
+
+;;;; system configuration
+
+(define (sysconf parameter)
+  (define who 'sysconf)
+  (with-arguments-validation (who)
+      ((signed-int	parameter))
+    (let ((rv (capi.posix-sysconf parameter)))
+      (if rv
+	  (if (negative? rv)
+	      (%raise-errno-error who rv parameter)
+	    rv)
+	rv))))
+
+;;; --------------------------------------------------------------------
+
+(define (pathconf pathname parameter)
+  (define who 'pathconf)
+  (with-arguments-validation (who)
+      ((string/bytevector	pathname)
+       (signed-int		parameter))
+    (with-pathnames ((pathname.bv pathname))
+      (let ((rv (capi.posix-pathconf pathname.bv parameter)))
+	(if rv
+	    (if (negative? rv)
+		(%raise-errno-error who rv pathname parameter)
+	      rv)
+	  rv)))))
+
+(define (fpathconf fd parameter)
+  (define who 'fpathconf)
+  (with-arguments-validation (who)
+      ((file-descriptor	fd)
+       (signed-int	parameter))
+    (let ((rv (capi.posix-fpathconf fd parameter)))
+      (if rv
+	  (if (negative? rv)
+	      (%raise-errno-error who rv fd parameter)
+	    rv)
+	rv))))
+
+;;; --------------------------------------------------------------------
+
+(define (confstr parameter)
+  (define who 'confstr)
+  (with-arguments-validation (who)
+      ((signed-int	parameter))
+    (let ((rv (capi.posix-confstr parameter)))
+      (if (bytevector? rv)
+	  rv
+	(%raise-errno-error who rv parameter)))))
+
+(define (confstr/string parameter)
+  (latin1->string (confstr parameter)))
+
 
 ;;;; miscellaneous functions
 
@@ -2856,6 +3006,7 @@
 (set-rtd-printer! (type-descriptor struct-timespec)	%struct-timespec-printer)
 (set-rtd-printer! (type-descriptor struct-tms)		%struct-tms-printer)
 (set-rtd-printer! (type-descriptor struct-tm)		%struct-tm-printer)
+(set-rtd-printer! (type-descriptor struct-itimerval)	%struct-itimerval-printer)
 
 )
 

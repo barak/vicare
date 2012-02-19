@@ -67,11 +67,6 @@
     ;; word expansion
     wordexp		wordexp/string
 
-    ;; system configuration
-    sysconf
-    pathconf		fpathconf
-    confstr		confstr/string
-
     ;; generic character set conversion
     iconv-open		iconv?
     iconv-close		iconv-closed?
@@ -86,10 +81,6 @@
 		  directory-stream-closed?
 		  directory-stream-pointer)
 	    posix.)
-    (prefix (only (ikarus system $foreign)
-		  pointer?
-		  pointer-null?)
-	    ffi.)
     (vicare syntactic-extensions)
     (vicare platform-constants)
     (prefix (vicare unsafe-capi)
@@ -146,7 +137,7 @@
   (assertion-violation who "expected complex flonum as argument" obj))
 
 (define-argument-validation (pointer who obj)
-  (ffi.pointer? obj)
+  (pointer? obj)
   (assertion-violation who "expected pointer as argument" obj))
 
 ;;; --------------------------------------------------------------------
@@ -454,7 +445,7 @@
        (fixnum			flags))
     (with-bytevectors ((pattern.bv pattern))
       (let ((rv (capi.glibc-regcomp pattern.bv flags)))
-	(cond ((ffi.pointer? rv)
+	(cond ((pointer? rv)
 	       (%regex-guardian rv))
 	      ((not rv)
 	       (error who
@@ -497,61 +488,6 @@
     (if (vector? rv)
 	(vector-map latin1->string rv)
       rv)))
-
-
-;;;; system configuration
-
-(define (sysconf parameter)
-  (define who 'sysconf)
-  (with-arguments-validation (who)
-      ((signed-int	parameter))
-    (let ((rv (capi.glibc-sysconf parameter)))
-      (if rv
-	  (if (negative? rv)
-	      (raise-errno-error who rv parameter)
-	    rv)
-	rv))))
-
-;;; --------------------------------------------------------------------
-
-(define (pathconf pathname parameter)
-  (define who 'pathconf)
-  (with-arguments-validation (who)
-      ((string/bytevector	pathname)
-       (signed-int		parameter))
-    (with-pathnames ((pathname.bv pathname))
-      (let ((rv (capi.glibc-pathconf pathname.bv parameter)))
-	(if rv
-	    (if (negative? rv)
-		(raise-errno-error who rv pathname parameter)
-	      rv)
-	  rv)))))
-
-(define (fpathconf fd parameter)
-  (define who 'fpathconf)
-  (with-arguments-validation (who)
-      ((file-descriptor	fd)
-       (signed-int	parameter))
-    (let ((rv (capi.glibc-fpathconf fd parameter)))
-      (if rv
-	  (if (negative? rv)
-	      (raise-errno-error who rv fd parameter)
-	    rv)
-	rv))))
-
-;;; --------------------------------------------------------------------
-
-(define (confstr parameter)
-  (define who 'confstr)
-  (with-arguments-validation (who)
-      ((signed-int	parameter))
-    (let ((rv (capi.glibc-confstr parameter)))
-      (if (bytevector? rv)
-	  rv
-	(raise-errno-error who rv parameter)))))
-
-(define (confstr/string parameter)
-  (latin1->string (confstr parameter)))
 
 
 ;;;; general character set conversion
@@ -951,7 +887,7 @@
   (do ((handle (%iconv-guardian) (%iconv-guardian)))
       ((not handle))
     (let ((P (iconv-pointer handle)))
-      (unless (ffi.pointer-null? P)
+      (unless (pointer-null? P)
 	(capi.glibc-iconv-close P)))))
 
 (define (iconv-open from to)
@@ -962,7 +898,7 @@
 	 (iconv-set	to))
       (let ((rv (capi.glibc-iconv-open (%enum-set->string from who)
 				       (%enum-set->string to   who))))
-	(if (ffi.pointer? rv)
+	(if (pointer? rv)
 	    (%iconv-guardian (make-iconv rv from to))
 	  (raise-errno-error who rv to from)))))
   (define (%enum-set->string set who)
@@ -992,7 +928,7 @@
   (define who 'iconv-closed?)
   (with-arguments-validation (who)
       ((iconv	handle))
-    (ffi.pointer-null? (iconv-pointer handle))))
+    (pointer-null? (iconv-pointer handle))))
 
 (define (iconv! handle
 		input  input.start  input.past

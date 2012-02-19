@@ -116,6 +116,7 @@
     posix-pause
     posix-signal-bub-init		posix-signal-bub-final
     posix-signal-bub-acquire		posix-signal-bub-delivered?
+    linux-signalfd			linux-read-signalfd-siginfo
 
     ;; file system inspection
     posix-stat				posix-lstat
@@ -180,6 +181,8 @@
     posix-mmap				posix-munmap
     posix-msync				posix-mremap
     posix-madvise
+    posix-mlock				posix-munlock
+    posix-mlockall			posix-munlockall
 
     ;; file system synchronisation
     glibc-sync				glibc-fsync
@@ -245,8 +248,9 @@
     posix-time				posix-gettimeofday
     posix-localtime			posix-gmtime
     posix-timelocal			posix-timegm
-    posix-strftime
-    posix-nanosleep
+    posix-strftime			posix-nanosleep
+    posix-setitimer			posix-getitimer
+    posix-alarm
 
     ;; mathematics
     glibc-csin		glibc-ccos	glibc-ctan
@@ -272,8 +276,8 @@
     glibc-wordexp
 
     ;; system configuration
-    glibc-sysconf	glibc-confstr
-    glibc-pathconf	glibc-fpathconf
+    posix-sysconf	posix-confstr
+    posix-pathconf	posix-fpathconf
 
     ;; iconv
     glibc-iconv-open	glibc-iconv-close
@@ -675,6 +679,14 @@
 (define-inline (posix-signal-bub-delivered? signum)
   (foreign-call "ikrt_posix_signal_bub_delivered" signum))
 
+;;; --------------------------------------------------------------------
+
+(define-inline (linux-signalfd fd mask flags)
+  (foreign-call "ikrt_linux_signalfd" fd mask flags))
+
+(define-inline (linux-read-signalfd-siginfo fd info)
+  (foreign-call "ikrt_linux_read_signalfd_siginfo" fd info))
+
 
 ;;;; file system inspection
 
@@ -989,6 +1001,17 @@
 (define-inline (posix-madvise address length advice)
   (foreign-call "ikrt_posix_madvise" address length advice))
 
+(define-inline (posix-mlock address length)
+  (foreign-call "ikrt_posix_mlock" address length))
+
+(define-inline (posix-munlock address length)
+  (foreign-call "ikrt_posix_munlock" address length))
+
+(define-inline (posix-mlockall flags)
+  (foreign-call "ikrt_posix_mlockall" flags))
+
+(define-inline (posix-munlockall)
+  (foreign-call "ikrt_posix_munlockall"))
 
 
 ;;;; file system synchronisation
@@ -1391,6 +1414,17 @@
 (define-inline (posix-strftime template tm)
   (foreign-call "ikrt_posix_strftime" template tm))
 
+;;; --------------------------------------------------------------------
+
+(define-inline (posix-setitimer which new)
+  (foreign-call "ikrt_posix_setitimer" which new))
+
+(define-inline (posix-getitimer which old)
+  (foreign-call "ikrt_posix_getitimer" which old))
+
+(define-inline (posix-alarm seconds)
+  (foreign-call "ikrt_posix_alarm" seconds))
+
 
 ;;;; mathematics
 
@@ -1537,17 +1571,17 @@
 
 ;;;; system configuration
 
-(define-inline (glibc-sysconf parameter)
-  (foreign-call "ikrt_glibc_sysconf" parameter))
+(define-inline (posix-sysconf parameter)
+  (foreign-call "ikrt_posix_sysconf" parameter))
 
-(define-inline (glibc-pathconf pathname parameter)
-  (foreign-call "ikrt_glibc_pathconf" pathname parameter))
+(define-inline (posix-pathconf pathname parameter)
+  (foreign-call "ikrt_posix_pathconf" pathname parameter))
 
-(define-inline (glibc-fpathconf fd parameter)
-  (foreign-call "ikrt_glibc_fpathconf" fd parameter))
+(define-inline (posix-fpathconf fd parameter)
+  (foreign-call "ikrt_posix_fpathconf" fd parameter))
 
-(define-inline (glibc-confstr parameter)
-  (foreign-call "ikrt_glibc_confstr" parameter))
+(define-inline (posix-confstr parameter)
+  (foreign-call "ikrt_posix_confstr" parameter))
 
 
 ;;;; iconv

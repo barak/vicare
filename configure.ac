@@ -1,7 +1,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.68)
-AC_INIT([vicare],[0.2d8],[marco.maggi-ipsu@poste.it])
+AC_INIT([vicare-scheme],[0.2d9],[marco.maggi-ipsu@poste.it])
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE
 LT_PREREQ([2.2])
@@ -131,7 +131,7 @@ AC_CHECK_HEADERS([assert.h dlfcn.h errno.h fcntl.h signal.h     \
                   unistd.h])
 
 AC_CHECK_HEADERS([arpa/inet.h dirent.h fstab.h ftw.h grp.h inttypes.h limits.h mntent.h net/if.h netinet/in.h netdb.h paths.h pwd.h signal.h termios.h sys/mman.h sys/mount.h poll.h sys/select.h sys/socket.h sys/times.h sys/timex.h sys/types.h sys/un.h sys/utsname.h sys/uio.h utime.h sys/ioctl.h math.h complex.h fnmatch.h glob.h regex.h wordexp.h])
-AC_CHECK_HEADERS([sys/epoll.h])
+AC_CHECK_HEADERS([sys/epoll.h sys/signalfd.h])
 
 AC_HEADER_TIME
 
@@ -292,7 +292,7 @@ AM_COND_IF([WANT_POSIX],[
   AC_CHECK_FUNCS([link symlink readlink remove rename])
   AC_CHECK_FUNCS([rmdir getcwd chdir fchdir opendir fdopendir readdir closedir rewinddir telldir seekdir])
   AC_CHECK_FUNCS([open close read pread write pwrite lseek readv writev poll select fcntl ioctl dup dup2 pipe mkfifo])
-  AC_CHECK_FUNCS([msync mremap madvise])
+  AC_CHECK_FUNCS([msync mremap madvise mlock munlock mlockall munlockall])
   AC_CHECK_TYPES([struct sockaddr_un],,,[VICARE_INCLUDES])
   AC_CHECK_TYPES([struct sockaddr_in],,,[VICARE_INCLUDES])
   AC_CHECK_TYPES([struct sockaddr_in6],,,[VICARE_INCLUDES])
@@ -320,6 +320,7 @@ AM_COND_IF([WANT_POSIX],[
   AC_CHECK_FUNCS([ctermid setsid getsid getpgrp setpgid tcgetpgrp tcsetpgrp tcgetsid])
   AC_CHECK_TYPES([struct tms],,,[VICARE_INCLUDES])
   AC_CHECK_FUNCS([clock time times localtime_r gmtime_r timelocal timegm strftime nanosleep mktime])
+  AC_CHECK_FUNCS([setitimer getitimer alarm])
   ])
 
 AC_CACHE_SAVE
@@ -576,7 +577,7 @@ VICARE_CONSTANT_TESTS([O_CLOEXEC O_DIRECT O_DIRECTORY O_LARGEFILE O_NOFOLLOW FD_
 VICARE_CONSTANT_TESTS([EPOLL_CLOEXEC EPOLL_CTL_ADD EPOLL_CTL_MOD EPOLL_CTL_DEL EPOLLIN EPOLLOUT EPOLLRDHUP EPOLLPRI EPOLLERR EPOLLHUP EPOLLET EPOLLONESHOT])
 
 ## Memory-mapped input/output.
-VICARE_CONSTANT_TESTS([MAP_PRIVATE MAP_SHARED MAP_FIXED MAP_ANON MAP_ANONYMOUS MAP_32BITS MAP_DENYWRITE MAP_EXECUTABLE MAP_FILE MAP_GROWSDOWN MAP_LOCKED MAP_NONBLOCK MAP_NORESERVE MAP_POPULATE MAP_STACK MAP_AUTOGROW MAP_AUTORESRV MAP_COPY PROT_READ PROT_WRITE PROT_EXEC PROT_NONE MS_SYNC MS_ASYNC MREMAP_MAYMOVE])
+VICARE_CONSTANT_TESTS([MAP_PRIVATE MAP_SHARED MAP_FIXED MAP_ANON MAP_ANONYMOUS MAP_32BITS MAP_DENYWRITE MAP_EXECUTABLE MAP_FILE MAP_GROWSDOWN MAP_LOCKED MAP_NONBLOCK MAP_NORESERVE MAP_POPULATE MAP_STACK MAP_AUTOGROW MAP_AUTORESRV MAP_COPY PROT_READ PROT_WRITE PROT_EXEC PROT_NONE MS_SYNC MS_ASYNC MREMAP_MAYMOVE MCL_CURRENT MCL_FUTURE])
 VICARE_CONSTANT_TESTS([MADV_NORMAL MADV_RANDOM MADV_SEQUENTIAL MADV_WILLNEED MADV_DONTNEED])
 VICARE_CONSTANT_TESTS([POSIX_MADV_NORMAL POSIX_MADV_RANDOM POSIX_MADV_SEQUENTIAL POSIX_MADV_WILLNEED POSIX_MADV_DONTNEED])
 
@@ -706,6 +707,9 @@ VICARE_CONSTANT_TESTS([REG_EXTENDED REG_ICASE REG_NOSUB REG_NEWLINE REG_NOTBOL R
 VICARE_CONSTANT_TESTS([WRDE_NOCMD WRDE_SHOWERR WRDE_UNDEF])
 VICARE_CONSTANT_TESTS([WRDE_BADCHAR WRDE_BADVAL WRDE_CMDSUB WRDE_NOSPACE WRDE_SYNTAX])
 
+# signalfd
+VICARE_CONSTANT_TESTS([SFD_CLOEXEC SFD_NONBLOCK])
+
 AC_CACHE_SAVE
 
 #page
@@ -759,6 +763,7 @@ int main (void)
 
   AC_CHECK_TYPES([struct epoll_event],,,[VICARE_INCLUDES])
   AC_CHECK_FUNCS([epoll_create epoll_create1 epoll_ctl epoll_wait])
+  AC_CHECK_FUNCS([signalfd])
 ])
 
 dnl --------------------------------------------------------------------
