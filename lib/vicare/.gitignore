@@ -1,3 +1,4 @@
 /installation-configuration.sls
 /platform-constants.sls
 /words.sls
+/errno.sls
