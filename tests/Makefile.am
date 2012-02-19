@@ -53,7 +53,7 @@ VICARE_TEST_RUN_FLAGS	= -b $(VICARE_BOOT) $(user_flags)
 VICARE_TEST_RUN_ENV	= VICARE_LIBRARY_PATH=$(VICARE_TEST_SEARCH_PATH)	\
 			  VICARE_SRC_DIR=$(srcdir) VICARE_BUILDDIR=$(builddir)
 VICARE_TEST_RUN		= $(VICARE_TEST_RUN_ENV) $(VICARE) $(VICARE_TEST_RUN_FLAGS)
-VICARE_TEST_VIE		= $(VICARE_TEST_RUN_ENV) $(VIE) $(VICARE) $(VICARE_TEST_RUN_FLAGS)
+VICARE_TEST_VIE		= $(VICARE_TEST_RUN_ENV) $(VIE) $(VICARE) --raw-repl $(VICARE_TEST_RUN_FLAGS)
 
 
 .PHONY: test-run test-vie test-exec-modes
@@ -123,6 +123,8 @@ TESTS			=	\
 	test-vicare-bytevectors.sps			\
 	test-vicare-chars.sps				\
 	test-vicare-equality.sps			\
+	test-vicare-flonum-formatter.sps		\
+	test-vicare-flonum-parser.sps			\
 	test-vicare-io.sps				\
 	test-vicare-lists.sps				\
 	test-vicare-log.sps				\
@@ -137,6 +139,7 @@ TESTS			=	\
 	test-vicare-system.sps				\
 	test-vicare-vectors.sps				\
 	test-vicare-weak-tables.sps			\
+	test-vicare-words.sps				\
 	\
 	test-issue-001-equal-hash.sps			\
 	test-issue-006-fxreverse-bit-field.sps		\
@@ -160,7 +163,8 @@ TESTS	+= test-vicare-ffi.sps
 endif
 
 if WANT_POSIX
-TESTS	+= test-vicare-posix.sps
+TESTS	+= test-vicare-posix.sps	\
+	   test-vicare-shared-memory.sps
 endif
 
 if WANT_GLIBC
@@ -285,6 +289,8 @@ EXTRA_DIST =	\
 	test-vicare-chars.sps				\
 	test-vicare-equality.sps			\
 	test-vicare-ffi.sps				\
+	test-vicare-flonum-formatter.sps		\
+	test-vicare-flonum-parser.sps			\
 	test-vicare-glibc.sps				\
 	test-vicare-io.sps				\
 	test-vicare-linux.sps				\
@@ -296,12 +302,14 @@ EXTRA_DIST =	\
 	test-vicare-promises.sps			\
 	test-vicare-reader.sps				\
 	test-vicare-round.sps				\
+	test-vicare-shared-memory.sps			\
 	test-vicare-strings.sps				\
 	test-vicare-structs.sps				\
 	test-vicare-symbols.sps				\
 	test-vicare-system.sps				\
 	test-vicare-vectors.sps				\
 	test-vicare-weak-tables.sps			\
+	test-vicare-words.sps				\
 	\
 	test-issue-001-equal-hash.sps			\
 	test-issue-006-fxreverse-bit-field.sps		\

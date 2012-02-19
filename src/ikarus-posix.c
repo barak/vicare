@@ -1880,6 +1880,58 @@ ikrt_posix_madvise (ikptr s_address, ikptr s_length, ikptr s_advice)
   feature_failure(__func__);
 #endif
 }
+ikptr
+ikrt_posix_mlock (ikptr s_address, ikptr s_length)
+{
+#ifdef HAVE_MLOCK
+  void *	address = IK_POINTER_DATA_VOIDP(s_address);
+  size_t	length  = ik_integer_to_size_t(s_length);
+  int		rv;
+  errno = 0;
+  rv    = mlock(address, length);
+  return (0 == rv)? IK_FIX(0) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_munlock (ikptr s_address, ikptr s_length)
+{
+#ifdef HAVE_MUNLOCK
+  void *	address = IK_POINTER_DATA_VOIDP(s_address);
+  size_t	length  = ik_integer_to_size_t(s_length);
+  int		rv;
+  errno = 0;
+  rv    = munlock(address, length);
+  return (0 == rv)? IK_FIX(0) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_mlockall (ikptr s_flags)
+{
+#ifdef HAVE_MLOCKALL
+  int		rv;
+  errno = 0;
+  rv    = mlockall(IK_UNFIX(s_flags));
+  return (0 == rv)? IK_FIX(0) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_munlockall (void)
+{
+#ifdef HAVE_MUNLOCKALL
+  int		rv;
+  errno = 0;
+  rv    = munlockall();
+  return (0 == rv)? IK_FIX(0) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
 
 
 /** --------------------------------------------------------------------
@@ -4073,6 +4125,63 @@ ikrt_gmt_offset (ikptr t)
 #endif
 }
 
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_posix_setitimer (ikptr s_which, ikptr s_new)
+{
+#ifdef HAVE_SETITIMER
+  ikptr			s_it_interval = IK_FIELD(s_new, 0);
+  ikptr			s_it_value    = IK_FIELD(s_new, 1);
+  struct itimerval	new;
+  int			rv;
+  new.it_interval.tv_sec  = ik_integer_to_long(IK_FIELD(s_it_interval, 0));
+  new.it_interval.tv_usec = ik_integer_to_long(IK_FIELD(s_it_interval, 1));
+  new.it_value.tv_sec     = ik_integer_to_long(IK_FIELD(s_it_value,    0));
+  new.it_value.tv_usec    = ik_integer_to_long(IK_FIELD(s_it_value,    1));
+  errno = 0;
+  rv    = setitimer(IK_UNFIX(s_which), &new, NULL);
+  return (0 == rv)? IK_FIX(0) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_getitimer (ikptr s_which, ikptr s_old, ikpcb * pcb)
+{
+#ifdef HAVE_GETITIMER
+  struct itimerval	old;
+  int			rv;
+  errno = 0;
+  rv    = getitimer(IK_UNFIX(s_which), &old);
+  if (0 == rv) {
+    pcb->root0 = &s_old;
+    {
+      IK_ASS(IK_FIELD(IK_FIELD(s_old, 0), 0), ika_integer_from_long(pcb, old.it_interval.tv_sec));
+      IK_ASS(IK_FIELD(IK_FIELD(s_old, 0), 1), ika_integer_from_long(pcb, old.it_interval.tv_usec));
+      IK_ASS(IK_FIELD(IK_FIELD(s_old, 1), 0), ika_integer_from_long(pcb, old.it_value.tv_sec));
+      IK_ASS(IK_FIELD(IK_FIELD(s_old, 1), 1), ika_integer_from_long(pcb, old.it_value.tv_usec));
+    }
+    pcb->root0 = NULL;
+    return IK_FIX(0);
+  } else
+    return ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_alarm (ikptr s_seconds, ikpcb * pcb)
+{
+#ifdef HAVE_ALARM
+  unsigned	rv;
+  rv    = alarm(ik_integer_to_uint(s_seconds));
+  return ika_integer_from_uint(pcb, rv);
+#else
+  feature_failure(__func__);
+#endif
+}
+
 
 /** --------------------------------------------------------------------
  ** Block/unblock interprocess signals.
@@ -4157,6 +4266,81 @@ ikrt_posix_signal_bub_delivered (ikptr s_signum)
   feature_failure(__func__);
 #endif
 }
+
+
+/** --------------------------------------------------------------------
+ ** System configuration.
+ ** ----------------------------------------------------------------- */
+
+ikptr
+ikrt_posix_sysconf (ikptr s_parameter, ikpcb * pcb)
+{
+#ifdef HAVE_SYSCONF
+  long  parameter = ik_integer_to_long(s_parameter);
+  long  value;
+  errno = 0;
+  value = sysconf((int)parameter);
+  if (-1 == value)
+    return (errno)? ik_errno_to_code() : false_object;
+  else
+    return ika_integer_from_long(pcb, value);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_pathconf (ikptr s_pathname, ikptr s_parameter, ikpcb * pcb)
+{
+#ifdef HAVE_PATHCONF
+  char *pathname  = IK_BYTEVECTOR_DATA_CHARP(s_pathname);
+  long  parameter = ik_integer_to_long(s_parameter);
+  long  value;
+  errno = 0;
+  value = pathconf(pathname, (int)parameter);
+  if (-1 == value)
+    return (errno)? ik_errno_to_code() : false_object;
+  else
+    return ika_integer_from_long(pcb, value);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_fpathconf (ikptr s_fd, ikptr s_parameter, ikpcb * pcb)
+{
+#ifdef HAVE_FPATHCONF
+  long  parameter = ik_integer_to_long(s_parameter);
+  long  value;
+  errno = 0;
+  value = fpathconf(IK_UNFIX(s_fd), (int)parameter);
+  if (-1 == value)
+    return (errno)? ik_errno_to_code() : false_object;
+  else
+    return ika_integer_from_long(pcb, value);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_confstr (ikptr s_parameter, ikpcb * pcb)
+{
+#ifdef HAVE_CONFSTR
+  long          parameter = ik_integer_to_long(s_parameter);
+  size_t        length_including_zero;
+  errno = 0;
+  length_including_zero = confstr((int)parameter, NULL, 0);
+  if (length_including_zero) {
+    ikptr       s_result = ika_bytevector_alloc(pcb, (long)length_including_zero-1);
+    char *      result   = IK_BYTEVECTOR_DATA_CHARP(s_result);
+    confstr((int)parameter, result, length_including_zero);
+    return s_result;
+  } else
+    return ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+
 
 
 /** --------------------------------------------------------------------

@@ -950,46 +950,65 @@
 (parametrise ((check-test-name	'mmap))
 
   (check
-      (let* ((page-size	4096 #;(glibc.sysconf _SC_PAGESIZE))
+      (let* ((page-size	(px.sysconf _SC_PAGESIZE))
 	     (ptr	(px.mmap #f page-size
 				 (fxior PROT_READ PROT_WRITE)
 				 (fxior MAP_PRIVATE MAP_ANONYMOUS)
 				 0 0)))
 	(px.munmap ptr page-size)
-	(ffi.pointer? ptr))
+	(pointer? ptr))
     => #t)
 
   (check	;msync
-      (let* ((page-size	4096 #;(glibc.sysconf _SC_PAGESIZE))
+      (let* ((page-size	(px.sysconf _SC_PAGESIZE))
 	     (ptr	(px.mmap #f page-size
 				 (fxior PROT_READ PROT_WRITE)
 				 (fxior MAP_PRIVATE MAP_ANONYMOUS)
 				 0 0)))
 	(px.msync ptr page-size 0)
 	(px.munmap ptr page-size)
-	(ffi.pointer? ptr))
+	(pointer? ptr))
     => #t)
 
   (check	;mremap
-      (let* ((page-size	4096 #;(glibc.sysconf _SC_PAGESIZE))
+      (let* ((page-size	(px.sysconf _SC_PAGESIZE))
 	     (ptr	(px.mmap #f page-size
 				 (fxior PROT_READ PROT_WRITE)
 				 (fxior MAP_PRIVATE MAP_ANONYMOUS)
 				 0 0))
 	     (ptr	(px.mremap ptr page-size (* 2 page-size) MREMAP_MAYMOVE)))
 	(px.munmap ptr page-size)
-	(ffi.pointer? ptr))
+	(pointer? ptr))
     => #t)
 
   (check	;madvise
-      (let* ((page-size	4096 #;(glibc.sysconf _SC_PAGESIZE))
+      (let* ((page-size	(px.sysconf _SC_PAGESIZE))
 	     (ptr	(px.mmap #f page-size
 				 (fxior PROT_READ PROT_WRITE)
 				 (fxior MAP_PRIVATE MAP_ANONYMOUS)
 				 0 0)))
 	(px.madvise ptr page-size MADV_NORMAL)
 	(px.munmap ptr page-size)
-	(ffi.pointer? ptr))
+	(pointer? ptr))
+    => #t)
+
+  (check	;mlock, mulock
+      (let* ((page-size	(px.sysconf _SC_PAGESIZE))
+	     (ptr	(px.mmap #f page-size
+				 (fxior PROT_READ PROT_WRITE)
+				 (fxior MAP_PRIVATE MAP_ANONYMOUS)
+				 0 0)))
+	(px.mlock ptr page-size)
+	(px.munlock ptr page-size)
+	(px.munmap ptr page-size)
+	(pointer? ptr))
+    => #t)
+
+  (check	;mlockall, mulockall
+      (begin
+	(px.mlockall MCL_FUTURE)
+	(px.munlockall)
+	#t)
     => #t)
 
   #t)
@@ -1777,6 +1796,41 @@
   (check-pretty-print
    (list 'strftime (px.strftime/string "%a %h %d %H:%M:%S %Y" (px.localtime (px.time)))))
 
+;;; --------------------------------------------------------------------
+
+  (check
+      (unwind-protect
+	  (begin
+	    (px.signal-bub-init)
+	    (let ((new (px.make-struct-itimerval
+			(px.make-struct-timeval 0 0)
+			(px.make-struct-timeval 0 1000))))
+	      (px.setitimer ITIMER_REAL new))
+	    (px.nanosleep 1 500)
+	    (px.signal-bub-acquire)
+	    (px.signal-bub-delivered? SIGALRM))
+	(px.signal-bub-final))
+    => #t)
+
+  (check
+      (let ((rv (px.getitimer ITIMER_REAL)))
+	(list (px.struct-timeval-tv_sec (px.struct-itimerval-it_interval rv))
+	      (px.struct-timeval-tv_usec (px.struct-itimerval-it_interval rv))
+	      (px.struct-timeval-tv_sec (px.struct-itimerval-it_value rv))
+	      (px.struct-timeval-tv_usec (px.struct-itimerval-it_value rv))))
+    => '(0 0 0 0))
+
+  (check
+      (unwind-protect
+	  (begin
+	    (px.signal-bub-init)
+	    (px.alarm 1)
+	    (px.nanosleep 1 5)
+	    (px.signal-bub-acquire)
+	    (px.signal-bub-delivered? SIGALRM))
+	(px.signal-bub-final))
+    => #t)
+
   #t)
 
 
@@ -1910,6 +1964,23 @@
 	    (px.signal-bub-all-delivered))
 	(px.signal-bub-final))
     => `(,SIGUSR1 ,SIGUSR2))
+
+  #t)
+
+
+(parametrise ((check-test-name	'config))
+
+  (check
+      (px.sysconf _SC_JOB_CONTROL)
+    => _POSIX_JOB_CONTROL)
+
+  (check
+      (px.pathconf "Makefile" _PC_NAME_MAX)
+    => NAME_MAX)
+
+  (check
+      (px.confstr/string _CS_PATH)
+    => "/bin:/usr/bin")
 
   #t)
 

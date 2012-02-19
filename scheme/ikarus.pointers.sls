@@ -39,30 +39,42 @@
     malloc				guarded-malloc
     realloc				guarded-realloc
     calloc				guarded-calloc
+    malloc*				guarded-malloc*
+    realloc*				guarded-realloc*
+    calloc*				guarded-calloc*
     free				memcmp
     memcpy				memmove
     memset				memory-copy
-    memory->bytevector			bytevector->memory
-    bytevector->guarded-memory
+    bytevector->memory			bytevector->memory*
+    bytevector->guarded-memory		bytevector->guarded-memory*
+    memory->bytevector
 
     with-local-storage
+
+    &out-of-memory-error
+    &out-of-memory-error-rtd		&out-of-memory-error-rcd
+    make-out-of-memory-error		out-of-memory-error?
 
     ;; C strings
     strlen
     strcmp				strncmp
-    strdup				strndup
-    guarded-strdup			guarded-strndup
-    bytevector->cstring			cstring->bytevector
-    bytevector->guarded-cstring
-    string->cstring			cstring->string
-    string->guarded-cstring
+    strdup				strdup*
+    strndup				strndup*
+    guarded-strdup			guarded-strdup*
+    guarded-strndup			guarded-strndup*
+    cstring->bytevector			cstring->string
+    bytevector->cstring			bytevector->cstring*
+    bytevector->guarded-cstring		bytevector->guarded-cstring*
+    string->cstring			string->cstring*
+    string->guarded-cstring		string->guarded-cstring*
 
     ;; C array of C strings
-    bytevectors->argv			argv->bytevectors
-    bytevectors->guarded-argv
-    strings->argv			argv->strings
-    strings->guarded-argv
     argv-length
+    argv->bytevectors			argv->strings
+    bytevectors->argv			bytevectors->argv*
+    bytevectors->guarded-argv		bytevectors->guarded-argv*
+    strings->argv			strings->argv*
+    strings->guarded-argv		strings->guarded-argv*
 
     ;; errno interface
     errno
@@ -95,7 +107,97 @@
 
     pointer-set-c-float!		pointer-set-c-double!
     pointer-set-c-pointer!)
-  (import (ikarus)
+  (import (except (ikarus)
+		  ;; pointer objects
+		  pointer?
+		  null-pointer				pointer-null?
+		  pointer->integer			integer->pointer
+		  pointer-diff				pointer-add
+		  pointer=?				pointer<>?
+		  pointer<?				pointer>?
+		  pointer<=?				pointer>=?
+		  set-pointer-null!
+
+		  ;; shared libraries inteface
+		  dlopen				dlclose
+		  dlsym					dlerror
+
+		  ;; calling functions and callbacks
+		  make-c-callout-maker			make-c-callout-maker/with-errno
+		  make-c-callback-maker			free-c-callback
+
+		  ;; raw memory allocation
+		  malloc				guarded-malloc
+		  realloc				guarded-realloc
+		  calloc				guarded-calloc
+		  malloc*				guarded-malloc*
+		  realloc*				guarded-realloc*
+		  calloc*				guarded-calloc*
+		  free					memcmp
+		  memcpy				memmove
+		  memset				memory-copy
+		  bytevector->memory			bytevector->memory*
+		  bytevector->guarded-memory		bytevector->guarded-memory*
+		  memory->bytevector
+
+		  with-local-storage
+
+		  &out-of-memory-error
+		  &out-of-memory-error-rtd		&out-of-memory-error-rcd
+		  make-out-of-memory-error		out-of-memory-error?
+
+		  ;; C strings
+		  strlen
+		  strcmp				strncmp
+		  strdup				strdup*
+		  strndup				strndup*
+		  guarded-strdup			guarded-strdup*
+		  guarded-strndup			guarded-strndup*
+		  cstring->bytevector			cstring->string
+		  bytevector->cstring			bytevector->cstring*
+		  bytevector->guarded-cstring		bytevector->guarded-cstring*
+		  string->cstring			string->cstring*
+		  string->guarded-cstring		string->guarded-cstring*
+
+		  ;; C array of C strings
+		  argv-length
+		  argv->bytevectors			argv->strings
+		  bytevectors->argv			bytevectors->argv*
+		  bytevectors->guarded-argv		bytevectors->guarded-argv*
+		  strings->argv				strings->argv*
+		  strings->guarded-argv			strings->guarded-argv*
+
+		  ;; errno interface
+		  errno
+
+		  ;; memory accessors and mutators
+		  pointer-ref-c-uint8			pointer-ref-c-sint8
+		  pointer-ref-c-uint16			pointer-ref-c-sint16
+		  pointer-ref-c-uint32			pointer-ref-c-sint32
+		  pointer-ref-c-uint64			pointer-ref-c-sint64
+
+		  pointer-ref-c-signed-char		pointer-ref-c-unsigned-char
+		  pointer-ref-c-signed-short		pointer-ref-c-unsigned-short
+		  pointer-ref-c-signed-int		pointer-ref-c-unsigned-int
+		  pointer-ref-c-signed-long		pointer-ref-c-unsigned-long
+		  pointer-ref-c-signed-long-long	pointer-ref-c-unsigned-long-long
+
+		  pointer-ref-c-float			pointer-ref-c-double
+		  pointer-ref-c-pointer
+
+		  pointer-set-c-uint8!			pointer-set-c-sint8!
+		  pointer-set-c-uint16!			pointer-set-c-sint16!
+		  pointer-set-c-uint32!			pointer-set-c-sint32!
+		  pointer-set-c-uint64!			pointer-set-c-sint64!
+
+		  pointer-set-c-signed-char!		pointer-set-c-unsigned-char!
+		  pointer-set-c-signed-short!		pointer-set-c-unsigned-short!
+		  pointer-set-c-signed-int!		pointer-set-c-unsigned-int!
+		  pointer-set-c-signed-long!		pointer-set-c-unsigned-long!
+		  pointer-set-c-signed-long-long!	pointer-set-c-unsigned-long-long!
+
+		  pointer-set-c-float!			pointer-set-c-double!
+		  pointer-set-c-pointer!)
     (only (ikarus system $pointers)
 	  $pointer=)
     (vicare syntactic-extensions)
@@ -544,11 +646,32 @@
 
 ;;; raw memory management
 
+(define-condition-type &out-of-memory-error &error
+  make-out-of-memory-error out-of-memory-error?)
+
+(define &out-of-memory-error-rtd
+  (record-type-descriptor &out-of-memory-error))
+
+(define &out-of-memory-error-rcd
+  (record-constructor-descriptor &out-of-memory-error))
+
+(define (%raise-out-of-memory who)
+  (raise
+   (condition (make-who-condition who)
+	      (make-message-condition "failed raw memory allocation")
+	      (make-out-of-memory-error))))
+
+;;; --------------------------------------------------------------------
+
 (define (malloc number-of-bytes)
   (define who 'malloc)
   (with-arguments-validation (who)
       ((number-of-bytes	 number-of-bytes))
     (capi.ffi-malloc number-of-bytes)))
+
+(define (malloc* number-of-bytes)
+  (or (malloc number-of-bytes)
+      (%raise-out-of-memory 'malloc*)))
 
 (define (realloc pointer number-of-bytes)
   (define who 'realloc)
@@ -558,12 +681,20 @@
     ;;mutating POINTER to NULL.
     (capi.ffi-realloc pointer number-of-bytes)))
 
+(define (realloc* pointer number-of-bytes)
+  (or (realloc pointer number-of-bytes)
+      (%raise-out-of-memory 'realloc*)))
+
 (define (calloc number-of-elements element-size)
   (define who 'calloc)
   (with-arguments-validation (who)
       ((number-of-elements	number-of-elements)
        (number-of-bytes		element-size))
     (capi.ffi-calloc number-of-elements element-size)))
+
+(define (calloc* number-of-elements element-size)
+  (or (calloc number-of-elements element-size)
+      (%raise-out-of-memory 'calloc*)))
 
 (define (free ptr)
   (define who 'free)
@@ -660,6 +791,15 @@
 	  (values rv (unsafe.bytevector-length bv))
 	(values #f #f)))))
 
+(define (bytevector->memory* bv)
+  (define who 'bytevector->memory*)
+  (with-arguments-validation (who)
+      ((bytevector	bv))
+    (let ((rv (capi.ffi-bytevector->memory bv)))
+      (if rv
+	  (values rv (unsafe.bytevector-length bv))
+	(%raise-out-of-memory who)))))
+
 ;;; --------------------------------------------------------------------
 
 (define %memory-guardian
@@ -676,21 +816,40 @@
   (let ((rv (malloc number-of-bytes)))
     (and rv (%memory-guardian rv))))
 
+(define (guarded-malloc* number-of-bytes)
+  (or (guarded-malloc number-of-bytes)
+      (%raise-out-of-memory 'guarded-malloc*)))
+
 (define (guarded-realloc pointer number-of-bytes)
   (let ((rv (realloc pointer number-of-bytes)))
     (and rv (begin
 	      (set-pointer-null! pointer)
 	      (%memory-guardian rv)))))
 
+(define (guarded-realloc* pointer number-of-bytes)
+  (or (guarded-realloc pointer number-of-bytes)
+      (%raise-out-of-memory 'guarded-realloc*)))
+
 (define (guarded-calloc number-of-elements element-size)
   (let ((rv (calloc number-of-elements element-size)))
     (and rv (%memory-guardian rv))))
+
+(define (guarded-calloc* number-of-elements element-size)
+  (or (guarded-calloc number-of-elements element-size)
+      (%raise-out-of-memory 'guarded-calloc*)))
 
 (define (bytevector->guarded-memory bv)
   (let-values (((ptr len) (bytevector->memory bv)))
     (if ptr
 	(values (%memory-guardian ptr) len)
       (values #f #f))))
+
+(define (bytevector->guarded-memory* bv)
+  (define who 'bytevector->guarded-memory*)
+  (let-values (((ptr len) (bytevector->memory bv)))
+    (if ptr
+	(values (%memory-guardian ptr) len)
+      (%raise-out-of-memory who))))
 
 
 ;;;; C strings
@@ -722,12 +881,20 @@
       ((pointer pointer))
     (capi.ffi-strdup pointer)))
 
+(define (strdup* pointer)
+  (or (strdup pointer)
+      (%raise-out-of-memory 'strdup*)))
+
 (define (strndup pointer count)
   (define who 'strndup)
   (with-arguments-validation (who)
       ((pointer		pointer)
        (number-of-bytes	count))
     (capi.ffi-strndup pointer count)))
+
+(define (strndup* pointer count)
+  (or (strndup pointer count)
+      (%raise-out-of-memory 'strndup)))
 
 ;;; --------------------------------------------------------------------
 
@@ -736,6 +903,10 @@
   (with-arguments-validation (who)
       ((bytevector bv))
     (capi.ffi-bytevector->cstring bv)))
+
+(define (bytevector->cstring* bv)
+  (or (bytevector->cstring bv)
+      (%raise-out-of-memory 'bytevector->cstring*)))
 
 (define cstring->bytevector
   (case-lambda
@@ -773,6 +944,10 @@
       ((string	str))
     (bytevector->cstring (string->ascii str))))
 
+(define (string->cstring* str)
+  (or (string->cstring str)
+      (%raise-out-of-memory 'string->cstring*)))
+
 ;;; --------------------------------------------------------------------
 
 (define (bytevectors->argv bvs)
@@ -780,6 +955,10 @@
   (with-arguments-validation (who)
       ((list-of-bytevectors bvs))
     (capi.ffi-bytevectors->argv bvs)))
+
+(define (bytevectors->argv* bvs)
+  (or (bytevectors->argv bvs)
+      (%raise-out-of-memory 'bytevectors->argv*)))
 
 (define (argv->bytevectors pointer)
   (define who 'argv->bytevectors)
@@ -792,6 +971,10 @@
   (with-arguments-validation (who)
       ((list-of-strings strs))
     (capi.ffi-bytevectors->argv (map string->ascii strs))))
+
+(define (strings->argv* strs)
+  (or (strings->argv strs)
+      (%raise-out-of-memory 'strings->argv)))
 
 (define (argv->strings pointer)
   (define who 'argv->strings)
@@ -811,25 +994,49 @@
   (let ((rv (strdup pointer)))
     (and rv (%memory-guardian rv))))
 
+(define (guarded-strdup* pointer)
+  (or (guarded-strdup pointer)
+      (%raise-out-of-memory 'guarded-strdup*)))
+
 (define (guarded-strndup pointer count)
   (let ((rv (strndup pointer count)))
     (and rv (%memory-guardian rv))))
+
+(define (guarded-strndup* pointer count)
+  (or (guarded-strndup pointer count)
+      (%raise-out-of-memory 'guarded-strndup*)))
 
 (define (bytevector->guarded-cstring bv)
   (let ((rv (bytevector->cstring bv)))
     (and rv (%memory-guardian rv))))
 
+(define (bytevector->guarded-cstring* bv)
+  (or (bytevector->guarded-cstring bv)
+      (%raise-out-of-memory 'bytevector->guarded-cstring*)))
+
 (define (string->guarded-cstring str)
   (let ((rv (bytevector->cstring (string->latin1 str))))
     (and rv (%memory-guardian rv))))
+
+(define (string->guarded-cstring* str)
+  (or (string->guarded-cstring str)
+      (%raise-out-of-memory 'string->guarded-cstring*)))
 
 (define (bytevectors->guarded-argv bvs)
   (let ((rv (bytevectors->argv bvs)))
     (and rv (%memory-guardian rv))))
 
+(define (bytevectors->guarded-argv* bvs)
+  (or (bytevectors->guarded-argv bvs)
+      (%raise-out-of-memory 'bytevectors->guarded-argv*)))
+
 (define (strings->guarded-argv bvs)
   (let ((rv (strings->argv bvs)))
     (and rv (%memory-guardian rv))))
+
+(define (strings->guarded-argv* bvs)
+  (or (strings->guarded-argv bvs)
+      (%raise-out-of-memory 'strings->guarded-argv)))
 
 
 ;;;; local storage

@@ -1,4 +1,4 @@
-Subject: [announce] Vicare Scheme revision 0.2d8
+Subject: [announce] Vicare Scheme revision 0.2d9
 
                              Vicare Scheme
                              =============
@@ -37,6 +37,34 @@ this project has a mailing list:
 collection of R6 Scheme libraries:
 
 	      <http://marcomaggi.github.com/nausicaa.html>
+
+
+Notes for revision 0.2d9
+------------------------
+
+* The package  name, selected in  "configure.ac", has been  changed from
+  "vicare" to "vicare-scheme".
+
+* Added to (vicare ffi) more system-agnostic functions to load a foreign
+  shared library.
+
+* Added raw  memory allocation functions  raising exceptions in  case of
+  error.
+
+* Documentation was written for  some of the libraries distributed under
+  the hierarchy (vicare ---).
+
+* Added documentation  appendix showing how  to exchange raw  and Scheme
+  data among Vicare processes using mmapped interprocess shared memory.
+
+* BACKWARDS INCOMPATIBILITY  The functions SYSCONF,  PATHCONF, FPATHCONF
+  and CONFSTR  have been  moved from the  library (vicare glibc)  to the
+  library (vicare posix).
+
+* Added to (vicare posix) functions: SETITIMER, GETITIMER, ALARM, MLOCK,
+  MUNLOCK, MLOCKALL, MUNLOCKALL.
+
+* Added to (vicare linux) functions: SIGNALFD.
 
 
 Notes for revision 0.2d8
