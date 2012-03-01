@@ -11,7 +11,7 @@ Homepage: http://marcomaggi.github.com/vicare.html
 Vcs-Git: git://github.com/barak/vicare
 Vcs-Browser: http://github.com/barak/vicare
 
-Package: vicare
+Package: vicare-scheme
 Architecture: i386 amd64
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Scheme compiler and interpreter
