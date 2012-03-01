@@ -1,6 +1,6 @@
 /*
  * Ikarus Scheme -- A compiler for R6RS Scheme.
- * Copyright (C) 2006,2007,2008  Abdulaziz Ghuloum
+ * Copyright (C) 2006,2007,2008,2012  Abdulaziz Ghuloum
  * Modified by Marco Maggi <marco.maggi-ipsu@poste.it>
  *
  * This program is free software:  you can redistribute it and/or modify
@@ -42,11 +42,11 @@
 static int total_allocated_pages = 0;
 static int total_malloced = 0;
 
-#define SEGMENT_SIZE		(pagesize * pagesize / 4)
-#define SEGMENT_SHIFT		(pageshift + pageshift - 2)
+#define SEGMENT_SIZE		(IK_PAGESIZE * IK_PAGESIZE / 4)
+#define SEGMENT_SHIFT		(IK_PAGESHIFT + IK_PAGESHIFT - 2)
 #define SEGMENT_INDEX(x)	(((ik_ulong)(x)) >> SEGMENT_SHIFT)
 
-#define CACHE_SIZE		(pagesize * 1) /* must be multiple of pagesize */
+#define CACHE_SIZE		(IK_PAGESIZE * 1) /* must be multiple of IK_PAGESIZE */
 
 
 static void
@@ -58,8 +58,8 @@ extend_table_maybe (ikptr p, ik_ulong size, ikpcb* pcb)
     ik_ulong new_lo       = SEGMENT_INDEX(p);
     ik_ulong old_lo       = SEGMENT_INDEX(pcb->memory_base);
     ik_ulong hi           = SEGMENT_INDEX(pcb->memory_end);
-    ik_ulong new_vec_size = (hi - new_lo) * pagesize;
-    ik_ulong old_vec_size = (hi - old_lo) * pagesize;
+    ik_ulong new_vec_size = (hi - new_lo) * IK_PAGESIZE;
+    ik_ulong old_vec_size = (hi - old_lo) * IK_PAGESIZE;
     ikptr v = ik_mmap(new_vec_size);
     bzero((char*)(long)v, new_vec_size - old_vec_size);
     memcpy((char*)(long)(v+new_vec_size-old_vec_size),
@@ -67,7 +67,7 @@ extend_table_maybe (ikptr p, ik_ulong size, ikpcb* pcb)
            old_vec_size);
     ik_munmap((ikptr)(long)pcb->dirty_vector_base, old_vec_size);
     pcb->dirty_vector_base = (unsigned*)(long)v;
-    pcb->dirty_vector      = (v - new_lo * pagesize);
+    pcb->dirty_vector      = (v - new_lo * IK_PAGESIZE);
     ikptr s = ik_mmap(new_vec_size);
     bzero((char*)(long)s, new_vec_size - old_vec_size);
     memcpy((char*)(long)(s+new_vec_size-old_vec_size),
@@ -75,15 +75,15 @@ extend_table_maybe (ikptr p, ik_ulong size, ikpcb* pcb)
            old_vec_size);
     ik_munmap((ikptr)(long)pcb->segment_vector_base, old_vec_size);
     pcb->segment_vector_base = (unsigned*)(long)s;
-    pcb->segment_vector = (unsigned*)(long)(s - new_lo * pagesize);
+    pcb->segment_vector = (unsigned*)(long)(s - new_lo * IK_PAGESIZE);
     pcb->memory_base = (new_lo * SEGMENT_SIZE);
   }
   else if (q >= pcb->memory_end) {
     ik_ulong lo           = SEGMENT_INDEX(pcb->memory_base);
     ik_ulong old_hi       = SEGMENT_INDEX(pcb->memory_end);
     ik_ulong new_hi       = SEGMENT_INDEX(q+SEGMENT_SIZE-1);
-    ik_ulong new_vec_size = (new_hi - lo) * pagesize;
-    ik_ulong old_vec_size = (old_hi - lo) * pagesize;
+    ik_ulong new_vec_size = (new_hi - lo) * IK_PAGESIZE;
+    ik_ulong old_vec_size = (old_hi - lo) * IK_PAGESIZE;
     ikptr v = ik_mmap(new_vec_size);
     memcpy((char*)(long)v,
            (char*)(long)pcb->dirty_vector_base,
@@ -91,13 +91,13 @@ extend_table_maybe (ikptr p, ik_ulong size, ikpcb* pcb)
     bzero((char*)(long)(v+old_vec_size), new_vec_size - old_vec_size);
     ik_munmap((ikptr)(long)pcb->dirty_vector_base, old_vec_size);
     pcb->dirty_vector_base = (unsigned*)(long)v;
-    pcb->dirty_vector      = (v - lo * pagesize);
+    pcb->dirty_vector      = (v - lo * IK_PAGESIZE);
     ikptr s = ik_mmap(new_vec_size);
     memcpy((char*)(long)s, pcb->segment_vector_base, old_vec_size);
     bzero((char*)(long)(s+old_vec_size), new_vec_size - old_vec_size);
     ik_munmap((ikptr)(long)pcb->segment_vector_base, old_vec_size);
     pcb->segment_vector_base = (unsigned*)(long) s;
-    pcb->segment_vector      = (unsigned*)(s - lo * pagesize);
+    pcb->segment_vector      = (unsigned*)(s - lo * IK_PAGESIZE);
     pcb->memory_end          = (new_hi * SEGMENT_SIZE);
   }
 }
@@ -121,7 +121,7 @@ ikptr
 ik_mmap_typed (ik_ulong size, unsigned type, ikpcb* pcb)
 {
   ikptr		segment;
-  if (size == pagesize) {
+  if (size == IK_PAGESIZE) {
     /* If available, recycle a page from the cache. */
     ikpage *	pages = pcb->cached_pages;
     if (pages) {
@@ -154,8 +154,8 @@ ikptr
 ik_mmap_code (ik_ulong size, int gen, ikpcb* pcb)
 {
   ikptr p = ik_mmap_typed(size, code_mt|gen, pcb);
-  if (size > pagesize)
-    set_segment_type(p+pagesize, size-pagesize, data_mt|gen, pcb);
+  if (size > IK_PAGESIZE)
+    set_segment_type(p+IK_PAGESIZE, size-IK_PAGESIZE, data_mt|gen, pcb);
   return p;
 }
 ikptr
@@ -169,8 +169,8 @@ ik_mmap_mixed (ik_ulong size, ikpcb* pcb)
 ikptr
 ik_mmap (ik_ulong size)
 {
-  ik_ulong pages   = (size + pagesize - 1) / pagesize;
-  ik_ulong mapsize = pages * pagesize;
+  ik_ulong pages   = (size + IK_PAGESIZE - 1) / IK_PAGESIZE;
+  ik_ulong mapsize = pages * IK_PAGESIZE;
   total_allocated_pages += pages;
   assert(size == mapsize);
 #ifndef __CYGWIN__
@@ -182,16 +182,18 @@ ik_mmap (ik_ulong size)
   char* mem = win_mmap(mapsize);
 #endif
   memset(mem, -1, mapsize);
+#ifdef VICARE_DEBUGGING
   ik_debug_message("%s: 0x%016lx .. 0x%016lx\n", __func__, (long)mem, ((long)(mem))+mapsize-1);
+#endif
   return (ikptr)(long)mem;
 }
 void
 ik_munmap (ikptr mem, ik_ulong size)
 {
-  ik_ulong pages   = (size + pagesize - 1) / pagesize;
-  ik_ulong mapsize = pages * pagesize;
+  ik_ulong pages   = (size + IK_PAGESIZE - 1) / IK_PAGESIZE;
+  ik_ulong mapsize = pages * IK_PAGESIZE;
   assert(size == mapsize);
-  assert(((-pagesize) & (int)mem) == (int)mem);
+  assert(((-IK_PAGESIZE) & (int)mem) == (int)mem);
   total_allocated_pages -= pages;
 #ifndef __CYGWIN__
   int err = munmap((char*)mem, mapsize);
@@ -200,7 +202,9 @@ ik_munmap (ikptr mem, ik_ulong size)
 #else
   win_munmap((char*)mem, mapsize);
 #endif
+#ifdef VICARE_DEBUGGING
   ik_debug_message("%s: 0x%016lx .. 0x%016lx\n", __func__, (long)mem, ((long)(mem))+mapsize-1);
+#endif
 }
 
 
@@ -259,24 +263,24 @@ ik_make_pcb (void)
     ikptr lo_mem;
     ikptr hi_mem;
     if (pcb->heap_base < pcb->stack_base) {
-      lo_mem = pcb->heap_base - pagesize;
-      hi_mem = pcb->stack_base + pcb->stack_size + pagesize;
+      lo_mem = pcb->heap_base - IK_PAGESIZE;
+      hi_mem = pcb->stack_base + pcb->stack_size + IK_PAGESIZE;
     } else {
-      lo_mem = pcb->stack_base - pagesize;
-      hi_mem = pcb->heap_base + pcb->heap_size + pagesize;
+      lo_mem = pcb->stack_base - IK_PAGESIZE;
+      hi_mem = pcb->heap_base + pcb->heap_size + IK_PAGESIZE;
     }
 
     ik_ulong lo_seg = SEGMENT_INDEX(lo_mem);
     ik_ulong hi_seg = SEGMENT_INDEX(hi_mem+SEGMENT_SIZE-1);
-    ik_ulong vec_size = (hi_seg - lo_seg) * pagesize;
+    ik_ulong vec_size = (hi_seg - lo_seg) * IK_PAGESIZE;
     ikptr dvec = ik_mmap(vec_size);
     bzero((char*)(long)dvec, vec_size);
     pcb->dirty_vector_base = (unsigned*)(long) dvec;
-    pcb->dirty_vector = (dvec - lo_seg * pagesize);
+    pcb->dirty_vector = (dvec - lo_seg * IK_PAGESIZE);
     ikptr svec = ik_mmap(vec_size);
     bzero((char*)(long)svec, vec_size);
     pcb->segment_vector_base = (unsigned*)(long)svec;
-    pcb->segment_vector = (unsigned*)(long)(svec - lo_seg * pagesize);
+    pcb->segment_vector = (unsigned*)(long)(svec - lo_seg * IK_PAGESIZE);
     pcb->memory_base = (ikptr)(lo_seg * SEGMENT_SIZE);
     pcb->memory_end = (ikptr)(hi_seg * SEGMENT_SIZE);
     set_segment_type(pcb->heap_base,  pcb->heap_size,  mainheap_mt,  pcb);
@@ -303,7 +307,7 @@ ik_delete_pcb (ikpcb* pcb)
   pcb->cached_pages = 0;
   pcb->uncached_pages = 0;
   while (p) {
-    ik_munmap(p->base, pagesize);
+    ik_munmap(p->base, IK_PAGESIZE);
     p = p->next;
   }
   ik_munmap(pcb->cached_pages_base, pcb->cached_pages_size);
@@ -313,7 +317,7 @@ ik_delete_pcb (ikpcb* pcb)
       ik_ptr_page* p = pcb->protected_list[i];
       while (p) {
         ik_ptr_page* next = p->next;
-        ik_munmap((ikptr)(long)p, pagesize);
+        ik_munmap((ikptr)(long)p, IK_PAGESIZE);
 	p = next;
       }
     }
@@ -326,10 +330,10 @@ ik_delete_pcb (ikpcb* pcb)
   for (; i < j; ++i) {
     unsigned t = segment_vec[i];
     if (t != hole_mt) {
-      ik_munmap((ikptr)(i<<pageshift), pagesize);
+      ik_munmap((ikptr)(i<<IK_PAGESHIFT), IK_PAGESIZE);
     }
   }
-  long vecsize = (SEGMENT_INDEX(end) - SEGMENT_INDEX(base)) * pagesize;
+  long vecsize = (SEGMENT_INDEX(end) - SEGMENT_INDEX(base)) * IK_PAGESIZE;
   ik_munmap((ikptr)(long)pcb->dirty_vector_base, vecsize);
   ik_munmap((ikptr)(long)pcb->segment_vector_base, vecsize);
   ik_free(pcb, sizeof(ikpcb));
@@ -440,7 +444,6 @@ ik_unsafe_alloc (ikpcb * pcb, ik_ulong requested_size)
 }
 
 
-#ifndef NDEBUG
 void
 ik_debug_message (const char * error_message, ...)
 {
@@ -451,7 +454,6 @@ ik_debug_message (const char * error_message, ...)
   fprintf(stderr, "\n");
   va_end(ap);
 }
-#endif
 int
 ik_abort (const char * error_message, ...)
 {
@@ -477,11 +479,15 @@ ik_error (ikptr args)
 void
 ik_stack_overflow (ikpcb* pcb)
 {
+#ifdef VICARE_DEBUGGING
   ik_debug_message("entered ik_stack_overflow pcb=0x%016lx", (long)pcb);
+#endif
   set_segment_type(pcb->stack_base, pcb->stack_size, data_mt, pcb);
   ikptr frame_base        = pcb->frame_base;
   ikptr underflow_handler = IK_REF(frame_base, -wordsize);
+#ifdef VICARE_DEBUGGING
   ik_debug_message("underflow_handler = 0x%08x", (int)underflow_handler);
+#endif
   /* capture continuation and set it as next_k */
   ikptr k = ik_unsafe_alloc(pcb, IK_ALIGN(continuation_size)) | vector_tag;
   IK_REF(k, -vector_tag)           = continuation_tag;
@@ -561,15 +567,15 @@ ik_dump_metatable (ikpcb* pcb)
   while (p < hi) {
     unsigned t = *s & type_mask;
     ikptr start = p;
-    p += pagesize;
+    p += IK_PAGESIZE;
     s++;
     while ((p < hi) && ((*s & type_mask) == t)) {
-      p += pagesize;
+      p += IK_PAGESIZE;
       s++;
     }
     fprintf(stderr, "0x%016lx + %5ld pages = %s\n",
 	    (long) start,
-	    ((long)p-(long)start)/pagesize,
+	    ((long)p-(long)start)/IK_PAGESIZE,
 	    mtname(t));
   }
   return void_object;
@@ -583,15 +589,15 @@ ik_dump_dirty_vector (ikpcb* pcb)
   while (p < hi) {
     unsigned t     = *s;
     ikptr    start = p;
-    p += pagesize;
+    p += IK_PAGESIZE;
     s++;
     while ((p < hi) && (*s == t)) {
-      p += pagesize;
+      p += IK_PAGESIZE;
       s++;
     }
     fprintf(stderr, "0x%016lx + %5ld pages = 0x%08x\n",
         (long) start,
-        ((long)p-(long)start)/pagesize,
+        ((long)p-(long)start)/IK_PAGESIZE,
         t);
   }
   return void_object;
@@ -640,35 +646,53 @@ ikrt_bvftime (ikptr outbv, ikptr fmtbv)
   t     = time(NULL);
   errno = 0;
   tmp   = localtime(&t);
+#ifdef VICARE_DEBUGGING
   if (tmp == NULL)
     ik_debug_message("error in time: %s\n", strerror(errno));
+#endif
   errno = 0;
   rv    = strftime((char*)(long)(outbv + off_bytevector_data),
 		   IK_UNFIX(IK_REF(outbv, off_bytevector_length)) + 1,
 		   (char*)(long)(fmtbv + off_bytevector_data),
 		   tmp);
+#ifdef VICARE_DEBUGGING
   if (rv == 0)
     ik_debug_message("error in strftime: %s\n", strerror(errno));
+#endif
   return IK_FIX(rv);
 }
 
 
+/** --------------------------------------------------------------------
+ ** Guardians handling.
+ ** ----------------------------------------------------------------- */
+
+/* Reference words to guardians  are stored in array "protected_list" of
+   the structure  "ik_ptr_page"; such structures  are nodes in  a linked
+   referenced  by  "pcb->protected_list[IK_GUARDIANS_GENERATION_NUMBER].
+   */
+
 ikptr
 ikrt_register_guardian_pair (ikptr p0, ikpcb* pcb)
 /* Register a guardian  pair in the protected list of  PCB.  If there is
    no more room in the current  protected list node: allocate a new node
    and prepend it to the linked list.  Return the void object. */
 {
-  ik_ptr_page* x = pcb->protected_list[IK_GUARDIANS_GENERATION_NUMBER];
-  if ((NULL == x) || (IK_PTR_PAGE_SIZE == x->count)) {
-    assert(sizeof(ik_ptr_page) == pagesize);
-    ik_ptr_page* y = (ik_ptr_page*)(long)ik_mmap(pagesize);
-    y->count = 0;
-    y->next  = x;
-    x        = y;
-    pcb->protected_list[0] = y;
+  /* FIRST is  a pointer  to the first  node in  a linked list.   If the
+     linked list is empty or the first node is full: allocate a new node
+     and prepend it to the list. */
+  ik_ptr_page *	first;
+  first = pcb->protected_list[IK_GUARDIANS_GENERATION_NUMBER];
+  if ((NULL == first) || (IK_PTR_PAGE_SIZE == first->count)) {
+    assert(sizeof(ik_ptr_page) == IK_PAGESIZE);
+    ik_ptr_page *	new_node;
+    new_node        = (ik_ptr_page*)(long)ik_mmap(IK_PAGESIZE);
+    new_node->count = 0;
+    new_node->next  = first;
+    first           = new_node;
+    pcb->protected_list[IK_GUARDIANS_GENERATION_NUMBER] = new_node;
   }
-  x->ptr[x->count++] = p0; /* store the guardian pair */
+  first->ptr[first->count++] = p0; /* store the guardian pair */
   return void_object;
 }
 ikptr

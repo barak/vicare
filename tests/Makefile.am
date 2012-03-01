@@ -70,6 +70,9 @@ test-exec-modes:
 #page
 #### interface to "make check"
 
+VICARE_INST_ENV	= VICARE_LIBRARY_PATH=$$VICARE_LIBRARY_PATH:$(srcdir):$(srcdir)/../scheme
+VICARE_INST_RUN	= $(VICARE_INST_ENV) vicare
+
 # TESTS and TESTS_ENVIRONMENT are Automake variables.
 TESTS_ENVIRONMENT	= $(VICARE_RUN)
 TESTS			=	\
@@ -126,6 +129,7 @@ TESTS			=	\
 	test-vicare-flonum-formatter.sps		\
 	test-vicare-flonum-parser.sps			\
 	test-vicare-io.sps				\
+	test-vicare-language-extensions.sps		\
 	test-vicare-lists.sps				\
 	test-vicare-log.sps				\
 	test-vicare-parameters.sps			\
@@ -163,8 +167,9 @@ TESTS	+= test-vicare-ffi.sps
 endif
 
 if WANT_POSIX
-TESTS	+= test-vicare-posix.sps	\
-	   test-vicare-shared-memory.sps
+TESTS	+= test-vicare-posix.sps			\
+	   test-vicare-shared-memory.sps		\
+	   test-vicare-sel.sps
 endif
 
 if WANT_GLIBC
@@ -178,6 +183,9 @@ endif
 if WANT_CRE2
 TESTS	+= foreign-test-vicare-cre2.sps
 endif
+
+installcheck-local:
+	@for f in $(TESTS); do $(VICARE_INST_RUN) $(srcdir)/$$f; done
 
 #page
 #### extra files to be distributed
@@ -293,6 +301,7 @@ EXTRA_DIST =	\
 	test-vicare-flonum-parser.sps			\
 	test-vicare-glibc.sps				\
 	test-vicare-io.sps				\
+	test-vicare-language-extensions.sps		\
 	test-vicare-linux.sps				\
 	test-vicare-lists.sps				\
 	test-vicare-log.sps				\
@@ -302,6 +311,7 @@ EXTRA_DIST =	\
 	test-vicare-promises.sps			\
 	test-vicare-reader.sps				\
 	test-vicare-round.sps				\
+	test-vicare-sel.sps				\
 	test-vicare-shared-memory.sps			\
 	test-vicare-strings.sps				\
 	test-vicare-structs.sps				\
@@ -328,7 +338,7 @@ EXTRA_DIST =	\
 	test-issue-024.sps				\
 	test-issue-025-sign-in-exact-rationals.sps	\
 	\
-	foreign-test-vicare-cre2.sps
+	foreign-test-vicare-cre2.sps			\
 	\
 	proof-vicare-gcc.sps				\
 	proof-vicare-readline.sps

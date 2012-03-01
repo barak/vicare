@@ -1,5 +1,7 @@
 ## Process this file with automake to produce Makefile.in
 
+vicarelibdir=$(pkglibdir)
+
 SRCS	= \
 	cpu_has_sse2.S			\
 	ikarus-collect.c		\
@@ -45,7 +47,7 @@ nodist_vicare_SOURCES = bootfileloc.h
 BUILT_SOURCES = bootfileloc.h
 
 bootfileloc.h: Makefile
-	echo '#define BOOTFILE "$(pkglibdir)/vicare.boot"' >$@
+	echo '#define BOOTFILE "$(vicarelibdir)/vicare.boot"' >$@
 	echo '#define EXEFILE "$(bindir)/vicare"' >>$@
 
 CLEANFILES = bootfileloc.h

@@ -123,6 +123,8 @@
     lseek
     readv				writev
     select				select-fd
+    select-fd-readable?			select-fd-writable?
+    select-fd-exceptional?
     poll
     fcntl				ioctl
     dup					dup2
@@ -131,7 +133,7 @@
     ;; memory-mapped input/output
     mmap				munmap
     msync				mremap
-    madvise
+    madvise				mprotect
     mlock				munlock
     mlockall				munlockall
 
@@ -362,7 +364,9 @@
   (assertion-violation who "expected fixnum file descriptor as argument" obj))
 
 (define-argument-validation (signal who obj)
-  (fixnum? obj)
+  (and (fixnum? obj)
+       (unsafe.fx>= obj 0)
+       (unsafe.fx<= obj NSIG))
   (assertion-violation who "expected fixnum signal code as argument" obj))
 
 (define-argument-validation (pathname who obj)
@@ -1626,14 +1630,47 @@
        (secfx		sec)
        (usecfx		usec))
     (let ((rv (capi.posix-select-fd fd sec usec)))
+      (cond ((unsafe.fxzero? rv) ;timeout expired
+	     (values #f #f #f))
+	    ((unsafe.fx< 0 rv) ;success
+	     (values (if (unsafe.fx= 1 (unsafe.fxlogand rv 1)) fd #f)
+		     (if (unsafe.fx= 2 (unsafe.fxlogand rv 2)) fd #f)
+		     (if (unsafe.fx= 4 (unsafe.fxlogand rv 4)) fd #f)))
+	    (else
+	     (%raise-errno-error who rv fd sec usec))))))
+
+(define (select-fd-readable? fd sec usec)
+  (define who 'select-fd-readable?)
+  (with-arguments-validation (who)
+      ((file-descriptor	fd)
+       (secfx		sec)
+       (usecfx		usec))
+    (let ((rv (capi.posix-select-fd-readable? fd sec usec)))
       (if (fixnum? rv)
-	  (if (unsafe.fxzero? rv)
-	      (values #f #f #f) ;timeout expired
-	    (%raise-errno-error who rv fd sec usec))
-	;; success, extract the statuses
-	(values (unsafe.vector-ref rv 0)
-		(unsafe.vector-ref rv 1)
-		(unsafe.vector-ref rv 2))))))
+	  (%raise-errno-error who rv fd sec usec)
+	rv))))
+
+(define (select-fd-writable? fd sec usec)
+  (define who 'select-fd-writable?)
+  (with-arguments-validation (who)
+      ((file-descriptor	fd)
+       (secfx		sec)
+       (usecfx		usec))
+    (let ((rv (capi.posix-select-fd-writable? fd sec usec)))
+      (if (fixnum? rv)
+	  (%raise-errno-error who rv fd sec usec)
+	rv))))
+
+(define (select-fd-exceptional? fd sec usec)
+  (define who 'select-fd-exceptional?)
+  (with-arguments-validation (who)
+      ((file-descriptor	fd)
+       (secfx		sec)
+       (usecfx		usec))
+    (let ((rv (capi.posix-select-fd-exceptional? fd sec usec)))
+      (if (fixnum? rv)
+	  (%raise-errno-error who rv fd sec usec)
+	rv))))
 
 (define (poll fds timeout)
   (define who 'poll)
@@ -1773,6 +1810,16 @@
     (let ((rv (capi.posix-madvise address length advice)))
       (unless (unsafe.fxzero? rv)
 	(%raise-errno-error who rv address length advice)))))
+
+(define (mprotect address length prot)
+  (define who 'mprotect)
+  (with-arguments-validation (who)
+      ((pointer		address)
+       (platform-size_t	length)
+       (fixnum		prot))
+    (let ((rv (capi.posix-mprotect address length prot)))
+      (unless (unsafe.fxzero? rv)
+	(%raise-errno-error who rv address length)))))
 
 (define (mlock address length)
   (define who 'mlock)

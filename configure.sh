@@ -10,7 +10,7 @@ LIBFFI_INCLUDEDIR=${prefix}/lib/libffi-3.0.10/include
     --config-cache                              \
     --cache-file=../config.cache                \
     --prefix="${prefix}"                        \
-    --enable-shared --disable-static            \
+    --enable-binfmt                             \
     --with-cre2                                 \
     CFLAGS='-O3 -march=i686 -mtune=i686'        \
     CPPFLAGS="-I${LIBFFI_INCLUDEDIR}"           \
