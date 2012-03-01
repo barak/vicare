@@ -1,11 +1,12 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.68)
-AC_INIT([vicare-scheme],[0.2d9],[marco.maggi-ipsu@poste.it])
+AC_INIT([Vicare Scheme],[0.2d9],[marco.maggi-ipsu@poste.it],
+  [vicare-scheme],[http://marcomaggi.github.com/vicare.html])
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE
 LT_PREREQ([2.2])
-LT_INIT
+LT_INIT([shared disable-static])
 AC_CONFIG_SRCDIR([src/])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([-Wall])
@@ -71,15 +72,28 @@ AC_ARG_ENABLE([linux],
    esac],[vicare_linux_bindings=true])
 AM_CONDITIONAL([WANT_LINUX],[test x$vicare_linux_bindings = xtrue])
 
+dnl --------------------------------------------------------------------
+
+AC_MSG_CHECKING([whether usage of the binfmt_misc Linux kernel module is enabled])
+AC_ARG_ENABLE([binfmt],
+  [AC_HELP_STRING([--enable-binfmt],
+     [enable usage of the binfmt_misc linux kernel module (default: no)])],
+  [if test "$enableval" = yes
+   then vicare_enable_binfmt=yes
+   else vicare_enable_binfmt=no
+   fi],
+  [vicare_enable_binfmt=no])
+AC_MSG_RESULT([$vicare_enable_binfmt])
+AM_CONDITIONAL([WANT_BINFMT],[test x$vicare_enable_binfmt = xyes])
+
 #page
 #### basic system inspection
 
 AM_PROG_AS
-# Checks for programs.
 AC_PROG_CC
 AM_PROG_CC_C_O
 
-CFLAGS="$CFLAGS -DNDEBUG -O3 -Wall"
+AM_CFLAGS="-Wall"
 
 case "$target_os" in
   *linux*)
@@ -154,6 +168,11 @@ AC_TYPE_UINT8_T
 AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
+
+VICARE_CHECK_PAGESIZE
+AC_DEFINE_UNQUOTED([IK_PAGESIZE],[$vicare_cv_pagesize],[Platform page size.])
+VICARE_CHECK_PAGESHIFT($vicare_cv_pagesize)
+AC_DEFINE_UNQUOTED([IK_PAGESHIFT],[$vicare_cv_pageshift],[Page shift bit count.])
 
 dnl Declared obsolete by GNU Autoconf.
 dnl
@@ -292,7 +311,7 @@ AM_COND_IF([WANT_POSIX],[
   AC_CHECK_FUNCS([link symlink readlink remove rename])
   AC_CHECK_FUNCS([rmdir getcwd chdir fchdir opendir fdopendir readdir closedir rewinddir telldir seekdir])
   AC_CHECK_FUNCS([open close read pread write pwrite lseek readv writev poll select fcntl ioctl dup dup2 pipe mkfifo])
-  AC_CHECK_FUNCS([msync mremap madvise mlock munlock mlockall munlockall])
+  AC_CHECK_FUNCS([msync mremap madvise mlock munlock mlockall munlockall mprotect])
   AC_CHECK_TYPES([struct sockaddr_un],,,[VICARE_INCLUDES])
   AC_CHECK_TYPES([struct sockaddr_in],,,[VICARE_INCLUDES])
   AC_CHECK_TYPES([struct sockaddr_in6],,,[VICARE_INCLUDES])

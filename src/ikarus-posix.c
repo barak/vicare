@@ -909,7 +909,7 @@ ikrt_posix_fchown (ikptr s_fd, ikptr s_owner, ikptr s_group)
   int	  rv;
   errno	   = 0;
   rv	   = fchown(IK_NUM_TO_FD(s_fd), IK_NUM_TO_UID(s_owner), IK_NUM_TO_GID(s_group));
-  return (0 == rv)? fix(0) : ik_errno_to_code();
+  return (0 == rv)? IK_FIX(0) : ik_errno_to_code();
 #else
   feature_failure(__func__);
 #endif
@@ -1559,14 +1559,14 @@ ikrt_posix_select (ikptr nfds_fx,
   errno = 0;
   rv	= select(nfds, &read_fds, &write_fds, &except_fds, &timeout);
   if (0 == rv) { /* timeout has expired */
-    return fix(0);
+    return IK_FIX(0);
   } else if (-1 == rv) { /* an error occurred */
     return ik_errno_to_code();
   } else { /* success, let's harvest the fds */
     /* Build the vector	 to be returned and prevent  it from being garbage
        collected while building other objects. */
     vec = ik_safe_alloc(pcb, IK_ALIGN(disp_vector_data+3*wordsize)) | vector_tag;
-    IK_REF(vec, off_vector_length) = fix(3);
+    IK_REF(vec, off_vector_length) = IK_FIX(3);
     IK_REF(vec, off_vector_data+0*wordsize) = null_object;
     IK_REF(vec, off_vector_data+1*wordsize) = null_object;
     IK_REF(vec, off_vector_data+2*wordsize) = null_object;
@@ -1612,10 +1612,9 @@ ikrt_posix_select (ikptr nfds_fx,
 #endif
 }
 ikptr
-ikrt_posix_select_fd (ikptr fdx, ikptr sec, ikptr usec, ikpcb * pcb)
+ikrt_posix_select_fd (ikptr s_fd, ikptr sec, ikptr usec, ikpcb * pcb)
 {
 #ifdef HAVE_SELECT
-  ikptr			vec;	/* the vector to be returned to the caller */
   fd_set		read_fds;
   fd_set		write_fds;
   fd_set		except_fds;
@@ -1625,7 +1624,7 @@ ikrt_posix_select_fd (ikptr fdx, ikptr sec, ikptr usec, ikpcb * pcb)
   FD_ZERO(&read_fds);
   FD_ZERO(&write_fds);
   FD_ZERO(&except_fds);
-  fd = IK_UNFIX(fdx);
+  fd = IK_NUM_TO_FD(s_fd);
   FD_SET(fd, &read_fds);
   FD_SET(fd, &write_fds);
   FD_SET(fd, &except_fds);
@@ -1638,12 +1637,127 @@ ikrt_posix_select_fd (ikptr fdx, ikptr sec, ikptr usec, ikpcb * pcb)
   } else if (-1 == rv) { /* an error occurred */
     return ik_errno_to_code();
   } else { /* success, let's harvest the events */
-    vec = ika_vector_alloc_no_init(pcb, 3);
-    IK_ITEM(vec, 0) = (FD_ISSET(fd, &read_fds))?   fdx : false_object;
-    IK_ITEM(vec, 1) = (FD_ISSET(fd, &write_fds))?  fdx : false_object;
-    IK_ITEM(vec, 2) = (FD_ISSET(fd, &except_fds))? fdx : false_object;
-    return vec;
+    int		result = 0;
+    if (FD_ISSET(fd, &read_fds))
+      result |= 1;
+    if (FD_ISSET(fd, &write_fds))
+      result |= 2;
+    if (FD_ISSET(fd, &except_fds))
+      result |= 4;
+    return IK_FIX(result);
   }
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_select_is_readable (ikptr s_fd, ikptr s_sec, ikptr s_usec, ikpcb * pcb)
+/* Interface to the C function  "select()" for a single file descriptor.
+   Wait for  a readable event with  timeout. The file  descriptor is the
+   fixnum S_FD.   S_SEC and S_USEC must be  fixnums representing timeout
+   seconds and microseconds.
+
+   Return false  if the timeout  expires before any event  arrives; else
+   return true  if the  file descriptor becomes  readable.  If  an error
+   occurs: return an encoded "errno" value.  */
+{
+#ifdef HAVE_SELECT
+  fd_set		read_fds;
+  fd_set		write_fds;
+  fd_set		except_fds;
+  struct timeval	timeout;
+  int			fd;
+  int			rv;
+  FD_ZERO(&read_fds);
+  FD_ZERO(&write_fds);
+  FD_ZERO(&except_fds);
+  fd = IK_NUM_TO_FD(s_fd);
+  FD_SET(fd, &read_fds);
+  timeout.tv_sec  = IK_UNFIX(s_sec);
+  timeout.tv_usec = IK_UNFIX(s_usec);
+  errno = 0;
+  rv	= select(1+fd, &read_fds, &write_fds, &except_fds, &timeout);
+  if (0 == rv) /* timeout has expired */
+    return false_object;
+  else if (-1 == rv) /* an error occurred */
+    return ik_errno_to_code();
+  else /* success, let's harvest the events */
+    return (FD_ISSET(fd, &read_fds))? true_object : false_object;
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_select_is_writable (ikptr s_fd, ikptr s_sec, ikptr s_usec, ikpcb * pcb)
+/* Interface to the C function  "select()" for a single file descriptor.
+   Wait for  a writable event with  timeout. The file  descriptor is the
+   fixnum S_FD.   S_SEC and S_USEC must be  fixnums representing timeout
+   seconds and microseconds.
+
+   Return false  if the timeout  expires before any event  arrives; else
+   return true  if the  file descriptor becomes  writable.  If  an error
+   occurs: return an encoded "errno" value.  */
+{
+#ifdef HAVE_SELECT
+  fd_set		read_fds;
+  fd_set		write_fds;
+  fd_set		except_fds;
+  struct timeval	timeout;
+  int			fd;
+  int			rv;
+  FD_ZERO(&read_fds);
+  FD_ZERO(&write_fds);
+  FD_ZERO(&except_fds);
+  fd = IK_NUM_TO_FD(s_fd);
+  FD_SET(fd, &write_fds);
+  timeout.tv_sec  = IK_UNFIX(s_sec);
+  timeout.tv_usec = IK_UNFIX(s_usec);
+  errno = 0;
+  rv	= select(1+fd, &read_fds, &write_fds, &except_fds, &timeout);
+  if (0 == rv) /* timeout has expired */
+    return false_object;
+  else if (-1 == rv) /* an error occurred */
+    return ik_errno_to_code();
+  else /* success, let's harvest the events */
+    return (FD_ISSET(fd, &write_fds))? true_object : false_object;
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_select_is_exceptional (ikptr s_fd, ikptr s_sec, ikptr s_usec, ikpcb * pcb)
+/* Interface to the C function  "select()" for a single file descriptor.
+   Wait for  an exceptional event  with timeout. The file  descriptor is
+   the  fixnum S_FD.   S_SEC  and S_USEC  must  be fixnums  representing
+   timeout seconds and microseconds.
+
+   Return false  if the timeout  expires before any event  arrives; else
+   return  true   if  the   file  descriptor  receives   an  exceptional
+   notification.   If  an  error   occurs:  return  an  encoded  "errno"
+   value.  */
+{
+#ifdef HAVE_SELECT
+  fd_set		read_fds;
+  fd_set		write_fds;
+  fd_set		except_fds;
+  struct timeval	timeout;
+  int			fd;
+  int			rv;
+  FD_ZERO(&read_fds);
+  FD_ZERO(&write_fds);
+  FD_ZERO(&except_fds);
+  fd = IK_NUM_TO_FD(s_fd);
+  FD_SET(fd, &except_fds);
+  timeout.tv_sec  = IK_UNFIX(s_sec);
+  timeout.tv_usec = IK_UNFIX(s_usec);
+  errno = 0;
+  rv	= select(1+fd, &read_fds, &write_fds, &except_fds, &timeout);
+  if (0 == rv) /* timeout has expired */
+    return false_object;
+  else if (-1 == rv) /* an error occurred */
+    return ik_errno_to_code();
+  else /* success, let's harvest the events */
+    return (FD_ISSET(fd, &except_fds))? true_object : false_object;
 #else
   feature_failure(__func__);
 #endif
@@ -1702,7 +1816,7 @@ ikrt_posix_fcntl (ikptr fd, ikptr command, ikptr arg)
     rv = fcntl(IK_UNFIX(fd), IK_UNFIX(command), val);
   } else
     ik_abort("invalid last argument to fcntl()");
-  return (-1 != rv)? fix(rv) : ik_errno_to_code();
+  return (-1 != rv)? IK_FIX(rv) : ik_errno_to_code();
 #else
   feature_failure(__func__);
 #endif
@@ -1726,7 +1840,7 @@ ikrt_posix_ioctl (ikptr fd, ikptr command, ikptr arg)
     rv = ioctl(IK_UNFIX(fd), IK_UNFIX(command), val);
   } else
     ik_abort("invalid last argument to ioctl()");
-  return (-1 != rv)? fix(rv) : ik_errno_to_code();
+  return (-1 != rv)? IK_FIX(rv) : ik_errno_to_code();
 #else
   feature_failure(__func__);
 #endif
@@ -1741,7 +1855,7 @@ ikrt_posix_dup (ikptr fd)
   int	rv;
   errno = 0;
   rv	= dup(IK_UNFIX(fd));
-  return (-1 != rv)? fix(rv) : ik_errno_to_code();
+  return (-1 != rv)? IK_FIX(rv) : ik_errno_to_code();
 #else
   feature_failure(__func__);
 #endif
@@ -1753,7 +1867,7 @@ ikrt_posix_dup2 (ikptr old, ikptr new)
   int	rv;
   errno = 0;
   rv	= dup2(IK_UNFIX(old), IK_UNFIX(new));
-  return (-1 != rv)? fix(0) : ik_errno_to_code();
+  return (-1 != rv)? IK_FIX(0) : ik_errno_to_code();
 #else
   feature_failure(__func__);
 #endif
@@ -1790,7 +1904,7 @@ ikrt_posix_mkfifo (ikptr s_pathname, ikptr mode)
   pathname = IK_BYTEVECTOR_DATA_CHARP(s_pathname);
   errno	   = 0;
   rv	   = mkfifo(pathname, IK_UNFIX(mode));
-  return (0 <= rv)? fix(rv) : ik_errno_to_code();
+  return (0 <= rv)? IK_FIX(rv) : ik_errno_to_code();
 #else
   feature_failure(__func__);
 #endif
@@ -1927,6 +2041,20 @@ ikrt_posix_munlockall (void)
   int		rv;
   errno = 0;
   rv    = munlockall();
+  return (0 == rv)? IK_FIX(0) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_mprotect (ikptr s_address, ikptr s_length, ikptr s_prot)
+{
+#ifdef HAVE_MPROTECT
+  void *	address = IK_POINTER_DATA_VOIDP(s_address);
+  size_t	length  = ik_integer_to_size_t(s_length);
+  int		rv;
+  errno = 0;
+  rv    = mprotect(address, length, IK_UNFIX(s_prot));
   return (0 == rv)? IK_FIX(0) : ik_errno_to_code();
 #else
   feature_failure(__func__);

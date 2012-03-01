@@ -51,8 +51,31 @@
 #  define __attribute__(...)	/* empty */
 #endif
 
-#ifndef ik_decl
-#  define ik_decl		extern
+/* I found  the following chunk on  the Net.  (Marco Maggi;  Sun Feb 26,
+   2012) */
+#if defined _WIN32 || defined __CYGWIN__
+#  ifdef BUILDING_DLL
+#    ifdef __GNUC__
+#      define ik_decl		__attribute__((dllexport))
+#    else
+#      define ik_decl		__declspec(dllexport)
+#    endif
+#  else
+#    ifdef __GNUC__
+#      define ik_decl		__attribute__((dllimport))
+#    else
+#      define ik_decl		__declspec(dllimport)
+#    endif
+#  endif
+#  define ik_private_decl	extern
+#else
+#  if __GNUC__ >= 4
+#    define ik_decl		__attribute__((visibility ("default")))
+#    define ik_private_decl	__attribute__((visibility ("hidden")))
+#  else
+#    define ik_decl		extern
+#    define ik_private_decl	extern
+#  endif
 #endif
 
 
@@ -169,40 +192,49 @@
 
 /* ------------------------------------------------------------------ */
 
-#define pagesize		4096
+/* The IK_PAGESIZE  is used  to determine the  size of memory  blocks to
+   allocate with "mmap()".
 
-/* How much  to right-shift a pointer  value to obtain the  index of the
-   page (of size PAGESIZE) it is in.
+   IK_PAGESHIFT is the number of  bits to right-shift a pointer value to
+   obtain the index of the page (of size IK_PAGESIZE) it is in.
 
        4000 >> 12 = 0
        8000 >> 12 = 1
       10000 >> 12 = 2
-*/
-#define pageshift		12
+
+   The value 12 for pageshift is correct for a pagesize of 4096.
+
+   #define IK_PAGESIZE		4096
+   #define IK_PAGESHIFT		12
+
+   These values  are determined by  the "configure" script,  because the
+   page size  is platform-dependent.  In  truth we should  determine the
+   page size at run time, but it would slow down computation of a lot of
+   constants and structure sizes. */
 
 #define generation_count	5  /* generations 0 (nursery), 1, 2, 3, 4 */
 
-#define IK_HEAP_EXT_SIZE  (32 * 4096)
-#define IK_HEAPSIZE	  (1024 * ((wordsize==4)?1:2) * 4096) /* 4/8 MB */
+#define IK_HEAP_EXT_SIZE	(32 * 4096)
+#define IK_HEAPSIZE		(1024 * 4096 * ((wordsize==4)?1:2)) /* 4/8 MB */
 
 #define IK_FASL_HEADER		((sizeof(ikptr) == 4)? "#@IK01" : "#@IK02")
 #define IK_FASL_HEADER_LEN	(strlen(IK_FASL_HEADER))
 
 #define IK_PTR_PAGE_SIZE \
-  ((pagesize - sizeof(long) - sizeof(struct ik_ptr_page*))/sizeof(ikptr))
+  ((IK_PAGESIZE - sizeof(long) - sizeof(struct ik_ptr_page*))/sizeof(ikptr))
 
 /* Given the pointer X or tagged pointer X: evaluate to the index of the
    memory page  it is in; notice that  the tag bits of  a tagged pointer
    are not  influent.  Given a  number of bytes  X evaluate to  an index
    offset. */
 #define IK_PAGE_INDEX(x)   \
-  (((ik_ulong)(x)) >> pageshift)
+  (((ik_ulong)(x)) >> IK_PAGESHIFT)
 
 #define IK_ALIGN_TO_NEXT_PAGE(x) \
-  (((pagesize - 1 + (ik_ulong)(x)) >> pageshift) << pageshift)
+  (((IK_PAGESIZE - 1 + (ik_ulong)(x)) >> IK_PAGESHIFT) << IK_PAGESHIFT)
 
 #define IK_ALIGN_TO_PREV_PAGE(x) \
-  ((((ik_ulong)(x)) >> pageshift) << pageshift)
+  ((((ik_ulong)(x)) >> IK_PAGESHIFT) << IK_PAGESHIFT)
 
 #define IK_ASS(LEFT,RIGHT)	\
   { ikptr s_tmp = (RIGHT); (LEFT) = s_tmp; }
@@ -248,6 +280,7 @@ typedef struct ik_callback_locative {
   struct ik_callback_locative * next;	/* pointer to next link */
 } ik_callback_locative;
 
+/* Node in a linked list. */
 typedef struct ik_ptr_page {
   long		count;
   struct ik_ptr_page* next;
@@ -360,39 +393,37 @@ typedef struct ikcont {
 
 #define ref(X,N)	IK_REF((X),(N))
 
-#define fix(X)		IK_FIX(X)
-#define unfix(X)	IK_UNFIX(X)
-
 
 /** --------------------------------------------------------------------
  ** Internal function prototypes.
  ** ----------------------------------------------------------------- */
 
-ikpcb * ik_collect		(unsigned long, ikpcb*);
+ik_decl ikpcb *		ik_collect		(unsigned long, ikpcb*);
+ik_private_decl void	ik_verify_integrity	(ikpcb* pcb, char*);
 
-void*	ik_malloc		(int);
-void	ik_free			(void*, int);
+ik_private_decl void*	ik_malloc		(int);
+ik_private_decl void	ik_free			(void*, int);
 
-ikptr	ik_underflow_handler	(ikpcb*);
+ik_private_decl ikptr	ik_underflow_handler	(ikpcb*);
 
-ikptr	ik_mmap			(unsigned long);
-ikptr	ik_mmap_typed		(unsigned long size, unsigned type, ikpcb*);
-ikptr	ik_mmap_ptr		(unsigned long size, int gen, ikpcb*);
-ikptr	ik_mmap_data		(unsigned long size, int gen, ikpcb*);
-ikptr	ik_mmap_code		(unsigned long size, int gen, ikpcb*);
-ikptr	ik_mmap_mixed		(unsigned long size, ikpcb*);
-void	ik_munmap		(ikptr, unsigned long);
-ikpcb * ik_make_pcb		(void);
-void	ik_delete_pcb		(ikpcb*);
-void	ik_free_symbol_table	(ikpcb* pcb);
+ik_private_decl ikptr	ik_mmap			(unsigned long);
+ik_private_decl ikptr	ik_mmap_typed		(unsigned long size, unsigned type, ikpcb*);
+ik_private_decl ikptr	ik_mmap_ptr		(unsigned long size, int gen, ikpcb*);
+ik_private_decl ikptr	ik_mmap_data		(unsigned long size, int gen, ikpcb*);
+ik_private_decl ikptr	ik_mmap_code		(unsigned long size, int gen, ikpcb*);
+ik_private_decl ikptr	ik_mmap_mixed		(unsigned long size, ikpcb*);
+ik_private_decl void	ik_munmap		(ikptr, unsigned long);
+ik_private_decl ikpcb * ik_make_pcb		(void);
+ik_private_decl void	ik_delete_pcb		(ikpcb*);
+ik_private_decl void	ik_free_symbol_table	(ikpcb* pcb);
 
-void	ik_fasl_load		(ikpcb* pcb, char* filename);
-void	ik_relocate_code	(ikptr);
+ik_private_decl void	ik_fasl_load		(ikpcb* pcb, char* filename);
+ik_private_decl void	ik_relocate_code	(ikptr);
 
-ikptr	ik_exec_code		(ikpcb* pcb, ikptr code_ptr, ikptr argcount, ikptr cp);
+ik_private_decl ikptr	ik_exec_code		(ikpcb* pcb, ikptr code_ptr, ikptr argcount, ikptr cp);
 
-ikptr	ik_asm_enter		(ikpcb*, ikptr code_object, ikptr arg, ikptr cp);
-ikptr	ik_asm_reenter		(ikpcb*, ikptr code_object, ikptr val);
+ik_private_decl ikptr	ik_asm_enter		(ikpcb*, ikptr code_object, ikptr arg, ikptr cp);
+ik_private_decl ikptr	ik_asm_reenter		(ikpcb*, ikptr code_object, ikptr val);
 
 
 /** --------------------------------------------------------------------
@@ -403,11 +434,7 @@ ik_decl ikpcb *	ik_the_pcb		(void);
 
 ik_decl int	ik_abort		(const char * error_message, ...);
 ik_decl void	ik_error		(ikptr args);
-#ifndef NDEBUG
 ik_decl void	ik_debug_message	(const char * error_message, ...);
-#else
-#define ik_debug_message(MSG,...)	/* empty */
-#endif
 
 ik_decl ikptr	ik_unsafe_alloc		(ikpcb* pcb, ik_ulong size);
 ik_decl ikptr	ik_safe_alloc		(ikpcb* pcb, ik_ulong size);
@@ -1048,6 +1075,7 @@ ik_decl ikptr ikrt_general_copy (ikptr s_dst, ikptr s_dst_start,
 
 ik_decl ikptr ik_enter_c_function (ikpcb* pcb);
 ik_decl void  ik_leave_c_function (ikpcb* pcb, ikptr system_continuation);
+
 
 /** --------------------------------------------------------------------
  ** Other objects stuff.

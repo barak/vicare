@@ -31,10 +31,9 @@
  ** Internal definitions.
  ** ----------------------------------------------------------------- */
 
-#define pagesize		4096
-#define pageshift		12
-#define segment_size		(16 * pagesize)
-#define segment_shift		(4  + pageshift)
+#define IK_PAGESHIFT		12
+#define segment_size		(16 * IK_PAGESIZE)
+#define segment_shift		(4  + IK_PAGESHIFT)
 
 static unsigned short* table = 0;
 static char*  ap = 0;
@@ -61,14 +60,14 @@ static void
 init_table (void)
 {
   assert(sizeof(unsigned short) == 2);
-  table = do_mmap(32*pagesize);
-  bzero(table, 32*pagesize);
+  table = do_mmap(32*IK_PAGESIZE);
+  bzero(table, 32*IK_PAGESIZE);
 }
 void
 win_munmap (char* addr, size_t size)
 {
   while (size) {
-    unsigned       page          = (((unsigned) addr) >> pageshift);
+    unsigned       page          = (((unsigned) addr) >> IK_PAGESHIFT);
     unsigned       segment_index = page / 16;
     unsigned       page_index    = page & 15;
     unsigned short alloc_bits    = table[segment_index];
@@ -77,8 +76,8 @@ win_munmap (char* addr, size_t size)
     table[segment_index] = new_bits;
     if (0 == new_bits)
       do_munmap((void*)(segment_index*segment_size), segment_size);
-    size -= pagesize;
-    addr += pagesize;
+    size -= IK_PAGESIZE;
+    addr += IK_PAGESIZE;
   }
 }
 char*
@@ -96,7 +95,7 @@ win_mmap (size_t size)
   size_t   segments      = ((size+segment_size-1) >> segment_shift);
   size_t   aligned_size  = segments << segment_shift;
   char*    addr          = do_mmap(aligned_size);
-  unsigned page          = (((unsigned) addr) >> pageshift);
+  unsigned page          = (((unsigned) addr) >> IK_PAGESHIFT);
   unsigned segment_index = page / 16;
   int      i;
   for (i=0; i<segments; ++i) {

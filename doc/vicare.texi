@@ -512,6 +512,10 @@ Revised^6 Report on the algorithmic language Scheme
 @acronym{BUB}
 @end macro
 
+@macro sel{}
+@acronym{SEL}
+@end macro
+
 @c page
 @c ------------------------------------------------------------
 @c Values.
@@ -668,6 +672,7 @@ Appendices
 * unicode::                     On Unicode and @utf{} encodings.
 * fasl::                        Handling @fasl{} files.
 * shmem::                       Interprocess shared memory.
+* binfmt::                      Launching programs directly.
 * cre2::                        Binding to the library @cretwo{}.
 * package license::             @gnu{} General Public License.
 * references::                  Bibliography and references.
@@ -1351,6 +1356,7 @@ script.
 * using script::                Using @command{scheme-script}.
 * using libraries::             @rnrs{6} libraries.
 * using rlwrap::                Using @command{rlwrap}.
+* using binfmt::                Launching programs on Linux.
 @end menu
 
 @c page
@@ -2014,6 +2020,33 @@ exec "$@{rlwrap_PROGRAM@}"                    \
 @end smallexample
 
 @c page
+@node using binfmt
+@section Launching programs on Linux
+
+
+When running @value{PRJNAME} on a @gnu{}+Linux system we can take
+advantage of the features offered by the @code{binfmt_misc} kernel
+module to launch directly executable programs without prefixing the
+program name with the @command{vicare} executable.
+
+It all comes down to this: after setting up the feature as explained in
+the appendix @ref{binfmt}, we write a file containing:
+
+@example
+;;;!vicare
+(import (only (program-library) main))
+(main)
+@end example
+
+@noindent
+where @library{program-library} is an installed library containing the
+application code and @func{main} is the function that starts the
+application.  If we enable executable permissions for the file and make
+sure that the first bytes in the file are the sequence
+@code{;;;!vicare}, we can configure the Linux kernel to start the
+program handing its command line to the executable @command{vicare}.
+
+@c page
 @node iklib
 @chapter Language extensions
 
@@ -2023,7 +2056,9 @@ In addition to the libraries listed in the @rnrs{6} standard,
 libraries which provide additional features; @library{ikarus} is a
 composite library, it exports a superset of all the supported bindings
 of @rnrs{6}; @library{vicare} exports the same bindings of
-@library{ikarus}.
+@library{ikarus}.  The library @library{vicare language-extensions}
+exports all the bindings exported by @library{vicare} that are
+@strong{not} exported by @library{rnrs (6)}
 
 @menu
 * iklib conditions::            Additional condition types.
@@ -5212,6 +5247,8 @@ Build and return binary Scheme ports using the platform file descriptor
 @var{fd} as device.  @var{identifier} must be a string used for better
 error reporting.  Closing the Scheme ports will close the file
 descriptors too.
+
+File descriptor ports do support port position operations.
 @end defun
 
 
@@ -5222,6 +5259,8 @@ Build and return binary Scheme ports using the platform file descriptor
 @var{fd} as device.  @var{identifier} must be a string used for better
 error reporting.  Closing the Scheme ports will @strong{not} close the
 file descriptors.
+
+File descriptor ports do support port position operations.
 @end defun
 
 
@@ -5230,6 +5269,8 @@ Build and return a binary Scheme port using the platform socket
 descriptor @var{sock} as device.  @var{identifier} must be a string used
 for better error reporting.  Closing the Scheme port will close the
 socket descriptor too.
+
+Socket ports do @strong{not} support port position operations.
 @end defun
 
 
@@ -5238,6 +5279,8 @@ Build and return a binary Scheme port using the platform socket
 descriptor @var{sock} as device.  @var{identifier} must be a string used
 for better error reporting.  Closing the Scheme port will @strong{not}
 close the socket descriptor.
+
+Socket ports do @strong{not} support port position operations.
 @end defun
 
 @c page
@@ -5307,6 +5350,8 @@ Build and return textual Scheme ports using the platform file descriptor
 @var{fd} as device.  @var{identifier} must be a string used for better
 error reporting.  @var{transcoder} must be a transcoder object.  Closing
 the Scheme ports will close the file descriptors too.
+
+File descriptor ports do support port position operations.
 @end defun
 
 
@@ -5317,6 +5362,8 @@ Build and return textual Scheme ports using the platform file descriptor
 @var{fd} as device.  @var{identifier} must be a string used for better
 error reporting.  @var{transcoder} must be a transcoder object.  Closing
 the Scheme ports will @strong{not} close the file descriptors.
+
+File descriptor ports do support port position operations.
 @end defun
 
 
@@ -5325,6 +5372,8 @@ Build and return a textual Scheme port using the platform socket
 descriptor @var{sock} as device.  @var{identifier} must be a string used
 for better error reporting.  @var{transcoder} must be a transcoder
 object.  Closing the Scheme port will close the socket descriptor too.
+
+Socket ports do @strong{not} support port position operations.
 @end defun
 
 
@@ -5334,6 +5383,8 @@ descriptor @var{sock} as device.  @var{identifier} must be a string used
 for better error reporting.  @var{transcoder} must be a transcoder
 object.  Closing the Scheme port will @strong{not} close the socket
 descriptor.
+
+Socket ports do @strong{not} support port position operations.
 @end defun
 
 @c page
@@ -5555,6 +5606,11 @@ fcntl(fd, F_SETFL, O_NONBLOCK);
 
 
 The following bindings are exported by the @library{ikarus} library.
+
+
+@defun input/output-port? @var{port}
+Return a boolean, @true{} if @var{port} is an input and output port.
+@end defun
 
 
 @defun port-fd @var{port}
@@ -8384,6 +8440,42 @@ If the timeout expires before any event arrives: return 3 values all
 being false.  If an error occurs: raise an exception.  Else return 3
 values being false or @var{fd}, respectively, if @var{fd} is ready for
 reading, writing or an exceptional condition.
+@end defun
+
+
+@defun select-fd-readable? @var{fd} @var{sec} @var{usec}
+Interface to the C function @cfunc{select}, @glibcref{Waiting for I/O,
+select}.  Wait for a readable event on the single file descriptor
+@var{fd}.  @var{sec} and @var{usec} must be fixnums representing timeout
+seconds and microseconds.
+
+If the timeout expires before any event arrives: return @false{}.  If an
+error occurs: raise an exception.  Else return @true{} if the file
+descriptor becomes readable.
+@end defun
+
+
+@defun select-fd-writable? @var{fd} @var{sec} @var{usec}
+Interface to the C function @cfunc{select}, @glibcref{Waiting for I/O,
+select}.  Wait for a writable event on the single file descriptor
+@var{fd}.  @var{sec} and @var{usec} must be fixnums representing timeout
+seconds and microseconds.
+
+If the timeout expires before any event arrives: return @false{}.  If an
+error occurs: raise an exception.  Else return @true{} if the file
+descriptor becomes writable.
+@end defun
+
+
+@defun select-fd-exceptional? @var{fd} @var{sec} @var{usec}
+Interface to the C function @cfunc{select}, @glibcref{Waiting for I/O,
+select}.  Wait for an exceptional event on the single file descriptor
+@var{fd}.  @var{sec} and @var{usec} must be fixnums representing timeout
+seconds and microseconds.
+
+If the timeout expires before any event arrives: return @false{}.  If an
+error occurs: raise an exception.  Else return @true{} if the file
+descriptor receives an exceptional notification.
 @end defun
 
 @c ------------------------------------------------------------
@@ -13980,9 +14072,9 @@ descriptor @var{fd}.  @var{sec} and @var{usec} must be fixnums
 representing timeout seconds and microseconds.
 
 Return the fixnum zero if the timeout expired before any event arrived;
-else return a vector of 3 elements being false or @var{fd},
-respectively, if @var{fd} is ready for reading, writing or an
-exceptional condition.  If an error occurs: return an encoded
+else return a fixnum being the OR combination of the flags: @code{1} if
+@var{fd} is readable, @code{2} if @var{fd} is writable, @code{4} if
+@var{fd} received an exception.  If an error occurs: return an encoded
 @code{errno} value.
 @end deftypefun
 
@@ -15009,6 +15101,7 @@ be @code{AF_INET} or @code{AF_INET6}.
 * wtables::                     Weak hashtables.
 * flonum format::               Formatting flonums.
 * flonum parse::                Parsing flonums.
+* sel::                         Simple event loop.
 @end menu
 
 @c page
@@ -15445,7 +15538,9 @@ shared library from possibly dynamically constructed C code; then load
 the library and access a C function as @ffi{} callout.
 
 @library{vicare gcc} must be considered as a toy to demonstrate the
-features of @value{PRJNAME}.
+features of @value{PRJNAME}; it is installed only if the @posix{},
+@gnu{} C library and Libffi @api{}s are enabled at package configuration
+time.
 
 The following is an example of function to increment an integer:
 
@@ -15765,6 +15860,138 @@ Notice how the arguments handed to @var{real-func} match the argument of
               (lambda args (cons 'unreal args)))
 @result{} (unreal "+nan.0")
 @end example
+@end defun
+
+@c page
+@node sel
+@section Simple event loop (@sel{})
+
+
+The library @library{vicare simple-event-loop} implements an event loop
+capable of serving: file descriptors, interprocess signals, batch task
+execution.  The library is available if @value{PRJNAME} is configured
+with the @posix{} @api{} enabled.  The @sel{} makes use of the @bub{}
+@api{} for interprocess signals.
+
+When importing this library it is suggested to prefix the bindings as
+follows:
+
+@example
+(import (vicare)
+  (prefix (vicare posix) px.)
+  (prefix (vicare simple-event-loop) sel.))
+@end example
+
+@noindent
+in practice the @sel{} can be used only along with @library{vicare
+posix}.
+
+Exceptions raised by registered event handlers are catched with
+@func{guard} and silently discarded; it is our responsibility to handle
+errors appropriately in the handlers.
+
+
+@defun initialise
+@defunx finalise
+Initialise or finalise the infrastructure of @sel{}.  Prior to entering
+the loop we must call @func{initialise}.
+
+@func{initialise} calls @func{signal-bub-init} and @func{finalise} calls
+@func{signal-bub-final} from @library{vicare posix}.
+@end defun
+
+
+@defun do-one-event
+Serve all the events associated to pending received interprocess
+signals, then serve a single event from file descriptors or fragmented
+tasks.  Return @true{} if one event from file descriptors or fragmented
+tasks was served, return @false{} otherwise.
+@end defun
+
+
+@defun enter
+@defunx leave-asap
+Enter or leave the event loop.  @func{enter} starts servicing events
+from the registered event sources, indefinitely until @func{leave-asap}
+is called.
+@end defun
+
+
+@defun busy?
+Return a boolean, @true{} if at least one event source is registered.
+In this context: interprocess signals do @strong{not} count as event
+source.
+@end defun
+
+@c ------------------------------------------------------------
+
+@subsubheading Interprocess signals
+
+
+@defun receive-signal @var{signum} @var{handler}
+Register the thunk @var{handler} to be called whenever the signal
+@var{signum} is received.  Any number of handlers can be associated to a
+single signal.  Every handler is called @strong{once} and removed from
+the loop.
+@end defun
+
+
+@defun serve-interprocess-signals
+Serve all the pending events for received interprocess signals.  Return
+unspecified values.
+@end defun
+
+@c ------------------------------------------------------------
+
+@subsubheading File descriptor events
+
+
+@sel{} can interface with both raw file descriptors and Scheme ports
+wrapping a file descriptor; other Scheme port types are not supported.
+
+
+@defun readable @var{port/fd} @var{handler}
+@defunx writable @var{port/fd} @var{handler}
+@defunx exception @var{port/fd} @var{handler}
+Register the thunk @var{handler} to be called whenever the port or file
+descriptor @var{port/fd} becomes readable, writable or receives an
+exceptional notification.  Every handler is called @strong{once} and
+removed from the loop.
+@end defun
+
+
+@defun forget-fd @var{port/fd}
+Remove all the registered handlers associated to the port or file
+descriptor @var{port/fd}.
+@end defun
+
+
+@defun do-one-fd-event
+Serve one file descriptor event, if any.  Return a boolean, @true{} if
+an event was served.
+@end defun
+
+@c ------------------------------------------------------------
+
+@subsubheading Fragmented tasks
+
+
+A @dfn{fragmented task} is a thunk performing a portion of a job.  If
+the thunk returns @false{}: the job is finished.  If the thunk returns a
+procedure: a portion of job was finished and the returned procedure is a
+thunk to call to execute the next portion.
+
+
+@defun task-fragment @var{thunk}
+Register the @var{thunk} as fragment of a task.  When @var{thunk} is
+evaluated: if its return value is a procedure, that procedure is
+automatically registered as task fragment.
+@end defun
+
+
+@defun do-one-task-event
+Evaluate one task event, if any.  Return a boolean, @true{} if a task
+was run.
 @end defun
 
 @c page
@@ -20107,6 +20334,383 @@ of memory are enough:
     (px.munmap shmem.ptr shmem.len))))
 @result{} (1 2 #(3 4) ciao "hello" #vu8(99 98 97))
 @end example
+
+@c page
+@node binfmt
+@appendix Launching programs directly
+
+
+This appendix describes an optional feature of that activates Scheme
+programs execution through the mechanism of the @code{binfmt_misc} Linux
+kernel module; it is available only on Unix--like platforms running the
+Linux kernel.
+
+By default the installation of the required files is disabled; to enable
+it: at configuration time we must pass the @option{--enable-binfmt}
+option to the @command{configure} script.
+
+The mechanism allows to run Scheme programs without explicitly invoking
+the executable runtime program.  It is a generalisation of the mechanism
+that runs shell scripts whose file begins with @code{#!/bin/sh}.
+
+@quotation
+This appendix is derived from the original @code{binfmt_misc}
+documentation text file by Richard Guenther.
+@end quotation
+
+@menu
+* binfmt overview::             Overview of the mechanism.
+* binfmt loading::              Loading the module.
+* binfmt registry::             The registry.
+* binfmt using::                Using the mechanism.
+* binfmt control::              Controlling the mechanism.
+* binfmt hints::                Hints.
+* binfmt scheme::               Running Scheme programs.
+@end menu
+
+@c page
+@node binfmt overview
+@appendixsec Overview of the mechanism
+
+@cindex Binary formats, kernel support
+@cindex Binary executables, kernel support
+
+This kernel feature allows us to invoke almost every program by simply
+typing its name in the shell.  This includes for example compiled Java,
+Python or Emacs programs, and of course Scheme programs.
+
+The feature is implemented in the @code{binfmt_misc} kernel module; it
+recognises the binary file type by matching some bytes at the beginning
+of the file with a magic byte sequence (masking out specified bits) we
+have supplied; it can also recognise a filename extension.
+
+
+@c page
+@node binfmt loading
+@appendixsec Loading the module
+
+
+If the module is installed on the system, we will find it in:
+
+@example
+/lib/modules/<version>/kernel/fs/binfmt_misc.ko
+@end example
+
+@noindent
+and to load it we do (as root):
+
+@example
+/sbin/modprobe binfmt_misc
+@end example
+
+@noindent
+for example on a Slackware Linux installation, loading can be done by
+uncommenting the relevant line in @file{/etc/rc.d/rc.modules}.
+
+Then we add the following line to @file{/etc/fstab}:
+
+@example
+none /proc/sys/fs/binfmt_misc binfmt_misc defaults 0 0
+@end example
+
+@noindent
+so that the @code{binfmt_misc} directory can be mounted and will be
+mounted when booting the system.  We can freely mount and unmount this
+virtual file system with (as root):
+
+@example
+$ mount  /proc/sys/fs/binfmt_misc
+$ umount /proc/sys/fs/binfmt_misc
+@end example
+
+@noindent
+but this is rarely useful.  There are other means of enabling and
+disabling the feature.
+
+@c page
+@node binfmt registry
+@appendixsec The registry
+
+
+To actually register a new binary type, we have to set up a string like:
+
+@example
+:name:type:offset:magic:mask:interpreter:
+@end example
+
+@noindent
+and echo it to @file{/proc/sys/fs/binfmt_misc/register}.  We can choose
+the @code{:} character upon our needs and we can omit a field by simply
+using an empty string; for example if we omit the offset and the mask
+fields:
+
+@example
+:name:type::magic::interpreter:
+@end example
+
+Fields description follows.
+
+@table @code
+@item name
+It is an identifier string.  A new @file{/proc} file will be created
+with this name under @file{/proc/sys/fs/binfmt_misc}, and we can use it
+to query and reset the configuration status.
+
+@item type
+It is the type of file recognition.  If set to @code{M} activates first
+bytes recognition (also known as ``magic'' recognition); if set to
+@code{E} activates file name extension recognition.
+
+@item offset
+It is the zero--based offset of the magic/mask in the file, counted in
+bytes.  It is used only with magic recognition.  It defaults to zero.
+
+@item magic
+It is the byte sequence @code{binfmt_misc} will look for file
+recognition.
+
+The magic string may contain hex--encoded characters like @code{\x0a} or
+@code{\xA4}.  When echoing the record from a shell environment, we will
+have to quote the backslash: @code{\\x0a}.
+
+If we chose filename extension matching, this is the extension to be
+recognised (without the @code{.}, the @code{\x0a} specials are not
+allowed).  Extension matching is case sensitive.
+
+@item mask
+It is a bitmask.  We can mask out some bits from matching by supplying a
+string with the same length of @code{magic}.  The mask is ANDed with the
+byte sequence from the file.  It defaults to @code{0xff}.
+
+@item interpreter
+It is the program that should be invoked with the binary as first
+argument.  @strong{We have to specify the full path.}
+@end table
+
+There are some restrictions:
+
+@itemize
+@item
+The whole @file{register} string may not exceed 255 characters.
+
+@item
+The magic must reside in the first @math{128} bytes of the file, i.e.
+@code{offset+size(magic)} has to be less than @math{128}.
+
+@item
+The interpreter string may not exceed @math{127} characters.
+@end itemize
+
+@c page
+@node binfmt using
+@appendixsec Using the mechanism
+
+
+We may want to add the binary formats in one of the shell scripts that
+are executed at system boot time.  For example, on a Slackware Linux
+system we can use @file{/etc/rc.d/rc.local}.
+
+To do it we can add to the shell script a chunk of code like the
+following, which activates the mechanism for Scheme programs compiled
+with @value{PRJNAME}:
+
+@example
+if test -f /proc/sys/fs/binfmt_misc/register
+then
+  if test -f /proc/sys/fs/binfmt_misc/VICARE
+  then echo -1 >/proc/sys/fs/binfmt_misc/VICARE
+  fi
+  echo \
+   ':VICARE:M:0:;;;!vicare::/usr/local/bin/vicare:' \
+   >/proc/sys/fs/binfmt_misc/register
+fi
+@end example
+
+@noindent
+which does the following:
+
+@enumerate
+@item
+Verify if the @code{binfmt_misc} kernel module has been loaded by
+testing the existence of the @file{register} file; if the module is not
+there, nothing happens.
+
+@item
+Remove the configuration from the registry if it is already there; this
+is done by testing the existence of the special file:
+
+@example
+/proc/sys/fs/binfmt_misc/VICARE
+@end example
+
+@noindent
+echoing @code{-1} in it removes the @value{PRJNAME} record.
+
+@item
+echo the @value{PRJNAME} record into the registry with the following fields:
+
+@table @code
+@item VICARE
+It is the name of the special file representing the record in the
+registry.
+
+@item M
+Activates first bytes recognition.
+
+@item 0
+The offset of the magic string into the file.
+
+@item ;;;!vicare
+The magic string itself.
+
+@item /usr/local/bin/vicare
+The full pathname to the @value{PRJNAME} runtime system executable.
+@end table
+@end enumerate
+
+We see that the @code{mask} field is set to the empty string, that is:
+no mask is applied and @code{#!vicare} is matched literally.
+
+We have to care about the order of added entries: entries added later
+are matched first.
+
+@c page
+@node binfmt control
+@appendixsec Controlling the mechanism
+
+
+@subsubheading Overall control
+
+We can enable/disable the mechanism by echoing @code{0} (to disable) or
+@code{1} (to enable) to the special file:
+
+@example
+/proc/sys/fs/binfmt_misc/status
+@end example
+
+@noindent
+that is, at the shell prompt and with superuser privileges, to enable:
+
+@example
+# echo 1 >/proc/sys/fs/binfmt_misc/status
+@end example
+
+@noindent
+and to disable:
+
+@example
+# echo 0 >/proc/sys/fs/binfmt_misc/status
+@end example
+
+Applying the command @command{cat} to the @file{status} special file
+tells us the current status of @code{binfmt_misc}:
+
+@example
+$ cat /proc/sys/fs/binfmt_misc/status
+enabled
+@end example
+
+We can remove all the entries from the registry echoing @code{-1} to
+@file{status}; at the shell prompt and with superuser privileges:
+
+@example
+# echo -1 >/proc/sys/fs/binfmt_misc/status
+@end example
+
+@noindent
+removing the entries and disabling the mechanism are two distinct
+operations.
+
+
+@subsubheading Specific format control
+
+We can enable/disable recognition of a single binary format by echoing
+@code{0} or @code{1} to the format specific special file under
+@file{/proc/sys/fs/binfmt_misc}.  For example for @code{VICARE}, at the
+shell prompt and with superuser privileges, to enable:
+
+@example
+$ echo 1 >/proc/sys/fs/binfmt_misc/VICARE
+@end example
+
+@noindent
+and to disable:
+
+@example
+$ echo 0 >/proc/sys/fs/binfmt_misc/VICARE
+@end example
+
+@noindent
+disabled formats are @strong{not} removed from the internal table.
+
+Applying the command @command{cat} to the format's special file tells us
+the current status of that format and its configuration; for example for
+@code{VICARE}, at the shell prompt:
+
+@example
+$ cat /proc/sys/fs/binfmt_misc/VICARE
+@end example
+
+We can remove a specific format entry from the registry echoing
+@code{-1} to its special file; for @code{VICARE} at the shell prompt
+and with superuser privileges:
+
+@example
+$ echo -1 >/proc/sys/fs/binfmt_misc/VICARE
+@end example
+
+@noindent
+removing the entry and disabling the mechanism for a format are two
+distinct operations.
+
+@c page
+@node binfmt hints
+@appendixsec Hints
+
+
+If we want to pass command line arguments to the runtime executable, we
+must write a wrapper script for it.  There is no way to embed the
+arguments in the registry record.
+
+The runtime must @strong{not} look in the @env{PATH} environment
+variable for the filename; the kernel passes it the full filename to
+use.  Using the @env{PATH} can cause unexpected behaviour and be a
+security hazard.
+
+@c page
+@node binfmt scheme
+@appendixsec Running Scheme programs
+
+
+The @code{binfmt_misc} mechanism can be used to run both source and
+compiled programs.  @value{PRJNAME} adheres to the following rules,
+which we can change by customising the files in the distribution:
+
+@enumerate
+@item
+@value{PRJNAME} source programs are recognised if the file starts with
+the string @code{;;;!vicare}.  Notice that we @strong{cannot} use the
+sequence @code{#!vicare} because when @code{binfmt_misc} reads the
+prefix @code{#!} it activates the traditional shebang processing.
+
+@item
+The @code{binfmt_misc} configuration is stored in a Bourne shell script
+(@file{/bin/sh} interpreter) named @file{rc.vicare-scheme} installed in
+the @code{$(sysconfdir)/rc.d} directory.  If the default configuration
+is not changed, this ends up being:
+
+@example
+/usr/local/etc/rc.d/rc.vicare-scheme
+@end example
+
+The script can be executed at system boot time and again later any
+number of times: at each run it resets and reinitialises the
+configuration for Scheme programs.
+
+@item
+The @command{vicare} executable must be in @code{$(bindir)}, else we
+must customise the @file{rc.vicare-scheme} script.
+@end enumerate
 
 @c page
 @node cre2
