@@ -41,3 +41,16 @@ missing
 mkinstalldirs
 ltmain.sh
 m4/
+/config.h
+/config.log
+/config.status
+/libtool
+/stamp-h1
+/lib/features
+/lib/vicare/platform/constants.sls
+/lib/vicare/platform/features.sls
+/meta/slackware/doinst.sh
+/scheme/ikarus.config.ss
+/scheme/vicare.boot
+/src/bootfileloc.h
+/src/vicare
