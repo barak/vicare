@@ -6,7 +6,7 @@ Build-Depends: debhelper (>= 9),
 	       dh-autoreconf,
 	       libgmp3-dev,
 	       libffi-dev
-Standards-Version: 3.9.2
+Standards-Version: 3.9.4
 Homepage: http://marcomaggi.github.com/vicare.html
 Vcs-Git: git://github.com/barak/vicare
 Vcs-Browser: http://github.com/barak/vicare
