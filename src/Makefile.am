@@ -47,7 +47,7 @@ nodist_vicare_SOURCES = bootfileloc.h
 BUILT_SOURCES = bootfileloc.h
 
 bootfileloc.h: Makefile
-	echo '#define BOOTFILE "$(vicarelibdir)/vicare.boot"' >$@
+	echo '#define BOOTFILE "$(pkglibdir)/vicare.boot"' >$@
 	echo '#define EXEFILE "$(bindir)/vicare"' >>$@
 
 CLEANFILES = bootfileloc.h
