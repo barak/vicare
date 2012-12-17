@@ -388,8 +388,8 @@ gc_tconc_push(gc_t* gc, ikptr tcbucket) {
   }
 }
 
-
-#ifdef VICARE_DEBUGGING
+/* #define DEBUG_ADD_OBJECT	1 */
+#if (((defined VICARE_DEBUGGING) && (defined VICARE_DEBUGGING_GC)) || (defined DEBUG_ADD_OBJECT))
 static ikptr add_object_proc(gc_t* gc, ikptr x, char* caller);
 #define add_object(gc,x,caller) add_object_proc(gc,x,caller)
 #else
@@ -435,10 +435,10 @@ ik_collect_check (unsigned long req, ikpcb* pcb)
 {
   long bytes = ((long)pcb->allocation_redline) - ((long)pcb->allocation_pointer);
   if (bytes >= req) {
-    return true_object;
+    return IK_TRUE_OBJECT;
   } else {
     ik_collect(req, pcb);
-    return false_object;
+    return IK_FALSE_OBJECT;
   }
 }
 
@@ -472,7 +472,7 @@ ik_collect (unsigned long mem_req, ikpcb* pcb)
     gettimeofday(&rt0, 0);
     getrusage(RUSAGE_SELF, &t0);
   }
-  pcb->collect_key	= false_object;
+  pcb->collect_key	= IK_FALSE_OBJECT;
   bzero(&gc, sizeof(gc_t));
   gc.pcb		= pcb;
   gc.segment_vector	= pcb->segment_vector;
@@ -491,6 +491,23 @@ ik_collect (unsigned long mem_req, ikpcb* pcb)
   scan_dirty_pages(&gc);
   collect_stack(&gc, pcb->frame_pointer, pcb->frame_base - wordsize);
   collect_locatives(&gc, pcb->callbacks);
+  { /* Scan the collection of words not to be collected because they are
+       referenced somewhere outside the Scheme heap and stack. */
+    ik_gc_avoidance_collection_t *	C = pcb->not_to_be_collected;
+    while (C) {
+      int	i;
+      for (i=0; i<IK_GC_AVOIDANCE_ARRAY_LEN; ++i) {
+	if (C->slots[i])
+	  C->slots[i] = add_object(&gc, C->slots[i], "not_to_be_collected");
+      }
+      C = C->next;
+    }
+#if 0 /* This is the  old implementation, when the "not  to be collected
+	 list" was an actual Scheme list. */
+    pcb->not_to_be_collected =
+      add_object(&gc, pcb->not_to_be_collected, "not_to_be_collected");
+#endif
+  }
   pcb->next_k		= add_object(&gc, pcb->next_k,		"next_k");
   pcb->symbol_table	= add_object(&gc, pcb->symbol_table,	"symbol_table");
   pcb->gensym_table	= add_object(&gc, pcb->gensym_table,	"gensym_table");
@@ -805,8 +822,8 @@ gc_finalize_guardians (gc_t* gc)
       ikptr last_pair = ref(tc, off_cdr);
       ref(last_pair, off_car) = obj;
       ref(last_pair, off_cdr) = p;
-      ref(p, off_car) = false_object;
-      ref(p, off_cdr) = false_object;
+      ref(p, off_car) = IK_FALSE_OBJECT;
+      ref(p, off_cdr) = IK_FALSE_OBJECT;
       ref(tc, off_cdr) = p;
       dirty_vec[IK_PAGE_INDEX(tc)] = -1;
       dirty_vec[IK_PAGE_INDEX(last_pair)] = -1;
@@ -1052,7 +1069,7 @@ add_list (gc_t* gc, unsigned segment_bits, ikptr X, ikptr* loc)
 
 
 static ikptr
-#if ((defined VICARE_DEBUGGING) && (defined VICARE_DEBUGGING_GC))
+#if (((defined VICARE_DEBUGGING) && (defined VICARE_DEBUGGING_GC)) || (defined DEBUG_ADD_OBJECT))
 add_object_proc (gc_t* gc, ikptr X, char* caller)
 /* Move  the live  object X,  and all  its component  objects, to  a new
    location  and return  a new  machine  word which  must replace  every
@@ -1201,39 +1218,78 @@ add_object_proc (gc_t* gc, ikptr X)
       /* FIXME What the  hell is going on with  this moving operation?!?
 	 It  does not  look like  a legal  move operation  for  RTDs and
 	 struct instances.  (Marco Maggi; Jan 11, 2012) */
-      ikptr	number_of_fields = ref(first_word, off_rtd_length);
+      /* The  layout  of   Vicare's  struct-type  descriptors  and  R6RS
+	 record-type descriptors is as follows:
+
+	 Vicare's struct-type descriptor:
+
+	    RTD  name size  other fields
+	   |----|----|----|------------
+
+	 R6RS record-type descriptor:
+
+	    RTD  name size  other fields
+	   |----|----|----|------------
+
+	 The layout  of Vicare's struct instances  R6RS record instances
+	 is as follows:
+
+	 Vicare's struct instance
+
+	    RTD   fields
+	   |----|---------
+
+	 R6RS record instance:
+
+	    RTD   fields
+	   |----|---------
+
+	 Both  Vicare's  struct-type  descriptors and  R6RS  record-type
+	 descriptors have the total number of fields at the same offset.
+	 The value  in the number-of-fields word  represents: as fixnum,
+	 the number of  fields in an instance; as  C integer, the number
+	 of bytes needed to store the fields of an instance. */
+      ikptr	s_number_of_fields = IK_REF(first_word, off_rtd_length);
       ikptr	Y;
-      if (number_of_fields & ((1<<IK_ALIGN_SHIFT)-1)) {
-        /* number_of_fields = n * object_alignment + 4
+      if (s_number_of_fields & ((1<<IK_ALIGN_SHIFT)-1)) {
+	// fprintf(stderr, "%lx align size %ld\n", X, IK_UNFIX(s_number_of_fields));
+        /* The number of  fields is odd, which means  that the number of
+	   words needed to store this record is even.
+
+	   s_number_of_fields = n * object_alignment + 4
 	   => memreq = n * object_alignment + 8 = (n+1) * object_alignment
 	   => aligned */
-	Y = gc_alloc_new_ptr(number_of_fields+wordsize, gc) | vector_tag;
+	Y = gc_alloc_new_ptr(s_number_of_fields+wordsize, gc) | vector_tag;
         IK_REF(Y, off_record_rtd) = first_word;
         {
           ikptr i;
-          ikptr p = Y + off_record_data; /* P is untagged */
-          ikptr q = X + off_record_data; /* Q is untagged */
-          ref (p, 0) = ref(q, 0);
-          for(i=wordsize; i<number_of_fields; i+=(2*wordsize)) {
-            IK_REF(p, i)          = IK_REF(q, i);
-            IK_REF(p, i+wordsize) = IK_REF(q, i+wordsize);
+          ikptr dst = Y + off_record_data; /* DST is untagged */
+          ikptr src = X + off_record_data; /* SRC is untagged */
+          IK_REF(dst, 0) = IK_REF(src, 0);
+          for (i=wordsize; i<s_number_of_fields; i+=(2*wordsize)) {
+            IK_REF(dst, i)          = IK_REF(src, i);
+            IK_REF(dst, i+wordsize) = IK_REF(src, i+wordsize);
           }
         }
       } else {
-        /* number_of_fields = n * object_alignment
+	// fprintf(stderr, "%lx padded size %ld\n", X, IK_UNFIX(s_number_of_fields));
+        /* The number of fields is  even, which means that the number of
+	   words needed to store this record is odd.
+
+	   s_number_of_fields = n * object_alignment
 	   => memreq = n * object_alignment + 4 + 4 (pad) */
-	Y = gc_alloc_new_ptr(number_of_fields+(2*wordsize), gc) | vector_tag;
+	Y = gc_alloc_new_ptr(s_number_of_fields+(2*wordsize), gc) | vector_tag;
         IK_REF(Y, off_record_rtd) = first_word;
         {
           ikptr i;
-          ikptr p = Y + off_record_data; /* P is untagged */
-          ikptr q = X + off_record_data; /* Q is untagged */
-          for (i=0; i<number_of_fields; i+=(2*wordsize)) {
-            IK_REF(p, i)          = IK_REF(q, i);
-            IK_REF(p, i+wordsize) = IK_REF(q, i+wordsize);
+          ikptr dst = Y + off_record_data; /* DST is untagged */
+          ikptr src = X + off_record_data; /* SRC is untagged */
+          for (i=0; i<s_number_of_fields; i+=(2*wordsize)) {
+            IK_REF(dst, i)          = IK_REF(src, i);
+            IK_REF(dst, i+wordsize) = IK_REF(src, i+wordsize);
           }
         }
-        IK_REF(Y, number_of_fields + off_record_data) = 0;
+        IK_REF(Y, s_number_of_fields + off_record_data) = 0;
       }
       IK_REF(X,          - vector_tag) = IK_FORWARD_PTR;
       IK_REF(X, wordsize - vector_tag) = Y;
@@ -1718,7 +1774,7 @@ fix_weak_pointers(gc_t* gc) {
               } else {
                 int x_gen = segment_vec[IK_PAGE_INDEX(x)] & gen_mask;
                 if (x_gen <= collect_gen) {
-                  ref(p, 0) = bwp_object;
+                  ref(p, 0) = IK_BWP_OBJECT;
                 }
               }
             }
@@ -1942,8 +1998,8 @@ add_one_tconc(ikpcb* pcb, ikptr p) {
   ikptr new_pair = p | pair_tag;
   ref(d, off_car) = tcbucket;
   ref(d, off_cdr) = new_pair;
-  ref(new_pair, off_car) = false_object;
-  ref(new_pair, off_cdr) = false_object;
+  ref(new_pair, off_car) = IK_FALSE_OBJECT;
+  ref(new_pair, off_cdr) = IK_FALSE_OBJECT;
   ref(tc, off_cdr) = new_pair;
   ref(tcbucket, -vector_tag) = (ikptr)(tcbucket_size - wordsize);
   ((int*)(long)pcb->dirty_vector)[IK_PAGE_INDEX(tc)] = -1;

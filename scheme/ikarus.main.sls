@@ -32,12 +32,21 @@
 
 
 (library (ikarus main)
-  (export)
+  (export
+    $struct-guardian
+    struct-guardian-logger
+    struct-guardian-log)
   (import (except (ikarus)
 		  load-r6rs-script
 		  load
-		  host-info)
+		  host-info
+		  $struct-guardian
+		  struct-guardian-logger
+		  struct-guardian-log)
     (prefix (ikarus startup)
+	    config.)
+    (prefix (only (vicare options)
+		  print-loaded-libraries)
 	    config.)
     (only (ikarus.compiler)
 	  generate-debug-calls)
@@ -54,17 +63,23 @@
 	  $initialize-symbol-table!)
     (prefix (only (ikarus load)
 		  load
-		  load-r6rs-script)
+		  load-r6rs-script
+		  fasl-directory
+		  fasl-search-path)
 	    loading.)
     (prefix (only (ikarus.posix)
 		  getenv
 		  real-pathname)
 	    posix.)
+    (only (ikarus system $structs)
+	  $struct-ref
+	  $struct-rtd)
     (only (ikarus cafe)
 	  cafe-input-port)
-    (only (ikarus.readline)
-	  readline-enabled?
-	  make-readline-input-port)
+    (prefix (only (ikarus.readline)
+		  readline-enabled?
+		  make-readline-input-port)
+	    readline.)
     (only (vicare syntactic-extensions)
 	  define-inline))
 
@@ -124,6 +139,10 @@
 		;interaction environment, after  the RC files and before
 		;the load scripts.
 
+   print-libraries
+		;For debugging  purposes: when  true print a  message to
+		;stderr showing which library file is loaded.
+
    eval-codes
 		;Null or  an alist with entries:
 		;
@@ -153,6 +172,14 @@
 		;Null or a list of strings representing directory names:
 		;additional locations in which to search for libraries.
 
+   fasl-search-path
+		;Null or a list of strings representing directory names:
+		;additional locations in which to search for FASL files.
+
+   fasl-directory
+		;False of  a string  representing the initial  value for
+		;the parameter FASL-DIRECTORY.
+
    more-file-extensions
 		;Turn  on search  for more  library file  extension than
 		;".vicare.sls" and ".sls".
@@ -170,6 +197,9 @@
 
 (define-inline (run-time-config-search-path-register! cfg pathname)
   (set-run-time-config-search-path! cfg (cons pathname (run-time-config-search-path cfg))))
+
+(define-inline (run-time-config-fasl-search-path-register! cfg pathname)
+  (set-run-time-config-fasl-search-path! cfg (cons pathname (run-time-config-fasl-search-path cfg))))
 
 (define (run-time-config-rcfiles-register! cfg new-rcfile)
   (let ((rcfiles (run-time-config-rcfiles cfg)))
@@ -200,10 +230,13 @@
 	      (CFG.SCRIPT		(%dot-id ".script"))
 	      (CFG.RCFILES		(%dot-id ".rcfiles"))
 	      (CFG.LOAD-LIBRARIES	(%dot-id ".load-libraries"))
+	      (CFG.PRINT-LIBRARIES	(%dot-id ".print-libraries"))
 	      (CFG.EVAL-CODES		(%dot-id ".eval-codes"))
 	      (CFG.PROGRAM-OPTIONS	(%dot-id ".program-options"))
 	      (CFG.NO-GREETINGS		(%dot-id ".no-greetings"))
 	      (CFG.SEARCH-PATH		(%dot-id ".search-path"))
+	      (CFG.FASL-SEARCH-PATH	(%dot-id ".fasl-search-path"))
+	      (CFG.FASL-DIRECTORY	(%dot-id ".fasl-directory"))
 	      (CFG.MORE-FILE-EXTENSIONS	(%dot-id ".more-file-extensions"))
 	      (CFG.RAW-REPL		(%dot-id ".raw-repl")))
 	   #'(let-syntax
@@ -235,6 +268,13 @@
 		    ((set! _ ?val)
 		     (set-run-time-config-load-libraries! ?cfg ?val))))
 
+		  (CFG.PRINT-LIBRARIES
+		   (identifier-syntax
+		    (_
+		     (run-time-config-print-libraries ?cfg))
+		    ((set! _ ?val)
+		     (set-run-time-config-print-libraries! ?cfg ?val))))
+
 		  (CFG.EVAL-CODES
 		   (identifier-syntax
 		    (_
@@ -262,6 +302,20 @@
 		     (run-time-config-search-path ?cfg))
 		    ((set! _ ?val)
 		     (set-run-time-config-search-path! ?cfg ?val))))
+
+		  (CFG.FASL-SEARCH-PATH
+		   (identifier-syntax
+		    (_
+		     (run-time-config-fasl-search-path ?cfg))
+		    ((set! _ ?val)
+		     (set-run-time-config-fasl-search-path! ?cfg ?val))))
+
+		  (CFG.FASL-DIRECTORY
+		   (identifier-syntax
+		    (_
+		     (run-time-config-fasl-directory ?cfg))
+		    ((set! _ ?val)
+		     (set-run-time-config-fasl-directory! ?cfg ?val))))
 
 		  (CFG.MORE-FILE-EXTENSIONS
 		   (identifier-syntax
@@ -305,10 +359,13 @@
 			  #f		;script
 			  #f		;rcfiles
 			  '()		;load-libraries
+			  #f		;print-libraries
 			  '()		;eval-codes
 			  '()		;program-options
 			  #f		;no-greetings
 			  '()		;search-path
+			  '()		;fasl-search-path
+			  #f		;fasl-directory
 			  #f		;more-file-extensions
 			  #f		;raw-repl
 			  ))
@@ -445,6 +502,14 @@
 	   (set-run-time-config-raw-repl! cfg #t)
 	   (next-option (cdr args) k))
 
+	  ((%option= "--print-loaded-libraries")
+	   (set-run-time-config-print-libraries! cfg #t)
+	   (next-option (cdr args) k))
+
+	  ((%option= "--no-print-loaded-libraries")
+	   (set-run-time-config-print-libraries! cfg #f)
+	   (next-option (cdr args) k))
+
 ;;; --------------------------------------------------------------------
 ;;; Vicare options with argument
 
@@ -483,6 +548,20 @@
 	       (run-time-config-search-path-register! cfg (cadr args))
 	       (next-option (cddr args) k))))
 
+	  ((%option= "--fasl-path")
+	   (if (null? (cdr args))
+	       (%error-and-exit "--fasl-path requires a directory name")
+	     (begin
+	       (run-time-config-fasl-search-path-register! cfg (cadr args))
+	       (next-option (cddr args) k))))
+
+	  ((%option= "--fasl-directory")
+	   (if (null? (cdr args))
+	       (%error-and-exit "--fasl-directory requires a directory name")
+	     (begin
+	       (set-run-time-config-fasl-directory! cfg (cadr args))
+	       (next-option (cddr args) k))))
+
 	  ((%option= "--prompt")
 	   (if (null? (cdr args))
 	       (%error-and-exit "--prompt requires a string argument")
@@ -511,7 +590,7 @@
 (define (print-greetings-screen)
   ;;Print text to give informations at the start of the REPL.
   ;;
-  (define port (current-error-port))
+  (define port (current-output-port))
   (define-inline (%display thing)
     (display thing port))
   (define-inline (%newline)
@@ -533,7 +612,7 @@
   (%newline)
   (%display "
 Copyright (c) 2006-2010 Abdulaziz Ghuloum and contributors
-Copyright (c) 2011 Marco Maggi\n\n"))
+Copyright (c) 2011, 2012 Marco Maggi\n\n"))
 
 (define (print-version-screen)
   ;;Print the version screen.
@@ -542,10 +621,11 @@ Copyright (c) 2011 Marco Maggi\n\n"))
   (display "\
 This is free software; see the  source or use the '--license' option for
 copying conditions.  There is NO warranty; not  even for MERCHANTABILITY
-or FITNESS FOR A PARTICULAR PURPOSE.\n\n" (current-error-port)))
+or FITNESS FOR A PARTICULAR PURPOSE.\n\n" (current-output-port))
+  (flush-output-port (current-output-port)))
 
 (define (print-license-screen)
-  (define port (current-error-port))
+  (define port (current-output-port))
   (print-greetings-screen)
   (display "\
 This file  is free software you  can redistribute it  and/or modify it
@@ -565,7 +645,7 @@ Software Foundation,  Inc., 59  Temple Place -  Suite 330,  Boston, MA
   (flush-output-port port))
 
 (define (print-version-only)
-  (define port (current-error-port))
+  (define port (current-output-port))
   (display config.vicare-version port)
   (newline port)
   (flush-output-port port))
@@ -662,6 +742,15 @@ Other options:
         Add DIRECTORY  to the library  search path.  This option  can be
         used multiple times.
 
+   --fasl-path DIRECTORY
+        Add DIRECTORY to the FASL search path.  This option can  be used
+        multiple times.
+
+   --fasl-directory DIRECTORY
+        Select DIRECTORY  as top  pathname  under  which FASL  files are
+        stored when libraries  are compiled.  When used  multiple times:
+        the last one wins.
+
    --more-file-extensions
         Rather   than    searching   only   libraries   with   extension
         \".vicare.sls\"  and \".sls\",  search also  for \".vicare.ss\",
@@ -688,6 +777,13 @@ Other options:
    -nd
    --no-debug
         Turn off debugging mode.
+
+   --print-loaded-libraries
+        Whenever a library file is loaded print a message on the console
+        error port.  This is for debugging purposes.
+
+   --no-print-loaded-libraries
+        Disables the effect of --print-loaded-libraries.
 
    -O0
    -O1
@@ -727,7 +823,8 @@ is  used  searching  for  it  in  the directory  selected  by  the  HOME
 environment variable.
 
 Consult Vicare Scheme User's Guide for more details.\n\n")
-	   (current-error-port)))
+	   (current-output-port))
+  (flush-output-port (current-output-port)))
 
 
 (define (init-library-path cfg)
@@ -737,7 +834,7 @@ Consult Vicare Scheme User's Guide for more details.\n\n")
 	      ls)
 	    ls))
   (with-run-time-config (cfg)
-    (library-path (append cfg.search-path
+    (library-path (append (reverse cfg.search-path)
 			  (cond ((posix.getenv "VICARE_LIBRARY_PATH")
 				 => split-path)
 				(else '()))
@@ -747,7 +844,31 @@ Consult Vicare Scheme User's Guide for more details.\n\n")
       (library-extensions (%prefix "/main"
 				   (%prefix ".vicare" '(".sls" ".ss" ".scm")))))))
 
+(define (init-fasl-search-path cfg)
+  (with-run-time-config (cfg)
+    (when cfg.fasl-directory
+      (if (file-exists? cfg.fasl-directory)
+	  (loading.fasl-directory (posix.real-pathname cfg.fasl-directory))
+	(error 'init-fasl-search-path
+	  "invalid fasl directory pathname" cfg.fasl-directory)))
+    (loading.fasl-search-path (append
+			       (if cfg.fasl-directory
+				   (if (file-exists? cfg.fasl-directory)
+				       (list (posix.real-pathname cfg.fasl-directory))
+				     '())
+				 '())
+			       (reverse cfg.fasl-search-path)
+			       (cond ((posix.getenv "VICARE_FASL_PATH")
+				      => split-path)
+				     (else '()))
+			       (loading.fasl-search-path)))))
+
 (define (split-path input-string)
+  ;;Convert  the  input  string  holding  a  search  pathname  as  colon
+  ;;separated  sequence into  a  list of  strings representing  absolute
+  ;;pathnames.  If  an input  pathname does not  exists: it  is silently
+  ;;discarded.
+  ;;
   (define (nodata idx input-string ls)
     (cond ((= idx (string-length input-string))
 	   ls)
@@ -757,12 +878,16 @@ Consult Vicare Scheme User's Guide for more details.\n\n")
 	   (data (+ idx 1) input-string ls (list (string-ref input-string idx))))))
   (define (data idx input-string ls accum)
     (cond ((= idx (string-length input-string))
-	   (cons (posix.real-pathname (list->string (reverse accum)))
-		 ls))
+	   (let ((name (list->string (reverse accum))))
+	     (if (file-exists? name)
+		 (cons (posix.real-pathname name) ls)
+	       ls)))
 	  ((char=? (string-ref input-string idx) #\:)
 	   (nodata (+ idx 1) input-string
-		   (cons (posix.real-pathname (list->string (reverse accum)))
-			 ls)))
+		   (let ((name (list->string (reverse accum))))
+		     (if (file-exists? name)
+			 (cons (posix.real-pathname name) ls)
+		       ls))))
 	  (else
 	   (data (+ idx 1) input-string ls (cons (string-ref input-string idx) accum)))))
   (reverse (nodata 0 input-string '())))
@@ -864,7 +989,7 @@ Consult Vicare Scheme User's Guide for more details.\n\n")
     (doit
      (let-values (((lib* invoke-code macro* export-subst export-env)
 		   (top-level-expander (read-script-source-file cfg.script))))
-       (define port (current-error-port))
+       (define port (current-output-port))
        (pretty-print invoke-code port)
        ;; (newline port)
        ;; (pretty-print lib* port)
@@ -879,8 +1004,99 @@ Consult Vicare Scheme User's Guide for more details.\n\n")
 
 ;;;; main expressions
 
-;;See "ikarus.symbol-table.ss" for an explanation of this.
-($initialize-symbol-table!)
+(module ()
+  ;;See "ikarus.symbol-table.ss"  for an  explanation of  this.  Nothing
+  ;;must be executed before the initialisation of the symbol table.
+  ($initialize-symbol-table!)
+
+  #| end of module |#)
+
+(module ($struct-guardian struct-guardian-logger struct-guardian-log)
+  (define %struct-guardian
+    (make-guardian))
+
+  (define ($struct-guardian S)
+    (let ((logger (struct-guardian-logger)))
+      (cond ((procedure? logger)
+	     (guard (E (else (void)))
+	       (logger S #f 'registration))
+	     (%struct-guardian S))
+	    (logger
+	     (guard (E (else (void)))
+	       (struct-guardian-log S #f 'registration))
+	     (%struct-guardian S))
+	    (else
+	     (%struct-guardian S)))))
+
+  (define struct-guardian-logger
+    (make-parameter #f
+      (lambda (obj)
+	(cond ((or (boolean? obj)
+		   (procedure? obj))
+	       obj)
+	      (obj	#t)
+	      (else	#f)))))
+
+  (define (struct-guardian-log S E action)
+    (case action
+      ((registration)
+       (fprintf (current-error-port)
+		"*** Vicare debug: struct guardian: registered struct:\n\
+                 ***\t~s\n" S))
+      ((before-destruction)
+       (fprintf (current-error-port)
+		"*** Vicare debug: struct guardian: before destruction:\n\
+                 ***\t~s\n" S))
+      ((after-destruction)
+       (fprintf (current-error-port)
+		"*** Vicare debug: struct guardian: after destruction:\n\
+                 ***\t~s\n" S))
+      ((exception)
+       (fprintf (current-error-port)
+		"*** Vicare debug: struct guardian: exception:\n\
+                 ***\t~s\n\
+                 ***\t~s\n" S E))
+      (else
+       (assertion-violation 'struct-guardian-log
+	 "invalid action in struct destruction process" S action))))
+
+  (define (%struct-guardian-destructor)
+    (guard (E (else (void)))
+      (define-inline (%execute ?S ?body0 . ?body)
+	(do ((?S (%struct-guardian) (%struct-guardian)))
+	    ((not ?S))
+	  ?body0 . ?body))
+      (define-inline (%extract-destructor S)
+	($struct-ref ($struct-rtd S) 5))
+      (define-inline (%call-logger ?logger ?struct ?exception ?action)
+	(guard (E (else (void)))
+	  (?logger ?struct ?exception ?action)))
+      (let ((logger (struct-guardian-logger)))
+	(cond ((procedure? logger)
+	       (%execute S
+		 (guard (E (else
+			    (%call-logger logger S E 'exception)))
+		   (%call-logger logger S #f 'before-destruction)
+		   ((%extract-destructor S) S)
+		   (%call-logger logger S #f 'after-destruction)
+		   (struct-reset S))))
+	      (logger
+	       (%execute S
+		 (guard (E (else
+			    (%call-logger struct-guardian-log S E 'exception)))
+		   (%call-logger struct-guardian-log S #f 'before-destruction)
+		   ((%extract-destructor S) S)
+		   (%call-logger struct-guardian-log S #f 'after-destruction)
+		   (struct-reset S))))
+	      (else
+	       (%execute S
+		 (guard (E (else (void)))
+		   ((%extract-destructor S) S)
+		   (struct-reset S))))))))
+
+  (post-gc-hooks (cons %struct-guardian-destructor (post-gc-hooks)))
+
+  #| end of module |# )
 
 (let-values (((cfg execution-state-initialisation-according-to-command-line-options)
 	      (parse-command-line-arguments)))
@@ -890,7 +1106,9 @@ Consult Vicare Scheme User's Guide for more details.\n\n")
 	(print-greetings-screen)))
 
     (init-library-path cfg)
+    (init-fasl-search-path cfg)
     (load-rc-files-as-r6rs-scripts cfg)
+    (config.print-loaded-libraries cfg.print-libraries)
 
     (execution-state-initialisation-according-to-command-line-options)
     ;;Added to fix Vicare issue #3.  The optimisation code is unfinished
@@ -901,8 +1119,8 @@ Consult Vicare Scheme User's Guide for more details.\n\n")
 	       (current-error-port)))
     (optimize-level 0)
 
-    (when (and (readline-enabled?) (not cfg.raw-repl))
-      (cafe-input-port (make-readline-input-port)))
+    (when (and (readline.readline-enabled?) (not cfg.raw-repl))
+      (cafe-input-port (readline.make-readline-input-port)))
 
     (cond ((eq? 'repl cfg.exec-mode)
 	   (command-line-arguments (cons "*interactive*" cfg.program-options)))
@@ -951,4 +1169,5 @@ Consult Vicare Scheme User's Guide for more details.\n\n")
 ;;; end of file
 ;;Local Variables:
 ;;eval: (put 'with-run-time-config 'scheme-indent-function 1)
+;;eval: (put '%execute 'scheme-indent-function 1)
 ;;End:

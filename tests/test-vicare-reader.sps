@@ -27,7 +27,7 @@
 
 #!vicare
 (import (vicare)
-  (checks))
+  (vicare checks))
 
 (print-unicode #f)
 (check-set-mode! 'report-failed)
@@ -124,8 +124,8 @@
   (read-symbol-and-eof "->-ciao"	"->-ciao")
 
   (read-and-lexical-violation "-ciao"		"-c")
-  (read-and-lexical-violation "--ciao"		"--")
-  (read-and-lexical-violation "-->ciao"		"--")
+  (read-and-lexical-violation "#!r6rs --ciao"	no-irritants)
+  (read-and-lexical-violation "#!r6rs -->ciao"	no-irritants)
   (read-and-lexical-violation "-i123"		"-i1")
   (read-and-lexical-violation "-iCIAO"		"-iC")
   (read-and-lexical-violation "-i-ciao"		"-i-")
@@ -234,6 +234,16 @@
       (let ((sym (read (open-string-input-port "#{d |95BEx%X86N?8X&yC|}"))))
   	(gensym->unique-string sym))
     => '"95BEx%X86N?8X&yC")
+
+  #t)
+
+
+(parametrise ((check-test-name	'keywords))
+
+  (check
+      (let ((key (read (open-string-input-port "#:ciao"))))
+	(list (keyword? key) (symbol->string (keyword->symbol key))))
+    => '(#t "ciao"))
 
   #t)
 
@@ -532,19 +542,33 @@
 
   (read-number-and-eof "1.1+2.2i"	1.1+2.2i)
   (read-number-and-eof "1.+2.2i"	1.0+2.2i)
-  (read-number-and-eof "1.1+2.i"	1.0+2.i)
+  (read-number-and-eof "1.1+2.i"	1.1+2.i)
   (read-number-and-eof "1.+2.i"		1.+2.i)
   (read-number-and-eof "1.+2.i"		1.+2.i)
 
   (read-number-and-eof "1.1@2.2"	1.1@2.2)
   (read-number-and-eof "1.@2.2"		1.0@2.2)
-  (read-number-and-eof "1.1@2."		1.0@2.)
+  (read-number-and-eof "1.1@2."		1.1@2.)
+  (read-number-and-eof "1.@2."		1.0@2.0)
   (read-number-and-eof "1.@2."		1.@2.)
   (read-number-and-eof "1.@2."		1.@2.)
 
 ;;; --------------------------------------------------------------------
-;;;
+;;; compnums
 
+  (read-number-and-eof "1+2i"		1+2i)
+  (read-number-and-eof "1/2+2i"		1/2+2i)
+  (read-number-and-eof "1+2/3i"		1+2/3i)
+
+  (read-number-and-eof "1@2"		1@2)
+  (read-number-and-eof "1.2@3"		1.2@3)
+  (read-number-and-eof "1@2.3"		1@2.3)
+  (read-number-and-eof "1/1@2"		1/1@2)
+  (read-number-and-eof "1/2@2"		1/2@2)
+  (read-number-and-eof "1@2/3"		1@2/3)
+  (read-number-and-eof "1/1@2/3"	1/1@2/3)
+  (read-number-and-eof "1/4@2/3"	1/4@2/3)
+  (read-number-and-eof "12/45@789/321"	12/45@789/321)
 
 ;;; --------------------------------------------------------------------
 ;;; distinguishing between numbers and symbols
@@ -555,6 +579,26 @@
   (read-number-and-eof "+inf.0"		+inf.0)
   (read-number-and-eof "-nan.0"		+nan.0)
   (read-number-and-eof "+nan.0"		+nan.0)
+
+;;; --------------------------------------------------------------------
+;;; base 2
+
+  (read-number-and-eof "#b1101"		#b1101)
+
+;;; --------------------------------------------------------------------
+;;; base 8
+
+  (read-number-and-eof "#o1234"		#o1234)
+
+;;; --------------------------------------------------------------------
+;;; base 10
+
+  (read-number-and-eof "#d9876"		#d9876)
+
+;;; --------------------------------------------------------------------
+;;; base 16
+
+  (read-number-and-eof "#x12AF"		#x12AF)
 
   #t)
 

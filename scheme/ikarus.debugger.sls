@@ -18,21 +18,33 @@
 ;;;along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ;;;
 
+
 (library (ikarus.debugger)
-  (export debug-call
-	  guarded-start
-          make-traced-procedure
-	  make-traced-macro)
+  (export
+    debug-call			guarded-start
+    make-traced-procedure	make-traced-macro
+
+    integer->machine-word	machine-word->integer)
   (import (except (ikarus)
 		  make-traced-procedure
 		  make-traced-macro
 
-		  display write newline printf pretty-print write-char
+		  integer->machine-word
+		  machine-word->integer
+
+		  display write newline printf
+		  pretty-print pretty-print* write-char
 		  print-condition)
     (prefix (only (ikarus)
-		  display write newline printf pretty-print write-char
+		  display write newline printf
+		  pretty-print pretty-print* write-char
 		  print-condition)
-	    ikarus.))
+	    ikarus.)
+    (vicare syntactic-extensions)
+    (prefix (vicare words)
+	    words.)
+    (prefix (vicare unsafe-capi)
+	    capi.))
 
 
 ;;;; data types
@@ -56,6 +68,13 @@
 (define (trace-expr x)
   (let ((x (trace-src/expr x)))
     (if (pair? x) (cdr x) #f)))
+
+
+;;;; arguments validation
+
+(define-argument-validation (ulong who obj)
+  (words.unsigned-long? obj)
+  (assertion-violation who "expected exact integer representing unsigned long as argument" obj))
 
 
 ;;;; helpers
@@ -85,9 +104,9 @@
     (apply fprintf port args)
     (flush-output-port port)))
 
-(define (%pretty-print thing)
+(define (%pretty-print thing start-column)
   (let ((port (console-output-port)))
-    (ikarus.pretty-print thing)
+    (ikarus.pretty-print* thing port start-column #t)
     (flush-output-port port)))
 
 (define (print-condition con)
@@ -117,8 +136,21 @@
 					     count)
 					   #f #f #f))
         (parameterize ((print-graph #f))
-          (%write x))
+	  (ikarus.write x p)
+	  (flush-output-port p))
         (substring str 0 n))))
+
+
+;;;; utilities
+
+(define (integer->machine-word int)
+  (define who 'integer->machine-word)
+  (with-arguments-validation (who)
+      ((ulong int))
+    (foreign-call "ikrt_integer_to_machine_word" int)))
+
+(define (machine-word->integer w)
+  (foreign-call "ikrt_integer_from_machine_word" w))
 
 
 (define (stacked-call pre thunk post)
@@ -283,10 +315,11 @@
     (if (> (string-length x) 60)
 	(format "~a#..." (substring x 0 56))
       x))
-  (let ((n (car x)) (x (cdr x)))
-    ;;      (%printf " [~a] ~s\n" n (trace-expr x))
-    (%printf " [~a] " n)
-    (%pretty-print (trace-expr x))
+  (let ((n (car x))
+	(x (cdr x)))
+    (let ((str (format " [~a] " n)))
+      (%printf str)
+      (%pretty-print (trace-expr x) (string-length str)))
     (let ((src (trace-src x)))
       (when (pair? src)
 	(%printf "     source: char ~a of ~a\n" (cdr src) (car src))))
@@ -340,7 +373,7 @@
 		  (lambda (x)
 		    (case x
 		      ((R r) (k (lambda () (raise-continuable con))))
-		      ((Q q) (exit 0))
+		      ((Q q) (exit 99))
 		      ((T t) (print-all-traces))
 		      ((C c) (k void))
 		      ((?)   (help))

@@ -19,35 +19,37 @@
 (library (ikarus.reader)
   (export
     ;; public functions
-    read get-datum get-annotated-datum
+    read			get-datum
+    get-annotated-datum
 
     ;; annotated datum inspection
-    annotation? annotation-expression annotation-stripped
-    annotation-source annotation-textual-position
+    annotation?
+    annotation-expression	annotation-stripped
+    annotation-source		annotation-textual-position
 
     ;; internal functions only for Vicare
-    read-source-file read-script-source-file
+    read-source-file		read-script-source-file
     read-library-source-file)
   (import (except (ikarus)
 		  ;; public functions
-		  read get-datum get-annotated-datum
+		  read				get-datum
+		  get-annotated-datum
 
 		  ;; annotated datum inspection
-		  annotation? annotation-expression annotation-stripped
-		  annotation-source annotation-textual-position
+		  annotation?
+		  annotation-expression		annotation-stripped
+		  annotation-source		annotation-textual-position
 
 		  ;; internal functions only for Vicare
-		  read-source-file read-script-source-file
+		  read-source-file		read-script-source-file
 		  read-library-source-file)
     (only (vicare.foreign-libraries)
 	  register-filename-foreign-library
 	  autoload-filename-foreign-library)
     (vicare syntactic-extensions)
-    (vicare words)
+    (prefix (vicare words) words.)
     (prefix (vicare unsafe-operations)
-	    unsafe.)
-    (only (ikarus.string-to-number)
-	  define-string->number-parser))
+	    unsafe.))
 
 
 ;;;; syntax helpers
@@ -168,8 +170,8 @@
 
 ;;;; interface to low level functions
 
-(define-inline (%seed-strings->gensym id0 id1)
-  (foreign-call "ikrt_strings_to_gensym" id0 id1))
+(define-inline (%seed-strings->gensym pretty-string unique-string)
+  (foreign-call "ikrt_strings_to_gensym" pretty-string unique-string))
 
 
 ;;;; annotated datums
@@ -188,7 +190,7 @@
 ;;
 ;;Field name: textual-position
 ;;Field accessor: annotation-textual-position ANN
-;;  A  condtion  object  of  type  "&source-position"  representing  the
+;;  A  condition  object  of  type "&source-position"  representing  the
 ;;  position of  the expression in the  source code.  It is  used by the
 ;;  expander.
 ;;
@@ -206,6 +208,22 @@
 		   (cons (source-position-port-id   textual-pos)
 			 (source-position-character textual-pos))
 		   textual-pos))
+
+(define (%annotation-printer S port sub-printer)
+  (define-inline (%display thing)
+    (display thing port))
+  (define-inline (%write thing)
+    (write thing port))
+  (%display "#[annotation")
+;;;Writing the annotation expression makes the output really unreadable
+;;;
+  (%display " expression=#<omitted>")
+  (%display " stripped=")		(%write (annotation-stripped S))
+;;;Avoid  printing the SOURCE  field because  it may  be removed  in the
+;;;future  and all  its informations  are also  in  the TEXTUAL-POSITION
+;;;field.
+  (%display " textual-position=")	(%write (annotation-textual-position S))
+  (%display "]"))
 
 
 ;;;; graph notation location structures
@@ -382,9 +400,7 @@
       (unsafe.char= ch #\;)
       (unsafe.char= ch #\{)
       (unsafe.char= ch #\})
-      (unsafe.char= ch #\|))
-  #;(or (char-whitespace? ch)
-      (memq ch '(#\( #\) #\[ #\] #\" #\# #\; #\{ #\} #\|))))
+      (unsafe.char= ch #\|)))
 
 (define-inline (dec-digit? ch)
   (and (unsafe.char<= #\0 ch) (unsafe.char<= ch #\9)))
@@ -414,8 +430,7 @@
       (unsafe.char= ch #\?)
       (unsafe.char= ch #\^)
       (unsafe.char= ch #\_)
-      (unsafe.char= ch #\~))
-  #;(memq c '(#\! #\$ #\% #\& #\* #\/ #\: #\< #\= #\> #\? #\^ #\_ #\~)))
+      (unsafe.char= ch #\~)))
 
 (define (special-subsequent? ch)
   (or (unsafe.char= ch #\+)
@@ -748,7 +763,7 @@
 (define (start-tokenising port)
   ;;Recursive  function.  Start  tokenizing  the next  datum from  PORT,
   ;;discarding  comments  and  whitespaces; after  discarding  something
-  ;;recurse  calling itself;  if the  first  character is  a #  delegate
+  ;;recurse calling  itself; if  the first character  is a  #\# delegate
   ;;actual   parsing   to   ADVANCE-TOKENISATION-OF-HASH-DATUM/C;   else
   ;;delegate actual parsing to ADVANCE-TOKENISATION-OF-NON-HASH-DATUM/C.
   ;;
@@ -867,6 +882,18 @@
 	 (let ((ch1 (peek-char port)))
 	   (cond ((eof-object? ch1)	'(datum . +))
 		 ((delimiter?  ch1)	'(datum . +))
+
+		 ((unsafe.char= #\+ ch1)
+		  (if (port-in-r6rs-mode? port)
+		      (%error "++ syntax is invalid in #!r6rs mode")
+		    (begin
+		      (get-char-and-track-textual-position port)
+		      (let ((ch2 (peek-char port)))
+			(if (or (eof-object? ch2)
+				(delimiter?  ch2))
+			    '(datum . |++|)
+			  (%error "invalid syntax ++"))))))
+
 		 (else
 		  (cons 'datum (u:sign port '(#\+) 10 #f #f +1))))))
 
@@ -887,6 +914,17 @@
 		 ((unsafe.char= ch1 #\>)
 		  (get-char-and-track-textual-position port)
 		  (finish-tokenisation-of-identifier '(#\> #\-) port #t))
+
+		 ((unsafe.char= #\- ch1)
+		  (if (port-in-r6rs-mode? port)
+		      (%error "-- syntax is invalid in #!r6rs mode")
+		    (begin
+		      (get-char-and-track-textual-position port)
+		      (let ((ch2 (peek-char port)))
+			(if (or (eof-object? ch2)
+				(delimiter?  ch2))
+			    '(datum . |--|)
+			  (%error "invalid syntax --"))))))
 
 		 ;;number
 		 (else
@@ -926,6 +964,7 @@
   ;;(datum . #f)		The token is the value #f.
   ;;(datum . <char>)		The token is the character <char>.
   ;;(datum . <sym>)		The token is the symbol <sym>.
+  ;;(datum . <key>)		The token is the keyword object <key>.
   ;;(datum . <num>)		The token is the number <num>.
   ;;(datum . #!eof)		The token is the "#!eof" comment.
   ;;(macro . syntax)		The token is a syntax form: #'---.
@@ -1021,21 +1060,41 @@
 		  (start-tokenising port))))))))
 
    ((dec-digit? ch)
-    (when (port-in-r6rs-mode? port)
-      (%error-1 "graph notation marks syntax is invalid in #!r6rs mode" (string #\# ch)))
-    (finish-tokenisation-of-graph-location port (char->dec-digit ch)))
+    (if (port-in-r6rs-mode? port)
+	(%error-1 "graph notation marks syntax is invalid in #!r6rs mode" (string #\# ch))
+      (finish-tokenisation-of-graph-location port (char->dec-digit ch))))
 
    ((unsafe.char= #\: ch)
-    (when (port-in-r6rs-mode? port)
-      (%error-1 "gensym syntax is invalid in #!r6rs mode" (format "#~a" ch)))
-    (let* ((ch1 (read-char-skip-whitespace port "gensym"))
-	   (id0 (cond ((initial? ch1)
-		       (reverse-list->string (%accumulate-identifier-chars (cons ch1 '()) port)))
-		      ((unsafe.char= #\| ch1)
-		       (reverse-list->string (%accumulate-identifier-chars/bar '() port)))
-		      (else
-		       (%error-1 "invalid char inside gensym" ch1)))))
-      (cons 'datum (gensym id0))))
+    (if (port-in-r6rs-mode? port)
+	(%error-1 "keyword object syntax is invalid in #!r6rs mode" "#:")
+      (let* ((ch1 (%read-char-skip-whitespace port "keyword object"))
+	     (keyword-name
+	      (if (initial? ch1)
+		  (reverse-list->string (%accumulate-identifier-chars (cons ch1 '()) port))
+		(%error-1 "invalid char inside keyword object" ch1))))
+	(cons 'datum (symbol->keyword (string->symbol keyword-name))))))
+
+;;;The original Ikarus code used the syntax:
+;;;
+;;;  #:pretty
+;;;
+;;;to  read a  gensym  with PRETTY  as  pretty string.   Such syntax  is
+;;;currently used to read keyword objects.  It is currently not possible
+;;;to read a  gensym by pretty string (because I was  unable to invent a
+;;;cute syntax for them).  (Marco Maggi; Mon Mar 12, 2012)
+;;;
+;;;((unsafe.char= #\: ch)
+;;; (if (port-in-r6rs-mode? port)
+;;;     (%error-1 "gensym syntax is invalid in #!r6rs mode" (format "#~a" ch))
+;;;   (let* ((ch1 (%read-char-skip-whitespace port "gensym"))
+;;;          (pretty-name
+;;;           (cond ((initial? ch1)
+;;;                  (reverse-list->string (%accumulate-identifier-chars (cons ch1 '()) port)))
+;;;                 ((unsafe.char= #\| ch1)
+;;;                  (reverse-list->string (%accumulate-identifier-chars/bar '() port)))
+;;;                 (else
+;;;                  (%error-1 "invalid char inside gensym" ch1)))))
+;;;     (cons 'datum (gensym pretty-name)))))
 
    ;;Gensym with one of the following syntaxes:
    ;;
@@ -1054,8 +1113,8 @@
    ((unsafe.char= #\{ ch)
     (when (port-in-r6rs-mode? port)
       (%error-1 "gensym syntax is invalid in #!r6rs mode" "#{"))
-    (let ((ch1 (read-char-skip-whitespace port "gensym")))
-      (define-inline (%end-syntax? chX)
+    (let ((ch1 (%read-char-skip-whitespace port "gensym")))
+      (define-inline (%end-of-gensym? chX)
 	(unsafe.char= #\} chX))
       (define-inline (%read-identifier chX)
 	(cond ((initial? chX)
@@ -1065,12 +1124,14 @@
 	      (else
 	       (%error-1 "invalid char inside gensym syntax" chX))))
       (let ((id0 (%read-identifier ch1))
-	    (ch2 (read-char-skip-whitespace port "gensym")))
-	(if (%end-syntax? ch2)
+	    (ch2 (%read-char-skip-whitespace port "gensym")))
+	(if (%end-of-gensym? ch2)
+	    ;;ID0 is the unique string.
 	    `(datum . ,(%seed-strings->gensym #f id0))
 	  (let* ((id1 (%read-identifier ch2))
-		 (ch3 (read-char-skip-whitespace port "gensym")))
-	    (if (%end-syntax? ch3)
+		 (ch3 (%read-char-skip-whitespace port "gensym")))
+	    (if (%end-of-gensym? ch3)
+		;;ID0 is the pretty string, ID1 is the unique string.
 		`(datum . ,(%seed-strings->gensym id0 id1))
 	      (%error-1 "invalid char while looking for end of gensym syntax" ch3)))))))
 
@@ -1078,23 +1139,29 @@
    ((unsafe.char= #\v ch)
     (advance-tokenisation-of-bytevectors port))
 
-   ((or (unsafe.char= ch #\e) (unsafe.char= ch #\E)) #;(memq ch '(#\e #\E))
-    (cons 'datum (parse-string port (list ch #\#) 10 #f 'e)))
+   ;; #eNNNN -> exact integer number
+   ((or (unsafe.char= ch #\e) (unsafe.char= ch #\E))
+    (cons 'datum (parse-numeric-string port (list ch #\#) 10 #f 'e)))
 
-   ((or (unsafe.char= ch #\i) (unsafe.char= ch #\I)) #;(memq ch '(#\i #\I))
-    (cons 'datum (parse-string port (list ch #\#) 10 #f 'i)))
+   ;; #iNNNN -> inexact integer number
+   ((or (unsafe.char= ch #\i) (unsafe.char= ch #\I))
+    (cons 'datum (parse-numeric-string port (list ch #\#) 10 #f 'i)))
 
-   ((or (unsafe.char= ch #\b) (unsafe.char= ch #\B)) #;(memq ch '(#\b #\B))
-    (cons 'datum (parse-string port (list ch #\#) 2 2 #f)))
+   ;; #bNNNN -> exact integer number in binary base
+   ((or (unsafe.char= ch #\b) (unsafe.char= ch #\B))
+    (cons 'datum (parse-numeric-string port (list ch #\#) 2 2 #f)))
 
-   ((or (unsafe.char= ch #\x) (unsafe.char= ch #\X)) #;(memq ch '(#\x #\X))
-    (cons 'datum (parse-string port (list ch #\#) 16 16 #f)))
+   ;; #xNNNN -> exact integer number in hex base
+   ((or (unsafe.char= ch #\x) (unsafe.char= ch #\X))
+    (cons 'datum (parse-numeric-string port (list ch #\#) 16 16 #f)))
 
-   ((or (unsafe.char= ch #\o) (unsafe.char= ch #\O)) #;(memq ch '(#\o #\O))
-    (cons 'datum (parse-string port (list ch #\#) 8 8 #f)))
+   ;; #oNNNN -> exact integer number in octal base
+   ((or (unsafe.char= ch #\o) (unsafe.char= ch #\O))
+    (cons 'datum (parse-numeric-string port (list ch #\#) 8 8 #f)))
 
-   ((or (unsafe.char= ch #\d) (unsafe.char= ch #\D)) #;(memq ch '(#\d #\D))
-    (cons 'datum (parse-string port (list ch #\#) 10 10 #f)))
+   ;; #dNNNN -> exact integer number in decimal base
+   ((or (unsafe.char= ch #\d) (unsafe.char= ch #\D))
+    (cons 'datum (parse-numeric-string port (list ch #\#) 10 10 #f)))
 
    ((unsafe.char= ch #\c)
     (let ((ch1 (get-char-and-track-textual-position port)))
@@ -2351,41 +2418,101 @@
 
 ;;;; reading numbers
 
-(let-syntax ((num-error (syntax-rules ()
-			  ((_ p str ls)
-			   (die/p-1 p 'vicare-reader str (reverse-list->string ls))))))
-  (define-syntax port-config
-    (syntax-rules (GEN-TEST GEN-ARGS FAIL EOF-ERROR GEN-DELIM-TEST)
-      ((_ GEN-ARGS k . rest) (k (p ac) . rest))
-      ((_ FAIL (p ac))
-       (num-error p "invalid numeric sequence" ac))
-      ((_ FAIL (p ac) c)
-       (num-error p "invalid numeric sequence" (cons c ac)))
-      ((_ EOF-ERROR (p ac))
-       (num-error p "invalid eof while reading number" ac))
-      ((_ GEN-DELIM-TEST c sk fk)
-       (if (delimiter? c) sk fk))
-      ((_ GEN-TEST var next fail (p ac) eof-case char-case)
-       (let ((c (peek-char p)))
-	 (if (eof-object? c)
-	     (let ()
-	       (define-syntax fail
-		 (syntax-rules ()
-		   ((_) (num-error p "invalid numeric sequence" ac))))
-	       eof-case)
-	   (let ((var c))
-	     (define-syntax fail
-	       (syntax-rules ()
-		 ((_)
-		  (num-error p "invalid numeric sequence" (cons var ac)))))
-	     (define-syntax next
-	       (syntax-rules ()
-		 ((_ who args (... ...))
-		  (who p (cons (get-char p) ac) args (... ...)))))
-	     char-case)))))))
+(module (parse-numeric-string u:digit+ u:sign u:dot)
+  (import
+      (only (vicare parser-logic)
+	    :introduce-device-arguments
+	    :generate-end-of-input-or-char-tests
+	    :generate-delimiter-test
+	    :unexpected-end-of-input
+	    :invalid-input-char)
+    (only (ikarus.string-to-number)
+	  define-string->number-parser))
 
-(define-string->number-parser port-config
-  (parse-string u:digit+ u:sign u:dot))
+  (define-syntax port-logic
+    ;;Define the device logic to  parse a numeric lexeme embedded in the
+    ;;input from a Scheme textual input port.
+    ;;
+    (syntax-rules (:introduce-device-arguments
+		   :generate-end-of-input-or-char-tests
+		   :generate-delimiter-test
+		   :unexpected-end-of-input
+		   :invalid-input-char)
+
+      ;;Introduce  a   list  of  identifiers   used  as  device-specific
+      ;;arguments;  they will  be the  first arguments  for  each parser
+      ;;operator function.
+      ;;
+      ((_ :introduce-device-arguments ?kont . ?rest)
+       (?kont (port accumulated-chars) . ?rest))
+
+      ;;Whenever  an input  character  is not  accepted  by an  operator
+      ;;function  this rule is  used to  decide what  to do.   For input
+      ;;ports the action is to raise an exception.
+      ((_ :invalid-input-char (?port ?accumulated-chars) ?ch)
+       (%error-invalid-sequence ?port (cons ?ch ?accumulated-chars)))
+
+      ;;Whenever the end-of-input is found  in a position in which it is
+      ;;unexpected, this rule  is used to decide what  to do.  For input
+      ;;ports the action is to raise an exception.
+      ((_ :unexpected-end-of-input (?port ?accumulated-chars))
+       (%error-unexpected-eof ?port ?accumulated-chars))
+
+      ;;This rule is used for input devices for which the numeric string
+      ;;is embedded into a sequence of other characters, so there exists
+      ;;a set of characters  that delimit the end-of-number.  The parser
+      ;;delegates  to the  device  the responsibility  of knowing  which
+      ;;characters are delimiters, if any.
+      ;;
+      ;;When the input  device is an input port:  we test for delimiters
+      ;;as specified by R6RS.
+      ((_ :generate-delimiter-test ?ch-var ?ch-is-delimiter-kont ?ch-is-not-delimiter-kont)
+       (if (delimiter? ?ch-var)
+	   ?ch-is-delimiter-kont
+	 ?ch-is-not-delimiter-kont))
+
+      ;;This rule is used to generate the "next input char" tests for an
+      ;;operator function.   First of all the  end-of-input condition is
+      ;;checked;  then  the continuation  form  for  more characters  is
+      ;;expanded.
+      ((_ :generate-end-of-input-or-char-tests ?ch-var ?next ?fail
+	  (?port ?accumulated-chars)
+	  ?end-of-input-kont ?parse-input-char-kont)
+       (let ((?ch-var (peek-char ?port)))
+	 (if (eof-object? ?ch-var)
+	     (let-syntax
+		 ((?fail (syntax-rules ()
+			   ((_)
+			    (%error-invalid-sequence ?port ?accumulated-chars)))))
+	       ?end-of-input-kont)
+	   (let-syntax
+	       ((?fail (syntax-rules ()
+			 ((_)
+			  (%error-invalid-sequence ?port (cons ?ch-var ?accumulated-chars)))))
+		(?next (syntax-rules ()
+			 ((_ who args (... ...))
+			  (who ?port (cons (get-char ?port) ?accumulated-chars) args (... ...))))))
+	     ?parse-input-char-kont))))
+      ))
+
+  (define-syntax %error-invalid-sequence
+    (syntax-rules ()
+      ((_ ?port ?accumulated-characters)
+       (die/p-1 ?port 'vicare-reader
+		"invalid sequence of characters while parsing numeric lexeme"
+		(reverse-list->string ?accumulated-characters)))))
+
+  (define-syntax %error-unexpected-eof
+    (syntax-rules ()
+      ((_ ?port ?accumulated-characters)
+       (die/p-1 ?port 'vicare-reader
+		"unexpected end of input while parsing numeric lexeme"
+		(reverse-list->string ?accumulated-characters)))))
+
+  (define-string->number-parser port-logic
+    (parse-numeric-string u:digit+ u:sign u:dot))
+
+  #| end of module |# )
 
 
 ;;;; reading comments
@@ -2512,7 +2639,7 @@
 	      (else
 	       (%error-1 (format "invalid ~a: ~s" who (reverse-list->string (cons ch ls))))))))))
 
-(define (read-char-skip-whitespace port caller)
+(define (%read-char-skip-whitespace port caller)
   ;;Read and  discard characters from  PORT while they are  white spaces
   ;;according  to  CHAR-WHITESPACE?.  Return  the  first character  read
   ;;which is not a white space.
@@ -2523,10 +2650,10 @@
   (define-inline (%error msg . args)
     (die/p port 'tokenize msg . args))
   (define-inline (recurse)
-    (read-char-skip-whitespace port caller))
+    (%read-char-skip-whitespace port caller))
   (let ((ch (get-char-and-track-textual-position port)))
     (cond ((eof-object? ch)
-	   (%error "invalid EOF inside" caller))
+	   (%error (string-append "invalid EOF while parsing " caller)))
 	  ((char-whitespace? ch)
 	   (recurse))
 	  (else ch))))
@@ -2758,13 +2885,13 @@
 
 (define-finish-bytevector finish-tokenisation-of-bytevector-u8
   'vu8			     ;tag
-  word-u8?		     ;to validate numbers
+  words.word-u8?	     ;to validate numbers
   1			     ;number of bytes in word
   unsafe.bytevector-u8-set!) ;setter
 
 (define-finish-bytevector finish-tokenisation-of-bytevector-s8
   'vs8			     ;tag
-  word-s8?		     ;to validate numbers
+  words.word-s8?	     ;to validate numbers
   1			     ;number of bytes in word
   unsafe.bytevector-s8-set!) ;setter
 
@@ -2772,19 +2899,19 @@
 
 (define-finish-bytevector finish-tokenisation-of-bytevector-u16l
   'vu16l		       ;tag
-  word-u16?		       ;to validate numbers
+  words.word-u16?	       ;to validate numbers
   2			       ;number of bytes in word
   unsafe.bytevector-u16l-set!) ;setter
 
 (define-finish-bytevector finish-tokenisation-of-bytevector-u16b
   'vu16b		       ;tag
-  word-u16?		       ;to validate numbers
+  words.word-u16?	       ;to validate numbers
   2			       ;number of bytes in word
   unsafe.bytevector-u16b-set!) ;setter
 
 (define-finish-bytevector finish-tokenisation-of-bytevector-u16n
   'vu16n		       ;tag
-  word-u16?		       ;to validate numbers
+  words.word-u16?	       ;to validate numbers
   2			       ;number of bytes in word
   unsafe.bytevector-u16n-set!) ;setter
 
@@ -2792,19 +2919,19 @@
 
 (define-finish-bytevector finish-tokenisation-of-bytevector-s16l
   'vs16l		       ;tag
-  word-s16?		       ;to validate numbers
+  words.word-s16?	       ;to validate numbers
   2			       ;number of bytes in word
   unsafe.bytevector-s16l-set!) ;setter
 
 (define-finish-bytevector finish-tokenisation-of-bytevector-s16b
   'vs16b		       ;tag
-  word-s16?		       ;to validate numbers
+  words.word-s16?	       ;to validate numbers
   2			       ;number of bytes in word
   unsafe.bytevector-s16b-set!) ;setter
 
 (define-finish-bytevector finish-tokenisation-of-bytevector-s16n
   'vs16n		       ;tag
-  word-s16?		       ;to validate numbers
+  words.word-s16?	       ;to validate numbers
   2			       ;number of bytes in word
   unsafe.bytevector-s16n-set!) ;setter
 
@@ -2812,19 +2939,19 @@
 
 (define-finish-bytevector finish-tokenisation-of-bytevector-u32l
   'vu32l		       ;tag
-  word-u32?		       ;to validate numbers
+  words.word-u32?	       ;to validate numbers
   4			       ;number of bytes in word
   unsafe.bytevector-u32l-set!) ;setter
 
 (define-finish-bytevector finish-tokenisation-of-bytevector-u32b
   'vu32b		       ;tag
-  word-u32?		       ;to validate numbers
+  words.word-u32?	       ;to validate numbers
   4			       ;number of bytes in word
   unsafe.bytevector-u32b-set!) ;setter
 
 (define-finish-bytevector finish-tokenisation-of-bytevector-u32n
   'vu32n		       ;tag
-  word-u32?		       ;to validate numbers
+  words.word-u32?	       ;to validate numbers
   4			       ;number of bytes in word
   unsafe.bytevector-u32n-set!) ;setter
 
@@ -2832,19 +2959,19 @@
 
 (define-finish-bytevector finish-tokenisation-of-bytevector-s32l
   'vs32l		       ;tag
-  word-s32?		       ;to validate numbers
+  words.word-s32?	       ;to validate numbers
   4			       ;number of bytes in word
   unsafe.bytevector-s32l-set!) ;setter
 
 (define-finish-bytevector finish-tokenisation-of-bytevector-s32b
   'vs32b		       ;tag
-  word-s32?		       ;to validate numbers
+  words.word-s32?	       ;to validate numbers
   4			       ;number of bytes in word
   unsafe.bytevector-s32b-set!) ;setter
 
 (define-finish-bytevector finish-tokenisation-of-bytevector-s32n
   'vs32n		       ;tag
-  word-s32?		       ;to validate numbers
+  words.word-s32?	       ;to validate numbers
   4			       ;number of bytes in word
   unsafe.bytevector-s32n-set!) ;setter
 
@@ -2852,19 +2979,19 @@
 
 (define-finish-bytevector finish-tokenisation-of-bytevector-u64l
   'vu64l		       ;tag
-  word-u64?		       ;to validate numbers
+  words.word-u64?	       ;to validate numbers
   8			       ;number of bytes in word
   unsafe.bytevector-u64l-set!) ;setter
 
 (define-finish-bytevector finish-tokenisation-of-bytevector-u64b
   'vu64b		       ;tag
-  word-u64?		       ;to validate numbers
+  words.word-u64?	       ;to validate numbers
   8			       ;number of bytes in word
   unsafe.bytevector-u64b-set!) ;setter
 
 (define-finish-bytevector finish-tokenisation-of-bytevector-u64n
   'vu64n		       ;tag
-  word-u64?		       ;to validate numbers
+  words.word-u64?	       ;to validate numbers
   8			       ;number of bytes in word
   unsafe.bytevector-u64n-set!) ;setter
 
@@ -2872,19 +2999,19 @@
 
 (define-finish-bytevector finish-tokenisation-of-bytevector-s64l
   'vs64l		       ;tag
-  word-s64?		       ;to validate numbers
+  words.word-s64?	       ;to validate numbers
   8			       ;number of bytes in word
   unsafe.bytevector-s64l-set!) ;setter
 
 (define-finish-bytevector finish-tokenisation-of-bytevector-s64b
   'vs64b		       ;tag
-  word-s64?		       ;to validate numbers
+  words.word-s64?	       ;to validate numbers
   8			       ;number of bytes in word
   unsafe.bytevector-s64b-set!) ;setter
 
 (define-finish-bytevector finish-tokenisation-of-bytevector-s64n
   'vs64n		       ;tag
-  word-s64?		       ;to validate numbers
+  words.word-s64?	       ;to validate numbers
   8			       ;number of bytes in word
   unsafe.bytevector-s64n-set!) ;setter
 
@@ -3072,6 +3199,8 @@
 
 
 ;;;; done
+
+(set-rtd-printer! (type-descriptor annotation) %annotation-printer)
 
 )
 

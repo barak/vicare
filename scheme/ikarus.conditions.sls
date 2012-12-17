@@ -148,14 +148,7 @@
 		  source-position-port-id
 		  source-position-byte source-position-character
 		  source-position-line source-position-column)
-    (rnrs records inspection)
-    (rnrs records procedural)
-    (only (rnrs)
-	  record-type-descriptor
-	  record-constructor-descriptor
-	  record-predicate)
     (only (ikarus records procedural)
-	  rtd?
 	  rtd-subtype?)
     (vicare syntactic-extensions)
     (prefix (vicare unsafe-operations)
@@ -175,7 +168,7 @@
   (assertion-violation who EXPECTED_CONDITION_OBJECT_AS_ARGUMENT obj))
 
 (define-argument-validation (rtd who obj)
-  (rtd? obj)
+  (record-type-descriptor? obj)
   (assertion-violation who "expected record type descriptor as argument" obj))
 
 (define-argument-validation (rtd-subtype who obj)
@@ -535,8 +528,9 @@
        (newline port))
       ((1)	;... or only one field.
        (display ": " port)
-       (write ((record-accessor (caar rf) 0) x) port)
-       (newline port))
+       (pretty-print ((record-accessor (caar rf) 0) x) port)
+       #;(write ((record-accessor (caar rf) 0) x) port)
+       #;(newline port))
       (else
        (display ":\n" port)
        (for-each

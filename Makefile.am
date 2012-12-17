@@ -1,17 +1,15 @@
 ## Process this file with automake to produce Makefile.in
 
 ACLOCAL_AMFLAGS		= -I m4
-AUTOMAKE_OPTIONS	= foreign
 SUBDIRS			= src scheme doc lib tests
-EXTRA_DIST		= README COPYING GPL-3		\
-			  configure.sh			\
+EXTRA_DIST		= configure.sh			\
 			  scripts/make-last-revision	\
 			  scripts/vie
 dist_doc_DATA		= README COPYING GPL-3
 
 vicare_test_RULES	= test tests long-test long-tests \
 			  test-run test-vie test-exec-modes \
-			  proof proofs foreign-test foreign-tests
+			  demo demos foreign-test foreign-tests
 
 vicare_lib_RULES	= vfasl vfasl-installed
 

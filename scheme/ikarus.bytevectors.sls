@@ -165,8 +165,7 @@
 
 		  subbytevector-u8	subbytevector-u8/count
 		  subbytevector-s8	subbytevector-s8/count)
-    (ikarus system $pairs)
-    (vicare words)
+    (prefix (vicare words) words.)
     (vicare syntactic-extensions)
     (prefix (vicare unsafe-operations) unsafe.)
     (prefix (vicare installation-configuration) config.))
@@ -400,17 +399,17 @@
     idx))
 
 (define-argument-validation (aligned-index-2 who idx)
-  (fixnum-aligned-to-2? idx)
+  (words.fixnum-aligned-to-2? idx)
   (assertion-violation who
     "expected bytevector index aligned to multiple of 2 as argument" idx))
 
 (define-argument-validation (aligned-index-4 who idx)
-  (fixnum-aligned-to-4? idx)
+  (words.fixnum-aligned-to-4? idx)
   (assertion-violation who
     "expected bytevector index aligned to multiple of 4 as argument" idx))
 
 (define-argument-validation (aligned-index-8 who idx)
-  (fixnum-aligned-to-8? idx)
+  (words.fixnum-aligned-to-8? idx)
   (assertion-violation who
     "expected bytevector index aligned to multiple of 8 as argument" idx))
 
@@ -434,48 +433,48 @@
 ;;; --------------------------------------------------------------------
 
 (define-argument-validation (byte who byte)
-  (word-s8? byte)
+  (words.word-s8? byte)
   (assertion-violation who
     "expected fixnum representing byte as argument" byte))
 
 (define-argument-validation (octet who octet)
-  (word-u8? octet)
+  (words.word-u8? octet)
   (assertion-violation who
     "expected fixnum representing octet as argument" octet))
 
 ;;; --------------------------------------------------------------------
 
 (define-argument-validation (word-s16 who word)
-  (word-s16? word)
+  (words.word-s16? word)
   (assertion-violation who
     "expected exact integer representing signed 16-bit word as argument" word))
 
 (define-argument-validation (word-u16 who word)
-  (word-u16? word)
+  (words.word-u16? word)
   (assertion-violation who
     "expected exact integer representing unsigned 16-bit word as argument" word))
 
 ;;; --------------------------------------------------------------------
 
 (define-argument-validation (word-s32 who word)
-  (word-s32? word)
+  (words.word-s32? word)
   (assertion-violation who
     "expected exact integer representing signed 32-bit word as argument" word))
 
 (define-argument-validation (word-u32 who word)
-  (word-u32? word)
+  (words.word-u32? word)
   (assertion-violation who
     "expected exact integer representing unsigned 32-bit word as argument" word))
 
 ;;; --------------------------------------------------------------------
 
 (define-argument-validation (word-s64 who word)
-  (word-s64? word)
+  (words.word-s64? word)
   (assertion-violation who
     "expected exact integer representing signed 64-bit word as argument" word))
 
 (define-argument-validation (word-u64 who word)
-  (word-u64? word)
+  (words.word-u64? word)
   (assertion-violation who
     "expected exact integer representing unsigned 64-bit word as argument" word))
 
@@ -754,10 +753,10 @@
 	(with-dangerous-arguments-validation (who)
 	    ((total-length accumulated-length))
 	  accumulated-length)
-      (let ((bv ($car list-of-bvs)))
+      (let ((bv (unsafe.car list-of-bvs)))
 	(with-arguments-validation (who)
 	    ((bytevector bv))
-	  (%total-length ($cdr list-of-bvs) (+ accumulated-length (unsafe.bytevector-length bv)))))))
+	  (%total-length (unsafe.cdr list-of-bvs) (+ accumulated-length (unsafe.bytevector-length bv)))))))
 
   (define (%copy-bytevectors list-of-bvs dst.bv dst.start)
     ;;Copy  the bytes  from  the first  bytevector  in LIST-OF-BVS  into
@@ -766,10 +765,10 @@
     ;;
     (if (null? list-of-bvs)
 	dst.bv
-      (let* ((src.bv	($car list-of-bvs))
+      (let* ((src.bv	(unsafe.car list-of-bvs))
 	     (src.len	(unsafe.bytevector-length src.bv))
 	     (src.start	0))
-	(%copy-bytevectors ($cdr list-of-bvs) dst.bv
+	(%copy-bytevectors (unsafe.cdr list-of-bvs) dst.bv
 			   (%copy-bytes src.bv src.start
 					dst.bv dst.start
 					(unsafe.fx+ dst.start src.len))))))
@@ -1129,7 +1128,7 @@
       ((bytevector	bv)
        (index		index)
        (index-for	index bv 8))
-    (if (fixnum-aligned-to-8? index)
+    (if (words.fixnum-aligned-to-8? index)
 	(case-endianness (who endianness)
 	  ((little)
 	   (unsafe.bytevector-ieee-double-native-ref bv index))
@@ -1148,7 +1147,7 @@
        (index		index)
        (index-for	index bv 8)
        (flonum		X))
-    (if (fixnum-aligned-to-8? index)
+    (if (words.fixnum-aligned-to-8? index)
 	(case-endianness (who endianness)
 	  ((little)
 	   (unsafe.bytevector-ieee-double-native-set! bv index X))
@@ -1190,7 +1189,7 @@
       ((bytevector	bv)
        (index		index)
        (index-for	index bv 4))
-    (if (fixnum-aligned-to-4? index)
+    (if (words.fixnum-aligned-to-4? index)
 	(case-endianness (who endianness)
 	  ((little)
 	   (unsafe.bytevector-ieee-single-native-ref bv index))
@@ -1209,7 +1208,7 @@
        (index		index)
        (index-for	index bv 4)
        (flonum		X))
-    (if (fixnum-aligned-to-4? index)
+    (if (words.fixnum-aligned-to-4? index)
 	(case-endianness (who endianness)
 	  ((little)
 	   (unsafe.bytevector-ieee-single-native-set! bv index X))
@@ -1641,10 +1640,10 @@
      (define (?who ls)
        (define (race h t ls n)
 	 (if (pair? h)
-	     (let ((h ($cdr h)))
+	     (let ((h (unsafe.cdr h)))
 	       (if (pair? h)
 		   (if (not (eq? h t))
-		       (race ($cdr h) ($cdr t) ls (unsafe.fx+ n 2))
+		       (race (unsafe.cdr h) (unsafe.cdr t) ls (unsafe.fx+ n 2))
 		     (assertion-violation '?who "circular list" ls))
 		 (if (null? h)
 		     (unsafe.fx+ n 1)
@@ -1656,7 +1655,7 @@
        (define (fill s i ls)
 	 (if (null? ls)
 	     s
-	   (let ((c ($car ls)))
+	   (let ((c (unsafe.car ls)))
 	     (unless (?valid-number-pred c)
 	       (assertion-violation '?who "not an octet" c))
 	     (unsafe.bytevector-u8-set! s i c)
@@ -1666,8 +1665,10 @@
 	      (s (unsafe.make-bytevector n)))
 	 (fill s 0 ls))))))
 
-(define-byte-list-to-bytevector u8-list->bytevector vu8 word-u8? unsafe.bytevector-u8-set!)
-(define-byte-list-to-bytevector s8-list->bytevector vs8 word-s8? unsafe.bytevector-s8-set!)
+(define-byte-list-to-bytevector u8-list->bytevector
+  vu8 words.word-u8? unsafe.bytevector-u8-set!)
+(define-byte-list-to-bytevector s8-list->bytevector
+  vs8 words.word-s8? unsafe.bytevector-s8-set!)
 
 ;;; --------------------------------------------------------------------
 
@@ -1677,10 +1678,10 @@
      (define (?who ls)
        (define (%race h t ls n)
 	 (cond ((pair? h)
-		(let ((h ($cdr h)))
+		(let ((h (unsafe.cdr h)))
 		  (if (pair? h)
 		      (if (not (eq? h t))
-			  (%race ($cdr h) ($cdr t) ls (+ n 2))
+			  (%race (unsafe.cdr h) (unsafe.cdr t) ls (+ n 2))
 			(assertion-violation ?who "circular list" ls))
 		    (if (null? h)
 			(+ n 1)
@@ -1693,7 +1694,7 @@
        (define (%fill s i ls)
 	 (if (null? ls)
 	     s
-	   (let ((c ($car ls)))
+	   (let ((c (unsafe.car ls)))
 	     (unless (?valid-number-pred c)
 	       (assertion-violation ?who "invalid element for requested bytevector type" '?tag c))
 	     (?bytevector-set! s i c)
@@ -1710,19 +1711,19 @@
 
 (define-word-list-to-bytevector u16l-list->bytevector
   'vu16l		       ;tag
-  word-u16?		       ;to validate numbers
+  words.word-u16?	       ;to validate numbers
   2			       ;number of bytes in word
   unsafe.bytevector-u16l-set!) ;setter
 
 (define-word-list-to-bytevector u16b-list->bytevector
   'vu16b		       ;tag
-  word-u16?		       ;to validate numbers
+  words.word-u16?	       ;to validate numbers
   2			       ;number of bytes in word
   unsafe.bytevector-u16b-set!) ;setter
 
 (define-word-list-to-bytevector u16n-list->bytevector
   'vu16n		       ;tag
-  word-u16?		       ;to validate numbers
+  words.word-u16?	       ;to validate numbers
   2			       ;number of bytes in word
   unsafe.bytevector-u16n-set!) ;setter
 
@@ -1730,19 +1731,19 @@
 
 (define-word-list-to-bytevector s16l-list->bytevector
   'vs16l		       ;tag
-  word-s16?		       ;to validate numbers
+  words.word-s16?	      ;to validate numbers
   2			       ;number of bytes in word
   unsafe.bytevector-s16l-set!) ;setter
 
 (define-word-list-to-bytevector s16b-list->bytevector
   'vs16b		       ;tag
-  word-s16?		       ;to validate numbers
+  words.word-s16?	       ;to validate numbers
   2			       ;number of bytes in word
   unsafe.bytevector-s16b-set!) ;setter
 
 (define-word-list-to-bytevector s16n-list->bytevector
   'vs16n		       ;tag
-  word-s16?		       ;to validate numbers
+  words.word-s16?	       ;to validate numbers
   2			       ;number of bytes in word
   unsafe.bytevector-s16n-set!) ;setter
 
@@ -1750,19 +1751,19 @@
 
 (define-word-list-to-bytevector u32l-list->bytevector
   'vu32l		       ;tag
-  word-u32?		       ;to validate numbers
+  words.word-u32?	       ;to validate numbers
   4			       ;number of bytes in word
   unsafe.bytevector-u32l-set!) ;setter
 
 (define-word-list-to-bytevector u32b-list->bytevector
   'vu32b		       ;tag
-  word-u32?		       ;to validate numbers
+  words.word-u32?	       ;to validate numbers
   4			       ;number of bytes in word
   unsafe.bytevector-u32b-set!) ;setter
 
 (define-word-list-to-bytevector u32n-list->bytevector
   'vu32n		       ;tag
-  word-u32?		       ;to validate numbers
+  words.word-u32?	       ;to validate numbers
   4			       ;number of bytes in word
   unsafe.bytevector-u32n-set!) ;setter
 
@@ -1770,19 +1771,19 @@
 
 (define-word-list-to-bytevector s32l-list->bytevector
   'vs32l		       ;tag
-  word-s32?		       ;to validate numbers
+  words.word-s32?	       ;to validate numbers
   4			       ;number of bytes in word
   unsafe.bytevector-s32l-set!) ;setter
 
 (define-word-list-to-bytevector s32b-list->bytevector
   'vs32b		       ;tag
-  word-s32?		       ;to validate numbers
+  words.word-s32?	       ;to validate numbers
   4			       ;number of bytes in word
   unsafe.bytevector-s32b-set!) ;setter
 
 (define-word-list-to-bytevector s32n-list->bytevector
   'vs32n		       ;tag
-  word-s32?		       ;to validate numbers
+  words.word-s32?	       ;to validate numbers
   4			       ;number of bytes in word
   unsafe.bytevector-s32n-set!) ;setter
 
@@ -1790,19 +1791,19 @@
 
 (define-word-list-to-bytevector u64l-list->bytevector
   'vu64l		       ;tag
-  word-u64?		       ;to validate numbers
+  words.word-u64?	       ;to validate numbers
   8			       ;number of bytes in word
   unsafe.bytevector-u64l-set!) ;setter
 
 (define-word-list-to-bytevector u64b-list->bytevector
   'vu64b		       ;tag
-  word-u64?		       ;to validate numbers
+  words.word-u64?	       ;to validate numbers
   8			       ;number of bytes in word
   unsafe.bytevector-u64b-set!) ;setter
 
 (define-word-list-to-bytevector u64n-list->bytevector
   'vu64n		       ;tag
-  word-u64?		       ;to validate numbers
+  words.word-u64?	       ;to validate numbers
   8			       ;number of bytes in word
   unsafe.bytevector-u64n-set!) ;setter
 
@@ -1810,19 +1811,19 @@
 
 (define-word-list-to-bytevector s64l-list->bytevector
   'vs64l		       ;tag
-  word-s64?		       ;to validate numbers
+  words.word-s64?	       ;to validate numbers
   8			       ;number of bytes in word
   unsafe.bytevector-s64l-set!) ;setter
 
 (define-word-list-to-bytevector s64b-list->bytevector
   'vs64b		       ;tag
-  word-s64?		       ;to validate numbers
+  words.word-s64?	       ;to validate numbers
   8			       ;number of bytes in word
   unsafe.bytevector-s64b-set!) ;setter
 
 (define-word-list-to-bytevector s64n-list->bytevector
   'vs64n		       ;tag
-  word-s64?		       ;to validate numbers
+  words.word-s64?	       ;to validate numbers
   8			       ;number of bytes in word
   unsafe.bytevector-s64n-set!) ;setter
 
@@ -1918,14 +1919,14 @@
 (define (%make-xint-list->bytevector who bv-set!)
   (define (race h t ls idx endianness size)
     (if (pair? h)
-	(let ((h ($cdr h)) (a ($car h)))
+	(let ((h (unsafe.cdr h)) (a (unsafe.car h)))
 	  (if (pair? h)
 	      (if (not (eq? h t))
-		  (let ((bv (race ($cdr h) ($cdr t) ls
+		  (let ((bv (race (unsafe.cdr h) (unsafe.cdr t) ls
 				  (unsafe.fx+ idx (unsafe.fx+ size size))
 				  endianness size)))
 		    (bv-set! bv idx a endianness size who)
-		    (bv-set! bv (unsafe.fx+ idx size) ($car h) endianness size who)
+		    (bv-set! bv (unsafe.fx+ idx size) (unsafe.car h) endianness size who)
 		    bv)
 		(die who "circular list" ls))
 	    (if (null? h)

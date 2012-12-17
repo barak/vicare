@@ -33,11 +33,14 @@
   (export
     ;; miscellaneous extensions
     define-inline		define-inline-constant
+    define-constant
     define-syntax*		define-auxiliary-syntaxes
+    let-inline			let*-inline
     debug-assert		unwind-protect
     begin0			begin0-let
     with-pathnames
     with-bytevectors		with-bytevectors/or-false
+    callet			callet*
 
     ;; arguments validation
     define-argument-validation
@@ -48,6 +51,8 @@
     ;; miscellaneous dispatching
     case-word-size		case-endianness
     case-one-operand		case-two-operands
+    case-fixnums		case-integers
+    define-exact-integer->symbol-function
 
     ;; auxiliary syntaxes
     big			little
@@ -57,7 +62,14 @@
   (import (ikarus)
     (for (prefix (vicare installation-configuration)
 		 config.)
-	 expand))
+	 expand)
+    (only (ikarus system $fx)
+	  $fx=)
+    (only (vicare arguments validation)
+	  define-argument-validation
+	  with-arguments-validation
+	  with-dangerous-arguments-validation
+	  arguments-validation-forms))
 
 
 ;;;; some defining syntaxes
@@ -69,6 +81,14 @@
        (syntax-rules ()
 	 ((_ ?arg ... . ?rest)
 	  (begin ?form0 ?form ...)))))))
+
+(define-syntax define-constant
+  (syntax-rules ()
+    ((_ ?name ?expr)
+     (begin
+       (define ghost ?expr)
+       (define-syntax ?name
+	 (identifier-syntax ghost))))))
 
 (define-syntax define-inline-constant
   (syntax-rules ()
@@ -92,6 +112,92 @@
 		;still expand to a definition
      (define-syntax dummy (syntax-rules ())))
     ))
+
+;;; --------------------------------------------------------------------
+
+(define-syntax let-inline
+  (syntax-rules ()
+    ((_ ((?var ?expr) ...) ?body0 . ?body)
+     (let-syntax ((?var (identifier-syntax ?expr)) ...)
+       ?body0 . ?body))))
+
+(define-syntax let*-inline
+  (syntax-rules ()
+    ((_ () ?body0 . ?body)
+     (begin ?body0 . ?body))
+    ((_ ((?var0 ?expr0) (?var ?expr) ...) ?body0 . ?body)
+     (let-syntax ((?var0 (identifier-syntax ?expr0)))
+       (let*-inline ((?var ?expr) ...)
+	 ?body0 . ?body)))))
+
+(define-syntax callet
+  ;;Transforms:
+  ;;
+  ;;   (callet printf (string "ciao ~a") (arg 123))
+  ;;
+  ;;into:
+  ;;
+  ;;   (printf "ciao ~a" 123)
+  ;;
+  (lambda (stx)
+    (syntax-case stx ()
+      ((_ ?func ?arg ...)
+       (let loop ((args		#'(?arg ...))
+		  (keys		'())
+		  (exprs	'()))
+	 (syntax-case args ()
+	   (()
+	    #`(?func . #,(reverse exprs)))
+	   (((?key ?expr) . ?args)
+	    (identifier? #'?key)
+	    (loop #'?args
+		  (cons #'?key  keys)
+		  (cons #'?expr exprs)))
+	   (((?key ?expr) . ?args)
+	    (syntax-violation 'callet
+	      "expected identifier as argument key" stx #'(?key ?expr)))
+	   ((?arg . ?args)
+	    (loop #'?args
+		  (cons (car (generate-temporaries '(#f))) keys)
+		  (cons #'?arg exprs)))
+	   ))))))
+
+(define-syntax callet*
+  ;;Transforms:
+  ;;
+  ;;   (callet printf (string "ciao ~a") (arg 123))
+  ;;
+  ;;into:
+  ;;
+  ;;   (let* ((string "ciao ~a")
+  ;;          (arg    123))
+  ;;     (printf string arg))
+  ;;
+  (lambda (stx)
+    (syntax-case stx ()
+      ((_ ?func ?arg ...)
+       (let loop ((args		#'(?arg ...))
+		  (keys		'())
+		  (exprs	'()))
+	 (syntax-case args ()
+	   (()
+	    (with-syntax (((KEY  ...) (reverse keys))
+			  ((EXPR ...) (reverse exprs)))
+	      #`(let* ((KEY EXPR) ...)
+		  (?func KEY ...))))
+	   (((?key ?expr) . ?args)
+	    (identifier? #'?key)
+	    (loop #'?args
+		  (cons #'?key  keys)
+		  (cons #'?expr exprs)))
+	   (((?key ?expr) . ?args)
+	    (syntax-violation 'callet
+	      "expected identifier as argument key" stx #'(?key ?expr)))
+	   ((?arg . ?args)
+	    (loop #'?args
+		  (cons (car (generate-temporaries '(#f))) keys)
+		  (cons #'?arg exprs)))
+	   ))))))
 
 
 ;;;; other syntaxes
@@ -128,11 +234,15 @@
 	     (cleanup)
 	     (raise E))
 	 (lambda ()
-	   (call-with-values
+	   (begin0
+	       ?body
+	     (cleanup))
+	   #;(call-with-values
 	       (lambda () ?body)
 	     (lambda return-values
 	       (cleanup)
-	       (apply values return-values)))))))))
+	       (apply values return-values)))
+	   ))))))
 
 (define-syntax debug-assert
   ;;This is meant to expand to nothing when debugging is turned off.
@@ -147,10 +257,11 @@
 
 (define-syntax with-pathnames
   (syntax-rules ()
-    ((_ ((?pathname-bv ?pathname) ...) . ?body)
-     (let ((?pathname-bv (if (bytevector? ?pathname)
-			     ?pathname
-			   ((string->filename-func) ?pathname)))
+    ((_ ((?pathname.bv ?pathname) ...) . ?body)
+     (let ((?pathname.bv (let ((pathname ?pathname))
+			   (if (bytevector? pathname)
+			       pathname
+			     ((string->filename-func) pathname))))
 	   ...)
        . ?body))))
 
@@ -163,9 +274,10 @@
   ;;
   (syntax-rules ()
     ((_ ((?value.bv ?value) ...) . ?body)
-     (let ((?value.bv (if (bytevector? ?value)
-			  ?value
-			(string->latin1 ?value)))
+     (let ((?value.bv (let ((V ?value))
+			(if (bytevector? V)
+			    V
+			  (string->latin1 V))))
 	   ...)
        . ?body))))
 
@@ -178,171 +290,14 @@
   ;;
   (syntax-rules ()
     ((_ ((?value.bv ?value) ...) . ?body)
-     (let ((?value.bv (cond ((bytevector? ?value)
-			     ?value)
-			    ((string? ?value)
-			     (string->latin1 ?value))
-			    (else ?value)))
+     (let ((?value.bv (let ((V ?value))
+			(cond ((bytevector? V)
+			       V)
+			      ((string? V)
+			       (string->latin1 V))
+			      (else V))))
 	   ...)
        . ?body))))
-
-
-(define-syntax define-argument-validation
-  ;;Define a set of macros to  validate arguments, to be used along with
-  ;;WITH-ARGUMENTS-VALIDATION.  Transform:
-  ;;
-  ;;  (define-argument-validation (bytevector who bv)
-  ;;    (bytevector? bv)
-  ;;    (assertion-violation who "expected a bytevector as argument" bv))
-  ;;
-  ;;into:
-  ;;
-  ;;  (define-inline (vicare.argument-validation-for-bytevector who bv . body)
-  ;;    (if (vicare.argument-validation-predicate-for-bytevector bv)
-  ;;        (begin . body)
-  ;;      (vicare.argument-validation-error-for-bytevector who bv)))
-  ;;
-  ;;  (define-inline (vicare.argument-validation-predicate-for-bytevector bv)
-  ;;    (bytevector? bv))
-  ;;
-  ;;  (define-inline (vicare.argument-validation-error-for-bytevector who bv))
-  ;;    (assertion-violation who "expected a bytevector as argument" bv))
-  ;;
-  ;;If we need to export a  validator from a library: we can export just
-  ;;the VICARE.ARGUMENT-VALIDATION-FOR-?NAME, without prefixing it.
-  ;;
-  (lambda (stx)
-    (define who 'define-argument-validation)
-    (define (main stx)
-      (syntax-case stx ()
-	((_ (?name ?who ?arg ...) ?predicate ?error-handler)
-	 (and (identifier? #'?name)
-	      (identifier? #'?who))
-	 (let ((ctx  #'?name)
-	       (name (symbol->string (syntax->datum #'?name))))
-	   (with-syntax
-	       ((VALIDATE	(%name ctx name "argument-validation-for-"))
-		(PREDICATE	(%name ctx name "argument-validation-predicate-for-"))
-		(ERROR	(%name ctx name "argument-validation-error-for-")))
-	     #'(begin
-		 (define-inline (PREDICATE ?arg ...) ?predicate)
-		 (define-inline (ERROR ?who ?arg ...) ?error-handler)
-		 (define-inline (VALIDATE ?who ?arg ... . body)
-		   (if (PREDICATE ?arg ...)
-		       (begin . body)
-		     (ERROR ?who ?arg ...)))))))
-	(_
-	 (%synner "invalid input form" #f))))
-
-    (define (%name ctx name prefix-string)
-      (let ((str (string-append "vicare." prefix-string name)))
-	(datum->syntax ctx (string->symbol str))))
-
-    (define (%synner msg subform)
-      (syntax-violation who msg (syntax->datum stx) (syntax->datum subform)))
-
-    (main stx)))
-
-
-(define-syntax arguments-validation-forms
-  (if config.arguments-validation
-      (syntax-rules ()
-	((_ . ?body)
-	 (begin . ?body)))
-    (syntax-rules ()
-      ((_ . ?body)
-       (values)))))
-
-(define-syntax with-arguments-validation
-  ;;Perform the validation only if enabled at configure time.
-  ;;
-  (syntax-rules ()
-    ((_ . ?args)
-     (%with-arguments-validation #f . ?args))))
-
-(define-syntax with-dangerous-arguments-validation
-  ;;Dangerous validations are always performed.
-  ;;
-  (syntax-rules ()
-    ((_ . ?args)
-     (%with-arguments-validation #t . ?args))))
-
-(define-syntax %with-arguments-validation
-  ;;Transform:
-  ;;
-  ;;  (with-arguments-validation (who)
-  ;;       ((fixnum  X)
-  ;;        (integer Y))
-  ;;    (do-this)
-  ;;    (do-that))
-  ;;
-  ;;into:
-  ;;
-  ;;  (vicare.argument-validation-for-fixnum who X
-  ;;   (vicare.argument-validation-for-integer who Y
-  ;;    (do-this)
-  ;;    (do-that)))
-  ;;
-  ;;As a special case:
-  ;;
-  ;;  (with-arguments-validation (who)
-  ;;       ((#t  X))
-  ;;    (do-this)
-  ;;    (do-that))
-  ;;
-  ;;expands to:
-  ;;
-  ;;  (begin
-  ;;    (do-this)
-  ;;    (do-that))
-  ;;
-  (lambda (stx)
-    (define (main stx)
-      (syntax-case stx ()
-	((_ ?always-include (?who) ((?validator ?arg ...) ...) . ?body)
-	 ;;Whether we  include the arguments  checking or not,  we build
-	 ;;the output form validating the input form.
-	 (let* ((include?	(syntax->datum #'?always-include))
-		(body		#'(begin . ?body))
-		(output-form	(%build-output-form #'?who
-						    #'(?validator ...)
-						    #'((?arg ...) ...)
-						    body)))
-	   (if (or include? config.arguments-validation
-		   (let ((S (getenv "VICARE_ARGUMENTS_VALIDATION")))
-		     (and (string? S) (string=? S "yes"))))
-	       output-form body)))
-	(_
-	 (%synner "invalid input form" #f))))
-
-    (define (%build-output-form who validators list-of-args body)
-      (syntax-case validators ()
-	(()
-	 #`(let () #,body))
-	;;Accept #t as special validator meaning "always valid"; this is
-	;;sometimes useful when composing syntax output forms.
-	((#t . ?other-validators)
-	 (%build-output-form who #'?other-validators list-of-args body))
-	((?validator . ?other-validators)
-	 (identifier? #'?validator)
-	 (let ((str (symbol->string (syntax->datum #'?validator))))
-	   (with-syntax
-	       ((VALIDATE (%name #'?validator str "argument-validation-for-"))
-		(((ARG ...) . OTHER-ARGS) list-of-args))
-	     #`(VALIDATE #,who ARG ...
-			 #,(%build-output-form who #'?other-validators #'OTHER-ARGS body)))))
-	((?validator . ?others)
-	 (%synner "invalid argument-validator selector" #'?validator))))
-
-    (define (%name ctx name prefix-string)
-      (let ((str (string-append "vicare." prefix-string name)))
-	(datum->syntax ctx (string->symbol str))))
-
-    (define (%synner msg subform)
-      (syntax-violation 'with-arguments-validation
-	msg (syntax->datum stx) (syntax->datum subform)))
-
-    (main stx)))
 
 
 (define-syntax case-word-size
@@ -379,6 +334,78 @@
 	   ((little)	. ?lit-body)
 	   (else
 	    (assertion-violation ?who "expected endianness symbol as argument" ?endianness)))))))
+
+(define-syntax case-fixnums
+  (syntax-rules (else)
+    ((_ ?expr
+	((?fixnum0 ?fixnum ...)
+	 ?fx-body0 ?fx-body ...)
+	...
+	(else
+	 ?else-body0 ?else-body ...))
+     (let ((fx ?expr))
+       (cond ((or ($fx= ?fixnum0 fx)
+		  ($fx= ?fixnum  fx)
+		  ...)
+	      ?fx-body0 ?fx-body ...)
+	     ...
+	     (else
+	      ?else-body0 ?else-body ...))))
+    ((_ ?expr
+	((?fixnum0 ?fixnum ...)
+	 ?fx-body0 ?fx-body ...)
+	...)
+     (let ((fx ?expr))
+       (cond ((or ($fx= ?fixnum0 fx)
+		  ($fx= ?fixnum  fx)
+		  ...)
+	      ?fx-body0 ?fx-body ...)
+	     ...)))
+    ))
+
+(define-syntax case-integers
+  (syntax-rules (else)
+    ((_ ?expr
+	((?integer0 ?integer ...)
+	 ?body0 ?body ...)
+	...
+	(else
+	 ?else-body0 ?else-body ...))
+     (let ((int ?expr))
+       (cond ((or (= ?integer0 int)
+		  (= ?integer  int)
+		  ...)
+	      ?body0 ?body ...)
+	     ...
+	     (else
+	      ?else-body0 ?else-body ...))))
+    ((_ ?expr
+	((?integer0 ?integer ...)
+	 ?body0 ?body ...)
+	...)
+     (let ((int ?expr))
+       (cond ((or (= ?integer0 int)
+		  (= ?integer  int)
+		  ...)
+	      ?body0 ?body ...)
+	     ...)))
+    ))
+
+(define-argument-validation (exact-integer who obj)
+  (and (integer? obj) (exact? obj))
+  (assertion-violation who "expected exact integer as argument" obj))
+
+(define-syntax define-exact-integer->symbol-function
+  (syntax-rules ()
+    ((_ ?who (?code ...))
+     (define (?who code)
+       (define who '?who)
+       (with-arguments-validation (who)
+	   ((exact-integer	code))
+	 (case-integers code
+	   ((?code)	'?code)
+	   ...
+	   (else #f)))))))
 
 
 ;;;; math functions dispatching
@@ -485,4 +512,5 @@
 ;;Local Variables:
 ;;eval: (put 'case-one-operand 'scheme-indent-function 1)
 ;;eval: (put 'case-two-operands 'scheme-indent-function 1)
+;;eval: (put 'case-integers 'scheme-indent-function 1)
 ;;End:

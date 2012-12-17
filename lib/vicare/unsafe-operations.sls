@@ -52,6 +52,11 @@
 #!r6rs
 (library (vicare unsafe-operations)
   (export
+    (rename ($struct-rtd	struct-rtd)
+	    ($struct-length	struct-length)
+	    ($struct-ref	struct-ref)
+	    ($struct-set!	struct-set!))
+
     (rename ($fxzero?	fxzero?)
 	    ($fxadd1	fxadd1)		;increment
 	    ($fxsub1	fxsub1)		;decrement
@@ -235,8 +240,14 @@
 	    ($string-fill!			string-fill!)
 	    ($substring				substring))
 
+;;; --------------------------------------------------------------------
+
+    (rename ($memory-block-pointer		memory-block-pointer)
+	    ($memory-block-size			memory-block-size))
+
     #| end of export |# )
   (import (ikarus)
+    (ikarus system $structs)
     (ikarus system $fx)
     (ikarus system $bignums)
     (ikarus system $ratnums)
@@ -250,11 +261,40 @@
 	    ($bytevector-set!	$bytevector-s8-set!))
     (ikarus system $chars)
     (ikarus system $strings)
-    (only (vicare syntactic-extensions)
-	  define-inline)
     (for (prefix (vicare installation-configuration)
 		 config.)
 	 expand))
+
+
+;;;; helpers
+
+(define-syntax define-inline
+  (syntax-rules ()
+    ((_ (?name ?arg ... . ?rest) ?form0 ?form ...)
+     (define-syntax ?name
+       (syntax-rules ()
+	 ((_ ?arg ... . ?rest)
+	  (begin ?form0 ?form ...)))))))
+
+
+;;;; structures
+
+(define-syntax $struct-length
+  (syntax-rules ()
+    ((_ ?stru)
+     ($struct-ref ($struct-rtd ?stru) 1))))
+
+;;; --------------------------------------------------------------------
+
+(define-syntax $memory-block-pointer
+  (syntax-rules ()
+    ((_ ?stru)
+     ($struct-ref ?stru 0))))
+
+(define-syntax $memory-block-size
+  (syntax-rules ()
+    ((_ ?stru)
+     ($struct-ref ?stru 1))))
 
 
 ;;;; fixnums

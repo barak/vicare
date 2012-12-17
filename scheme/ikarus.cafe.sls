@@ -15,12 +15,10 @@
 
 (library (ikarus cafe)
   (export new-cafe waiter-prompt-string cafe-input-port)
-  (import (only (rnrs)
-		with-exception-handler)
-    (except (ikarus)
-	    new-cafe
-	    waiter-prompt-string
-	    cafe-input-port)
+  (import (except (ikarus)
+		  new-cafe
+		  waiter-prompt-string
+		  cafe-input-port)
     (vicare syntactic-extensions))
 
 
@@ -188,10 +186,20 @@
 			(reset loop-k))
 		    (raise-continuable ex)))
 	      (lambda ()
-		(for-each
-		    (lambda (v)
-		      (pretty-print v (console-output-port)))
-		  v*)))))))))
+		(let ((port (console-output-port)))
+		  (do ((i 1 (+ 1 i))
+		       (v* v* (cdr v*)))
+		      ((null? v*))
+		    ;;Print:
+		    ;;
+		    ;;  $i = <value>\n
+		    ;;
+		    (write-char #\$ port)
+		    (display i port)
+		    (write-char #\space port)
+		    (write-char #\= port)
+		    (write-char #\space port)
+		    (pretty-print (car v*) port)))))))))))
 
 
 ;;;; done
