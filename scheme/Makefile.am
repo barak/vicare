@@ -1,7 +1,5 @@
 ## Process this file with automake to produce Makefile.in
 
-vicarelibdir=$(pkglibdir)
-
 NEW_BOOT_FILE		= vicare.boot
 NEW_EXECUTABLE		= ../src/vicare
 
@@ -26,7 +24,7 @@ VICARE_PREBUILT_BOOT	= $(srcdir)/vicare.boot.$(VICARE_SIZE_OF_VOIDP).prebuilt
 CLEANFILES		= $(nodist_pkglib_DATA) ikarus.config.ss vicare.boot
 MAINTAINERCLEANFILES	= last-revision
 
-all: $(nodist_vicarelib_DATA)
+all: $(nodist_pkglib_DATA)
 
 ## --------------------------------------------------------------------
 
@@ -36,7 +34,7 @@ last-revision:
 ikarus.config.ss: Makefile last-revision ../config.h
 	echo '(define vicare-version "$(PACKAGE_VERSION)")' >$@
 	echo "(define vicare-revision \"$$(cat $(srcdir)/last-revision)\")" >>$@
-	echo '(define vicare-lib-dir "$(vicarelibdir)")' >>$@
+	echo '(define vicare-lib-dir "$(pkglibdir)")' >>$@
 	echo '(define scheme-lib-dir "$(libdir)/scheme")' >>$@
 	echo '(define (host-info) "$(target)")' >>$@
 	echo '(define wordsize $(VICARE_SIZE_OF_VOIDP))' >>$@
@@ -81,7 +79,7 @@ boot-image-64-bit: last-revision
 	echo '(define wordsize 8)' >>ikarus.config.ss
 	echo '(define platform-endianness (quote $(VICARE_PLATFORM_ENDIANNESS)))' >>ikarus.config.ss
 	echo '(define arguments-validation (positive? $(VICARE_ARGUMENTS_VALIDATION)))' >>ikarus.config.ss
-	echo '(define bootfile "$(vicarelibdir)/vicare.boot")' >>ikarus.config.ss
+	echo '(define bootfile "$(pkglibdir)/vicare.boot")' >>ikarus.config.ss
 	VICARE_SRC_DIR=$(srcdir)			\
   VICARE_BUILD_DIR=$(builddir)				\
   VICARE_FASL_DIRECTORY=''				\
