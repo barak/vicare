@@ -469,7 +469,7 @@
           quotient+remainder number->string min max
           abs truncate fltruncate sra sll real->flonum
           exact->inexact inexact floor ceiling round log fl=? fl<? fl<=? fl>?
-          fl>=? fl+ fl- fl* fl/ flsqrt flmin flzero? flnegative?
+          fl>=? fl+ fl- fl* fl/ flsqrt flhypot flmin flzero? flnegative?
           sin cos tan asin acos atan sqrt exp
           sinh cosh tanh asinh acosh atanh
           flmax random
@@ -497,7 +497,7 @@
             expt gcd lcm numerator denominator
             exact->inexact inexact floor ceiling round log
             exact-integer-sqrt min max abs real->flonum
-            fl=? fl<? fl<=? fl>? fl>=? fl+ fl- fl* fl/ flsqrt flmin
+            fl=? fl<? fl<=? fl>? fl>=? fl+ fl- fl* fl/ flsqrt flhypot flmin
             flzero? flnegative? sra sll exp
             sin cos tan asin acos atan sqrt truncate fltruncate
             sinh cosh tanh asinh acosh atanh
@@ -3031,6 +3031,12 @@
           (foreign-call "ikrt_fl_sqrt" x)
           (die 'flsqrt "not a flonum" x))))
 
+  (define flhypot
+    (lambda (x y)
+      (if (and (flonum? x) (flonum? y))
+          (foreign-call "ikrt_fl_hypot" x y)
+          (die 'flhypot "not both flonums" x y))))
+
   (define flzero?
     (lambda (x)
       (if (flonum? x)
@@ -4357,7 +4363,7 @@
         ((cflonum? x)
          (let ((r ($cflonum-real x))
                (i ($cflonum-imag x)))
-           (sqrt (+ (* r r) (* i i)))))
+	   (flhypot r i)))
         (else
          (die 'magnitude "not a number" x)))))
 

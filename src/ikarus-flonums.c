@@ -205,6 +205,13 @@ ikrt_fl_sqrt (ikptr x, ikpcb* pcb)
   return r;
 }
 ikptr
+ikrt_fl_hypot (ikptr x, ikptr y, ikpcb* pcb)
+{
+  IKU_DEFINE_AND_ALLOC_FLONUM(r);
+  IK_FLONUM_DATA(r) = hypot(IK_FLONUM_DATA(x), IK_FLONUM_DATA(y));
+  return r;
+}
+ikptr
 ikrt_fl_log (ikptr x, ikpcb* pcb)
 {
   IKU_DEFINE_AND_ALLOC_FLONUM(r);
