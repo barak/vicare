@@ -19,6 +19,6 @@ override_dh_auto_test:
 
 override_dh_auto_install:
 	dh_auto_install
-	rm debian/vicare-scheme/usr/share/doc/vicare-scheme/COPYING
-	rm debian/vicare-scheme/usr/share/doc/vicare-scheme/GPL-3
-	rm debian/vicare-scheme/usr/share/info/dir
+	-rm --verbose debian/vicare-scheme/usr/share/doc/vicare-scheme/COPYING
+	-rm --verbose debian/vicare-scheme/usr/share/doc/vicare-scheme/GPL-3
+	-rm --verbose debian/vicare-scheme/usr/share/info/dir
