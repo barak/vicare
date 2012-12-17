@@ -27,17 +27,26 @@
 #!r6rs
 (import
   (only (vicare installation-configuration))
-  (only (vicare platform-constants))
   (only (vicare errno))
-  (only (vicare include))
-  (only (vicare syntactic-extensions))
+  (only (vicare platform-constants))
+  (only (vicare platform constants))
+  (only (vicare platform features))
+  (only (vicare platform utilities))
   (only (vicare unsafe-operations))
-  (only (vicare unsafe-unicode))
+  (only (vicare arguments validation))
+  (only (vicare syntactic-extensions))
+  (only (vicare arguments general-c-buffers))
+
   (only (vicare unsafe-capi))
+  (only (vicare include))
+  (only (vicare infix))
+  (only (vicare unsafe-unicode))
   (only (vicare words))
   (only (vicare flonum-parser))
   (only (vicare flonum-formatter))
   (only (vicare weak-hashtables))
+  (only (vicare keywords))
+  (only (vicare checks))
   )
 
 ;;; end of file

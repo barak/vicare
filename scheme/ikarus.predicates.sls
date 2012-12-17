@@ -275,6 +275,9 @@
 	((pointer? x)
 	 (and (pointer? y) ($pointer= x y)))
 
+	((keyword? x)
+	 (and (keyword? y) (keyword=? x y)))
+
 	(else #f)))
 
 
@@ -319,7 +322,7 @@
 	     (err x)))))))))
 
 (define-pred symbol=?  sys:symbol?  "expected symbol as argument")
-(define-pred boolean=? sys:boolean? "expected symbol as argument")
+(define-pred boolean=? sys:boolean? "expected boolean as argument")
 
 
 ;;;; done

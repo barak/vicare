@@ -44,11 +44,17 @@
 #ifdef HAVE_GRP_H
 #  include <grp.h>
 #endif
+#ifdef HAVE_MQUEUE_H
+#  include <mqueue.h>
+#endif
 #ifdef HAVE_POLL_H
 #  include <poll.h>
 #endif
 #ifdef HAVE_PWD_H
 #  include <pwd.h>
+#endif
+#ifdef HAVE_SEMAPHORE_H
+#  include <semaphore.h>
 #endif
 #ifdef HAVE_SIGNAL_H
 #  include <signal.h>
@@ -137,7 +143,15 @@ feature_failure_ (const char * funcname)
   ik_abort("called POSIX specific function, %s\n", funcname);
 }
 
-#define feature_failure(FN)     { feature_failure_(FN); return void_object; }
+#define feature_failure(FN)     { feature_failure_(FN); return IK_VOID_OBJECT; }
+
+
+/** --------------------------------------------------------------------
+ ** Access to Scheme data structures.
+ ** ----------------------------------------------------------------- */
+
+#define VICARE_POSIX_STRUCT_TIMEVAL_TV_SEC	0
+#define VICARE_POSIX_STRUCT_TIMEVAL_TV_USEC	1
 
 
 /** --------------------------------------------------------------------
@@ -158,7 +172,7 @@ ikrt_posix_strerror (ikptr negated_errno_code, ikpcb* pcb)
   int	 code = - IK_UNFIX(negated_errno_code);
   errno = 0;
   char * error_message = strerror(code);
-  return errno? false_object : ika_bytevector_from_cstring(pcb, error_message);
+  return errno? IK_FALSE_OBJECT : ika_bytevector_from_cstring(pcb, error_message);
 #else
   feature_failure(__func__);
 #endif
@@ -174,7 +188,7 @@ ikrt_posix_getenv (ikptr bv, ikpcb* pcb)
 {
 #ifdef HAVE_GETENV
   char *  str = getenv(IK_BYTEVECTOR_DATA_CHARP(bv));
-  return (str)? ika_bytevector_from_cstring(pcb, str) : false_object;
+  return (str)? ika_bytevector_from_cstring(pcb, str) : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -185,8 +199,8 @@ ikrt_posix_setenv (ikptr key, ikptr val, ikptr overwrite)
 #ifdef HAVE_SETENV
   int	err = setenv(IK_BYTEVECTOR_DATA_CHARP(key),
 		     IK_BYTEVECTOR_DATA_CHARP(val),
-		     (overwrite != false_object));
-  return (err)? false_object : true_object;
+		     (overwrite != IK_FALSE_OBJECT));
+  return (err)? IK_FALSE_OBJECT : IK_TRUE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -198,10 +212,10 @@ ikrt_posix_unsetenv (ikptr key)
   char *	varname = IK_BYTEVECTOR_DATA_CHARP(key);
 #if (1 == UNSETENV_HAS_RETURN_VALUE)
   int		rv = unsetenv(varname);
-  return (0 == rv)? true_object : false_object;
+  return (0 == rv)? IK_TRUE_OBJECT : IK_FALSE_OBJECT;
 #else
   unsetenv(varname);
-  return true_object;
+  return IK_TRUE_OBJECT;
 #endif
 #else
   feature_failure(__func__);
@@ -211,8 +225,8 @@ ikptr
 ikrt_posix_environ (ikpcb* pcb)
 {
 #ifdef HAVE_DECL_ENVIRON
-  ikptr		s_list	= null_object;
-  ikptr		s_spine = null_object;
+  ikptr		s_list	= IK_NULL_OBJECT;
+  ikptr		s_spine = IK_NULL_OBJECT;
   int		i;
   s_list = s_spine = ika_pair_alloc(pcb);
   pcb->root0 = &s_list;
@@ -224,7 +238,7 @@ ikrt_posix_environ (ikpcb* pcb)
 	IK_ASS(IK_CDR(s_spine), ika_pair_alloc(pcb));
 	s_spine = IK_CDR(s_spine);
       } else
-	IK_CDR(s_spine) = null_object;
+	IK_CDR(s_spine) = IK_NULL_OBJECT;
     }
   }
   pcb->root1 = NULL;
@@ -376,7 +390,7 @@ ikrt_posix_WIFEXITED (ikptr s_status)
 {
 #ifdef HAVE_WIFEXITED
   int	status = ik_integer_to_int(s_status);
-  return (WIFEXITED(status))? true_object : false_object;
+  return (WIFEXITED(status))? IK_TRUE_OBJECT : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -396,7 +410,7 @@ ikrt_posix_WIFSIGNALED (ikptr s_status)
 {
 #ifdef HAVE_WIFSIGNALED
   int	status = ik_integer_to_int(s_status);
-  return (WIFSIGNALED(status))? true_object : false_object;
+  return (WIFSIGNALED(status))? IK_TRUE_OBJECT : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -416,7 +430,7 @@ ikrt_posix_WCOREDUMP (ikptr s_status)
 {
 #ifdef HAVE_WCOREDUMP
   int	status = ik_integer_to_int(s_status);
-  return (WCOREDUMP(status))? true_object : false_object;
+  return (WCOREDUMP(status))? IK_TRUE_OBJECT : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -426,7 +440,7 @@ ikrt_posix_WIFSTOPPED (ikptr s_status)
 {
 #ifdef HAVE_WIFSTOPPED
   int	status = ik_integer_to_int(s_status);
-  return (WIFSTOPPED(status))? true_object : false_object;
+  return (WIFSTOPPED(status))? IK_TRUE_OBJECT : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -474,7 +488,7 @@ ikrt_posix_pause (void)
 {
 #ifdef HAVE_PAUSE
   pause();
-  return void_object;
+  return IK_VOID_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -506,21 +520,21 @@ fill_stat_struct (struct stat * S, ikptr D, ikpcb* pcb)
 #ifdef HAVE_STAT_ST_ATIME_USEC
     IK_ASS(IK_FIELD(D, 8), ika_integer_from_ulong(pcb, (ik_ulong)S->st_atime_usec));
 #else
-    IK_ASS(IK_FIELD(D, 8), false_object);
+    IK_ASS(IK_FIELD(D, 8), IK_FALSE_OBJECT);
 #endif
 
     IK_ASS(IK_FIELD(D, 9) , ika_integer_from_long(pcb, (long)S->st_mtime));
 #ifdef HAVE_STAT_ST_MTIME_USEC
     IK_ASS(IK_FIELD(D, 10), ika_integer_from_ulong(pcb, (ik_ulong)S->st_mtime_usec));
 #else
-    IK_ASS(IK_FIELD(D, 10), false_object);
+    IK_ASS(IK_FIELD(D, 10), IK_FALSE_OBJECT);
 #endif
 
     IK_ASS(IK_FIELD(D, 11), ika_integer_from_long(pcb, (long)S->st_ctime));
 #ifdef HAVE_STAT_ST_CTIME_USEC
     IK_ASS(IK_FIELD(D, 12), ika_integer_from_ulong(pcb, (ik_ulong)S->st_ctime_usec));
 #else
-    IK_ASS(IK_FIELD(D, 12), false_object);
+    IK_ASS(IK_FIELD(D, 12), IK_FALSE_OBJECT);
 #endif
 
     IK_ASS(IK_FIELD(D, 13), ika_integer_from_ullong(pcb, (ik_ullong)S->st_blocks));
@@ -540,21 +554,21 @@ fill_stat_struct (struct stat * S, ikptr D, ikpcb* pcb)
 #ifdef HAVE_STAT_ST_ATIME_USEC
     IK_ASS(IK_FIELD(D, 8), ika_integer_from_ullong(pcb, (ik_ullong)S->st_atime_usec));
 #else
-    IK_ASS(IK_FIELD(D, 8), false_object);
+    IK_ASS(IK_FIELD(D, 8), IK_FALSE_OBJECT);
 #endif
 
     IK_ASS(IK_FIELD(D, 9) , ika_integer_from_llong(pcb, (long)S->st_mtime));
 #ifdef HAVE_STAT_ST_MTIME_USEC
     IK_ASS(IK_FIELD(D, 10), ika_integer_from_ullong(pcb, (ik_ullong)S->st_mtime_usec));
 #else
-    IK_ASS(IK_FIELD(D, 10), false_object);
+    IK_ASS(IK_FIELD(D, 10), IK_FALSE_OBJECT);
 #endif
 
     IK_ASS(IK_FIELD(D, 11), ika_integer_from_llong(pcb, (long)S->st_ctime));
 #ifdef HAVE_STAT_ST_CTIME_USEC
     IK_ASS(IK_FIELD(D, 12), ika_integer_from_ullong(pcb, (ik_ullong)S->st_ctime_usec));
 #else
-    IK_ASS(IK_FIELD(D, 12), false_object);
+    IK_ASS(IK_FIELD(D, 12), IK_FALSE_OBJECT);
 #endif
 
     IK_ASS(IK_FIELD(D, 13), ika_integer_from_ullong(pcb, (ik_ullong)S->st_blocks));
@@ -634,7 +648,7 @@ ikrt_posix_file_size(ikptr s_filename, ikpcb* pcb)
       return ika_integer_from_uint(pcb, S.st_size);
     else {
       ik_abort("unexpected off_t size %d", sizeof(off_t));
-      return void_object;
+      return IK_VOID_OBJECT;
     }
 #endif
   } else
@@ -658,11 +672,11 @@ file_is_p (ikptr s_pathname, ikptr s_follow_symlinks, int flag)
   int		rv;
   pathname = IK_BYTEVECTOR_DATA_CHARP(s_pathname);
   errno	   = 0;
-  rv	   = (false_object == s_follow_symlinks)? lstat(pathname, &S) : stat(pathname, &S);
+  rv	   = (IK_FALSE_OBJECT == s_follow_symlinks)? lstat(pathname, &S) : stat(pathname, &S);
   if (0 == rv)
     /* NOTE It is not enough to do "S.st_mode & flag", we really have to
        do "flag == (S.st_mode & flag)". */
-    return (flag == (S.st_mode & flag))? true_object : false_object;
+    return (flag == (S.st_mode & flag))? IK_TRUE_OBJECT : IK_FALSE_OBJECT;
   else
     return ik_errno_to_code();
 #else
@@ -691,9 +705,9 @@ ikrt_file_is_message_queue (ikptr s_pathname, ikptr s_follow_symlinks)
   int	   rv;
   pathname = IK_BYTEVECTOR_DATA_CHARP(s_pathname);
   errno    = 0;
-  rv = (false_object == s_follow_symlinks)? lstat(pathname, &S) : stat(pathname, &S);
+  rv = (IK_FALSE_OBJECT == s_follow_symlinks)? lstat(pathname, &S) : stat(pathname, &S);
   if (0 == rv)
-    return (S_TYPEISMQ(&S))? true_object : false_object;
+    return (S_TYPEISMQ(&S))? IK_TRUE_OBJECT : IK_FALSE_OBJECT;
   else
     return ik_errno_to_code();
 #else
@@ -709,9 +723,9 @@ ikrt_file_is_semaphore (ikptr s_pathname, ikptr s_follow_symlinks)
   int	   rv;
   pathname = IK_BYTEVECTOR_DATA_CHARP(s_pathname);
   errno    = 0;
-  rv = (false_object == s_follow_symlinks)? lstat(pathname, &S) : stat(pathname, &S);
+  rv = (IK_FALSE_OBJECT == s_follow_symlinks)? lstat(pathname, &S) : stat(pathname, &S);
   if (0 == rv)
-    return (S_TYPEISSEM(&S))? true_object : false_object;
+    return (S_TYPEISSEM(&S))? IK_TRUE_OBJECT : IK_FALSE_OBJECT;
   else
     return ik_errno_to_code();
 #else
@@ -727,9 +741,9 @@ ikrt_file_is_shared_memory (ikptr s_pathname, ikptr s_follow_symlinks)
   int	   rv;
   pathname = IK_BYTEVECTOR_DATA_CHARP(s_pathname);
   errno    = 0;
-  rv = (false_object == s_follow_symlinks)? lstat(pathname, &S) : stat(pathname, &S);
+  rv = (IK_FALSE_OBJECT == s_follow_symlinks)? lstat(pathname, &S) : stat(pathname, &S);
   if (0 == rv)
-    return (S_TYPEISSHM(&S))? true_object : false_object;
+    return (S_TYPEISSHM(&S))? IK_TRUE_OBJECT : IK_FALSE_OBJECT;
   else
     return ik_errno_to_code();
 #else
@@ -751,11 +765,11 @@ ikrt_posix_access (ikptr s_pathname, ikptr how)
   errno = 0;
   rv	= access(pathname, IK_UNFIX(how));
   if (0 == rv)
-    return true_object;
+    return IK_TRUE_OBJECT;
   else if ((errno == EACCES) ||
 	   (errno == EROFS)  ||
 	   (errno == ETXTBSY))
-    return false_object;
+    return IK_FALSE_OBJECT;
   else
     return ik_errno_to_code();
 #else
@@ -773,9 +787,9 @@ ikrt_posix_file_exists (ikptr s_pathname)
   errno	   = 0;
   rv	   = stat(pathname, &S);
   if (0 == rv)
-    return true_object;
+    return IK_TRUE_OBJECT;
   else if ((ENOENT == errno) || (ENOTDIR == errno))
-    return false_object;
+    return IK_FALSE_OBJECT;
   else
     return ik_errno_to_code();
 #else
@@ -1085,7 +1099,7 @@ ikrt_posix_readlink (ikptr s_link_pathname, ikpcb * pcb)
   char *	link_pathname = IK_BYTEVECTOR_DATA_CHARP(s_link_pathname);
   size_t	max_len;
   int		rv;
-  for (max_len=PATH_MAX;; max_len *= 2) {
+  for (max_len=1024;; max_len *= 2) {
     char	true_pathname[max_len];
     errno = 0;
     rv	  = readlink(link_pathname, true_pathname, max_len);
@@ -1106,11 +1120,15 @@ ikrt_posix_realpath (ikptr s_link_pathname, ikpcb* pcb)
 #ifdef HAVE_REALPATH
   char *	link_pathname;
   char *	true_pathname;
-  char		buff[PATH_MAX];
   link_pathname = IK_BYTEVECTOR_DATA_CHARP(s_link_pathname);
   errno		= 0;
-  true_pathname = realpath(link_pathname, buff);
-  return (true_pathname)? ika_bytevector_from_cstring(pcb, true_pathname) : ik_errno_to_code();
+  true_pathname = realpath(link_pathname, NULL);
+  if (true_pathname) {
+    ikptr	s_true_pathname = ika_bytevector_from_cstring(pcb, true_pathname);
+    free(true_pathname);
+    return s_true_pathname;
+  } else
+    return ik_errno_to_code();
 #else
   feature_failure(__func__);
 #endif
@@ -1274,7 +1292,7 @@ ikrt_posix_readdir (ikptr s_pointer, ikpcb * pcb)
   if (NULL == entry) {
     closedir(stream);
     if (0 == errno)
-      return false_object;
+      return IK_FALSE_OBJECT;
     else
       return ik_errno_to_code();
   } else
@@ -1313,7 +1331,7 @@ ikrt_posix_rewinddir (ikptr s_pointer)
 #ifdef HAVE_REWINDDIR
   DIR *	 stream = (DIR *) IK_POINTER_DATA_VOIDP(s_pointer);
   rewinddir(stream);
-  return void_object;
+  return IK_VOID_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -1337,7 +1355,7 @@ ikrt_posix_seekdir (ikptr s_pointer, ikptr s_pos)
   DIR *	 stream = (DIR *) IK_POINTER_DATA_VOIDP(s_pointer);
   long	 pos	= ik_integer_to_long(s_pos);
   seekdir(stream, pos);
-  return void_object;
+  return IK_VOID_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -1382,7 +1400,7 @@ ikrt_posix_read (ikptr s_fd, ikptr s_buffer, ikptr s_size)
   size_t	size;
   ssize_t	rv;
   buffer   = IK_BYTEVECTOR_DATA_VOIDP(s_buffer);
-  size	   = (size_t)((false_object!=s_size)? IK_UNFIX(s_size) : IK_BYTEVECTOR_LENGTH(s_buffer));
+  size	   = (size_t)((IK_FALSE_OBJECT!=s_size)? IK_UNFIX(s_size) : IK_BYTEVECTOR_LENGTH(s_buffer));
   errno	   = 0;
   rv	   = read(IK_NUM_TO_FD(s_fd), buffer, size);
   return (0 <= rv)? IK_FIX(rv) : ik_errno_to_code();
@@ -1399,7 +1417,7 @@ ikrt_posix_pread (ikptr s_fd, ikptr s_buffer, ikptr s_size, ikptr s_off)
   off_t		off;
   ssize_t	rv;
   buffer   = IK_BYTEVECTOR_DATA_VOIDP(s_buffer);
-  size	   = (size_t)((false_object!=s_size)?
+  size	   = (size_t)((IK_FALSE_OBJECT!=s_size)?
 		      IK_UNFIX(s_size) : IK_BYTEVECTOR_LENGTH(s_buffer));
   off	   = ik_integer_to_off_t(s_off);
   errno	   = 0;
@@ -1417,7 +1435,7 @@ ikrt_posix_write (ikptr s_fd, ikptr s_buffer, ikptr s_size)
   size_t	size;
   ssize_t	rv;
   buffer   = IK_BYTEVECTOR_DATA_VOIDP(s_buffer);
-  size	   = (size_t)((false_object!=s_size)?
+  size	   = (size_t)((IK_FALSE_OBJECT!=s_size)?
 		      IK_UNFIX(s_size) : IK_BYTEVECTOR_LENGTH(s_buffer));
   errno	   = 0;
   rv	   = write(IK_NUM_TO_FD(s_fd), buffer, size);
@@ -1435,7 +1453,7 @@ ikrt_posix_pwrite (ikptr s_fd, ikptr s_buffer, ikptr s_size, ikptr s_offset)
   off_t		off;
   ssize_t	rv;
   buffer   = IK_BYTEVECTOR_DATA_VOIDP(s_buffer);
-  size	   = (size_t)((false_object!=s_size)?
+  size	   = (size_t)((IK_FALSE_OBJECT!=s_size)?
 		      IK_UNFIX(s_size) : IK_BYTEVECTOR_LENGTH(s_buffer));
   off	   = ik_integer_to_off_t(s_offset);
   errno	   = 0;
@@ -1550,7 +1568,7 @@ ikrt_posix_select (ikptr nfds_fx,
     FD_SET(fd, &except_fds);
   }
   /* Perform the selection. */
-  if (false_object == nfds_fx)
+  if (IK_FALSE_OBJECT == nfds_fx)
     ++nfds;
   else
     nfds = IK_UNFIX(nfds_fx);
@@ -1567,13 +1585,13 @@ ikrt_posix_select (ikptr nfds_fx,
        collected while building other objects. */
     vec = ik_safe_alloc(pcb, IK_ALIGN(disp_vector_data+3*wordsize)) | vector_tag;
     IK_REF(vec, off_vector_length) = IK_FIX(3);
-    IK_REF(vec, off_vector_data+0*wordsize) = null_object;
-    IK_REF(vec, off_vector_data+1*wordsize) = null_object;
-    IK_REF(vec, off_vector_data+2*wordsize) = null_object;
+    IK_REF(vec, off_vector_data+0*wordsize) = IK_NULL_OBJECT;
+    IK_REF(vec, off_vector_data+1*wordsize) = IK_NULL_OBJECT;
+    IK_REF(vec, off_vector_data+2*wordsize) = IK_NULL_OBJECT;
     pcb->root0 = &vec;
     {
       /* Build a list of read-ready file descriptors. */
-      for (L=read_fds_ell, R=null_object; pair_tag == IK_TAGOF(L); L=IK_REF(L,off_cdr)) {
+      for (L=read_fds_ell, R=IK_NULL_OBJECT; pair_tag == IK_TAGOF(L); L=IK_REF(L,off_cdr)) {
 	ikptr fdx = IK_REF(L, off_car);
 	if (FD_ISSET(IK_UNFIX(fdx), &read_fds)) {
 	  ikptr P = ika_pair_alloc(pcb);
@@ -1584,7 +1602,7 @@ ikrt_posix_select (ikptr nfds_fx,
 	}
       }
       /* Build a list of write-ready file descriptors. */
-      for (L=write_fds_ell, W=null_object; pair_tag == IK_TAGOF(L); L = IK_REF(L, off_cdr)) {
+      for (L=write_fds_ell, W=IK_NULL_OBJECT; pair_tag == IK_TAGOF(L); L = IK_REF(L, off_cdr)) {
 	ikptr fdx = IK_REF(L, off_car);
 	if (FD_ISSET(IK_UNFIX(fdx), &write_fds)) {
 	  ikptr P = ika_pair_alloc(pcb);
@@ -1594,7 +1612,7 @@ ikrt_posix_select (ikptr nfds_fx,
 	}
       }
       /* Build a list of except-ready file descriptors. */
-      for (L=except_fds_ell, E=null_object; pair_tag == IK_TAGOF(L); L = IK_REF(L, off_cdr)) {
+      for (L=except_fds_ell, E=IK_NULL_OBJECT; pair_tag == IK_TAGOF(L); L = IK_REF(L, off_cdr)) {
 	ikptr fdx = IK_REF(L, off_car);
 	if (FD_ISSET(IK_UNFIX(fdx), &except_fds)) {
 	  ikptr P = ika_pair_alloc(pcb);
@@ -1678,11 +1696,11 @@ ikrt_posix_select_is_readable (ikptr s_fd, ikptr s_sec, ikptr s_usec, ikpcb * pc
   errno = 0;
   rv	= select(1+fd, &read_fds, &write_fds, &except_fds, &timeout);
   if (0 == rv) /* timeout has expired */
-    return false_object;
+    return IK_FALSE_OBJECT;
   else if (-1 == rv) /* an error occurred */
     return ik_errno_to_code();
   else /* success, let's harvest the events */
-    return (FD_ISSET(fd, &read_fds))? true_object : false_object;
+    return (FD_ISSET(fd, &read_fds))? IK_TRUE_OBJECT : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -1715,11 +1733,11 @@ ikrt_posix_select_is_writable (ikptr s_fd, ikptr s_sec, ikptr s_usec, ikpcb * pc
   errno = 0;
   rv	= select(1+fd, &read_fds, &write_fds, &except_fds, &timeout);
   if (0 == rv) /* timeout has expired */
-    return false_object;
+    return IK_FALSE_OBJECT;
   else if (-1 == rv) /* an error occurred */
     return ik_errno_to_code();
   else /* success, let's harvest the events */
-    return (FD_ISSET(fd, &write_fds))? true_object : false_object;
+    return (FD_ISSET(fd, &write_fds))? IK_TRUE_OBJECT : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -1753,11 +1771,11 @@ ikrt_posix_select_is_exceptional (ikptr s_fd, ikptr s_sec, ikptr s_usec, ikpcb *
   errno = 0;
   rv	= select(1+fd, &read_fds, &write_fds, &except_fds, &timeout);
   if (0 == rv) /* timeout has expired */
-    return false_object;
+    return IK_FALSE_OBJECT;
   else if (-1 == rv) /* an error occurred */
     return ik_errno_to_code();
   else /* success, let's harvest the events */
-    return (FD_ISSET(fd, &except_fds))? true_object : false_object;
+    return (FD_ISSET(fd, &except_fds))? IK_TRUE_OBJECT : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -1806,7 +1824,7 @@ ikrt_posix_fcntl (ikptr fd, ikptr command, ikptr arg)
   if (IK_IS_FIXNUM(arg)) {
     long	val = (long)IK_UNFIX(arg);
     rv = fcntl(IK_UNFIX(fd), IK_UNFIX(command), val);
-  } else if (false_object == arg) {
+  } else if (IK_FALSE_OBJECT == arg) {
     rv = fcntl(IK_UNFIX(fd), IK_UNFIX(command));
   } else if (IK_IS_BYTEVECTOR(arg)) {
     void *	val = IK_BYTEVECTOR_DATA_VOIDP(arg);
@@ -1830,7 +1848,7 @@ ikrt_posix_ioctl (ikptr fd, ikptr command, ikptr arg)
   if (IK_IS_FIXNUM(arg)) {
     long	val = (long)IK_UNFIX(arg);
     rv = ioctl(IK_UNFIX(fd), IK_UNFIX(command), val);
-  } else if (false_object == arg) {
+  } else if (IK_FALSE_OBJECT == arg) {
     rv = ioctl(IK_UNFIX(fd), IK_UNFIX(command));
   } else if (IK_IS_BYTEVECTOR(arg)) {
     void *	val = IK_BYTEVECTOR_DATA_VOIDP(arg);
@@ -1910,6 +1928,215 @@ ikrt_posix_mkfifo (ikptr s_pathname, ikptr mode)
 #endif
 }
 
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_posix_truncate (ikptr s_name, ikptr s_length)
+{
+#ifdef HAVE_TRUNCATE
+  const char *	name = IK_BYTEVECTOR_DATA_CHARP(s_name);
+  off_t		len  = ik_integer_to_off_t(s_length);
+  int		rv;
+  errno = 0;
+  rv	= truncate(name, len);
+  return (0 == rv)? IK_FIX(0) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_ftruncate (ikptr s_fd, ikptr s_length)
+{
+#ifdef HAVE_FTRUNCATE
+  off_t	len  = ik_integer_to_off_t(s_length);
+  int	rv;
+  errno = 0;
+  rv	= ftruncate(IK_NUM_TO_FD(s_fd), len);
+  return (0 == rv)? IK_FIX(0) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+
+
+/** --------------------------------------------------------------------
+ ** File descriptor sets.
+ ** ----------------------------------------------------------------- */
+
+ikptr
+ikrt_posix_sizeof_fd_set (ikptr s_count, ikpcb * pcb)
+{
+  /* Yes, we do not check for overflow. */
+  size_t	len = sizeof(fd_set) * IK_UNFIX(s_count);
+  return ika_integer_from_size_t(pcb, len);
+}
+ikptr
+ikrt_posix_make_fd_set_bytevector (ikptr s_count, ikpcb * pcb)
+{
+  long		count	= IK_UNFIX(s_count);
+  /* Yes, we do not check for overflow. */
+  long		len	= sizeof(fd_set) * count;
+  ikptr		bv	= ika_bytevector_alloc(pcb, len);
+  fd_set *	set	= (fd_set *)IK_BYTEVECTOR_DATA_VOIDP(bv);
+  long		i;
+  for (i=0; i<count; ++i)
+    FD_ZERO(&(set[i]));
+  return bv;
+}
+ikptr
+ikrt_posix_make_fd_set_pointer (ikptr s_count, ikpcb * pcb)
+{
+  long		count	= IK_UNFIX(s_count);
+  /* Yes, we do not check for overflow. */
+  size_t	len = sizeof(fd_set) * count;
+  fd_set *	set = malloc(len);
+  if (set) {
+    long	i;
+    for (i=0; i<count; ++i)
+      FD_ZERO(&(set[i]));
+    return ika_pointer_alloc(pcb, (ik_ulong)set);
+  } else
+    return IK_FALSE;
+}
+ikptr
+ikrt_posix_make_fd_set_memory_block (ikptr s_mblock, ikptr s_count, ikpcb * pcb)
+{
+  long		count	= IK_UNFIX(s_count);
+  /* Yes, we do not check for overflow. */
+  size_t	len = sizeof(fd_set) * count;
+  fd_set *	set = malloc(len);
+  if (set) {
+    long	i;
+    for (i=0; i<count; ++i)
+      FD_ZERO(&(set[i]));
+    pcb->root0 = &s_mblock;
+    {
+      IK_POINTER_SET(IK_MBLOCK_POINTER(s_mblock), (ikptr)set);
+      IK_ASS(IK_MBLOCK_SIZE(s_mblock), ika_integer_from_size_t(pcb, len));
+    }
+    pcb->root0 = NULL;
+    return IK_TRUE;
+  } else
+    return IK_FALSE;
+}
+
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_posix_fd_zero (ikptr s_fdset, ikptr s_idx, ikpcb * pcb)
+{
+  fd_set *	set = IK_VOIDP_FROM_BYTEVECTOR_OR_POINTER_OR_MBLOCK_OR_FALSE(s_fdset);
+  if (set) {
+    int		idx = IK_UNFIX(s_idx);
+    FD_ZERO(&(set[idx]));
+  }
+  return IK_VOID;
+}
+ikptr
+ikrt_posix_fd_set (ikptr s_fd, ikptr s_fdset, ikptr s_idx, ikpcb * pcb)
+{
+  fd_set *	set = IK_VOIDP_FROM_BYTEVECTOR_OR_POINTER_OR_MBLOCK(s_fdset);
+  int		idx = IK_UNFIX(s_idx);
+  int		fd  = IK_NUM_TO_FD(s_fd);
+  FD_SET(fd, &(set[idx]));
+  return IK_VOID;
+}
+ikptr
+ikrt_posix_fd_clr (ikptr s_fd, ikptr s_fdset, ikptr s_idx, ikpcb * pcb)
+{
+  fd_set *	set = IK_VOIDP_FROM_BYTEVECTOR_OR_POINTER_OR_MBLOCK(s_fdset);
+  int		idx = IK_UNFIX(s_idx);
+  int		fd  = IK_NUM_TO_FD(s_fd);
+  FD_CLR(fd, &(set[idx]));
+  return IK_VOID;
+}
+ikptr
+ikrt_posix_fd_isset (ikptr s_fd, ikptr s_fdset, ikptr s_idx, ikpcb * pcb)
+{
+  fd_set *	set = IK_VOIDP_FROM_BYTEVECTOR_OR_POINTER_OR_MBLOCK(s_fdset);
+  int		idx = IK_UNFIX(s_idx);
+  int		fd  = IK_NUM_TO_FD(s_fd);
+  int		rv;
+  rv = FD_ISSET(fd, &(set[idx]));
+  return IK_BOOLEAN_FROM_INT(rv);
+}
+
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_posix_select_from_sets (ikptr s_nfds,
+			     ikptr s_read_fds, ikptr s_write_fds, ikptr s_except_fds,
+			     ikptr s_sec, ikptr s_usec,
+			     ikpcb * pcb)
+{
+#ifdef HAVE_SELECT
+  fd_set *	read_fds   = \
+    IK_VOIDP_FROM_BYTEVECTOR_OR_POINTER_OR_MBLOCK_OR_FALSE(s_read_fds);
+  fd_set *	write_fds  = \
+    IK_VOIDP_FROM_BYTEVECTOR_OR_POINTER_OR_MBLOCK_OR_FALSE(s_write_fds);
+  fd_set *	except_fds = \
+    IK_VOIDP_FROM_BYTEVECTOR_OR_POINTER_OR_MBLOCK_OR_FALSE(s_except_fds);
+  fd_set	empty_read;
+  fd_set	empty_write;
+  fd_set	empty_except;
+  struct timeval timeout;
+  int		nfds=0;
+  int		rv;
+  nfds = (IK_FALSE == s_nfds)? FD_SETSIZE : IK_UNFIX(s_nfds);
+  if (NULL == read_fds) {
+    read_fds = &empty_read;
+    FD_ZERO(read_fds);
+  }
+  if (NULL == write_fds) {
+    write_fds = &empty_write;
+    FD_ZERO(write_fds);
+  }
+  if (NULL == except_fds) {
+    except_fds = &empty_except;
+    FD_ZERO(except_fds);
+  }
+  timeout.tv_sec  = IK_UNFIX(s_sec);
+  timeout.tv_usec = IK_UNFIX(s_usec);
+  errno = 0;
+  rv	= select(nfds, read_fds, write_fds, except_fds, &timeout);
+  if (0 == rv) { /* timeout has expired */
+    return IK_FIX(0);
+  } else if (-1 == rv) { /* an error occurred */
+    return ik_errno_to_code();
+  } else /* success */
+    return IK_FALSE;
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_select_from_sets_array (ikptr s_nfds, ikptr s_fd_sets,
+				   ikptr s_sec, ikptr s_usec, ikpcb * pcb)
+{
+#ifdef HAVE_SELECT
+  fd_set *	fd_sets    = IK_VOIDP_FROM_BYTEVECTOR_OR_POINTER_OR_MBLOCK(s_fd_sets);
+  fd_set *	read_fds   = &(fd_sets[0]);
+  fd_set *	write_fds  = &(fd_sets[1]);
+  fd_set *	except_fds = &(fd_sets[2]);
+  struct timeval timeout;
+  int		nfds=0;
+  int		rv;
+  nfds = (IK_FALSE == s_nfds)? FD_SETSIZE : IK_UNFIX(s_nfds);
+  timeout.tv_sec  = IK_UNFIX(s_sec);
+  timeout.tv_usec = IK_UNFIX(s_usec);
+  errno = 0;
+  rv	= select(nfds, read_fds, write_fds, except_fds, &timeout);
+  if (0 == rv) { /* timeout has expired */
+    return IK_FIX(0);
+  } else if (-1 == rv) { /* an error occurred */
+    return ik_errno_to_code();
+  } else /* success */
+    return IK_FALSE;
+#else
+  feature_failure(__func__);
+#endif
+}
+
 
 /** --------------------------------------------------------------------
  ** Memory-mapped input/output.
@@ -1920,13 +2147,16 @@ ikrt_posix_mmap (ikptr s_address, ikptr s_length, ikptr s_protect,
 		 ikptr s_flags, ikptr s_fd, ikptr s_offset, ikpcb * pcb)
 {
 #ifdef HAVE_MMAP
-  void *	address = (false_object == s_address)? NULL : IK_POINTER_DATA_VOIDP(s_address);
+  void *	address = (IK_FALSE_OBJECT == s_address)? NULL : IK_POINTER_DATA_VOIDP(s_address);
   size_t	length  = ik_integer_to_size_t(s_length);
-  off_t		offset  = ik_integer_to_off_t(s_length);
+  off_t		offset  = ik_integer_to_off_t(s_offset);
   void *	rv;
   errno = 0;
-  rv    = mmap(address, length, IK_UNFIX(s_protect), IK_UNFIX(s_flags), IK_NUM_TO_FD(s_fd), offset);
-  if (((void *)-1) != rv)
+  rv    = mmap(address, length,
+	       IK_UNFIX(s_protect), IK_UNFIX(s_flags),
+	       IK_NUM_TO_FD(s_fd), offset);
+  /* if (((void *)-1) != rv) */
+  if (MAP_FAILED != rv)
     return ika_pointer_alloc(pcb, (ik_ulong)rv);
   else
     return ik_errno_to_code();
@@ -2105,7 +2335,7 @@ ikrt_posix_sockaddr_un_pathname (ikptr s_addr, ikpcb * pcb)
     pcb->root0 = NULL;
     return s_bv;
   } else
-    return false_object;
+    return IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -2128,10 +2358,13 @@ ikrt_posix_make_sockaddr_in (ikptr s_host_address, ikptr s_port, ikpcb * pcb)
   {
     struct in_addr *		host_address;
     struct sockaddr_in *	socket_address;
+    uint16_t			port = htons((uint16_t)IK_UNFIX(s_port));
+    /* fprintf(stderr, "%s: port %ld %u\n", __func__, IK_UNFIX(s_port), port); */
     s_socket_address	       = ika_bytevector_alloc(pcb, BV_LEN);
     socket_address	       = IK_BYTEVECTOR_DATA_VOIDP(s_socket_address);
     socket_address->sin_family = AF_INET;
-    socket_address->sin_port   = (unsigned short int)IK_UNFIX(s_port);
+    socket_address->sin_port   = (unsigned short int)port;
+    /* fprintf(stderr, "%s: field %u\n", __func__, (uint16_t)(ntohs(socket_address->sin_port))); */
     host_address	       = IK_BYTEVECTOR_DATA_VOIDP(s_host_address);
     memcpy(&(socket_address->sin_addr), host_address, sizeof(struct in_addr));
   }
@@ -2162,7 +2395,7 @@ ikrt_posix_sockaddr_in_in_addr (ikptr s_socket_address, ikpcb * pcb)
     pcb->root0 = NULL;
     return s_host_address;
   } else
-    return false_object;
+    return IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -2172,8 +2405,12 @@ ikrt_posix_sockaddr_in_in_port (ikptr s_socket_address)
 {
 #ifdef HAVE_STRUCT_SOCKADDR_IN
   struct sockaddr_in *	socket_address = IK_BYTEVECTOR_DATA_VOIDP(s_socket_address);
-  return (AF_INET == socket_address->sin_family)?
-    IK_FIX((long)socket_address->sin_port) : false_object;
+  if (AF_INET == socket_address->sin_family) {
+    uint16_t		port = ntohs((uint16_t)(socket_address->sin_port));
+    /* fprintf(stderr, "%s: port %u\n", __func__, port); */
+    return IK_FIX((long)port);
+  } else
+    return IK_FALSE;
 #else
   feature_failure(__func__);
 #endif
@@ -2190,16 +2427,19 @@ ikrt_posix_make_sockaddr_in6 (ikptr s_host_address, ikptr s_port, ikpcb * pcb)
 #ifdef HAVE_STRUCT_SOCKADDR_IN6
 #undef BV_LEN
 #define BV_LEN	sizeof(struct sockaddr_in6)
-  struct in6_addr *	host_address;
-  struct sockaddr_in6 * socket_address;
   ikptr			s_socket_address;
   pcb->root0 = &s_host_address;
   pcb->root1 = &s_port;
   {
+    struct in6_addr *		host_address;
+    struct sockaddr_in6 *	socket_address;
+    uint16_t			port = htons((uint16_t)IK_UNFIX(s_port));
+    /* fprintf(stderr, "%s: port %ld %u\n", __func__, IK_UNFIX(s_port), port); */
     s_socket_address	        = ika_bytevector_alloc(pcb, BV_LEN);
     socket_address	        = IK_BYTEVECTOR_DATA_VOIDP(s_socket_address);
     socket_address->sin6_family = AF_INET6;
-    socket_address->sin6_port   = (unsigned short int)IK_UNFIX(s_port);
+    socket_address->sin6_port   = (unsigned short int)port;
+    /* fprintf(stderr, "%s: field %u\n", __func__, (uint16_t)(ntohs(socket_address->sin_port))); */
     host_address                = IK_BYTEVECTOR_DATA_VOIDP(s_host_address);
     memcpy(&(socket_address->sin6_addr), host_address, sizeof(struct in6_addr));
   }
@@ -2230,7 +2470,7 @@ ikrt_posix_sockaddr_in6_in6_addr (ikptr s_socket_address, ikpcb * pcb)
     pcb->root0 = NULL;
     return s_host_address;
   } else
-    return false_object;
+    return IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -2240,8 +2480,15 @@ ikrt_posix_sockaddr_in6_in6_port (ikptr s_socket_address)
 {
 #ifdef HAVE_STRUCT_SOCKADDR_IN6
   struct sockaddr_in6 *	 socket_address = IK_BYTEVECTOR_DATA_VOIDP(s_socket_address);
-  return (AF_INET6 == socket_address->sin6_family)?
-    IK_FIX((long)socket_address->sin6_port) : false_object;
+  /* return (AF_INET6 == socket_address->sin6_family)? */
+  /*   IK_FIX((long)socket_address->sin6_port) : IK_FALSE_OBJECT; */
+  if (AF_INET6 == socket_address->sin6_family) {
+    uint16_t		port = ntohs((uint16_t)(socket_address->sin6_port));
+    /* fprintf(stderr, "%s: port %u\n", __func__, port); */
+    return IK_FIX((long)port);
+  } else
+    return IK_FALSE;
+
 #else
   feature_failure(__func__);
 #endif
@@ -2307,7 +2554,7 @@ ikrt_posix_inet_aton (ikptr s_dotted_quad, ikpcb * pcb)
     rv = inet_aton(dotted_quad, host_address);
   }
   pcb->root0 = NULL;
-  return (0 != rv)? s_host_address : false_object;
+  return (0 != rv)? s_host_address : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -2360,7 +2607,7 @@ ikrt_posix_inet_pton (ikptr s_af, ikptr s_presentation, ikpcb * pcb)
 	rv = inet_pton(IK_UNFIX(s_af), presentation, host_address);
       }
       pcb->root0 = NULL;
-      return (0 < rv)? s_host_address : false_object;
+      return (0 < rv)? s_host_address : IK_FALSE_OBJECT;
     }
   case AF_INET6:
     {
@@ -2375,10 +2622,10 @@ ikrt_posix_inet_pton (ikptr s_af, ikptr s_presentation, ikpcb * pcb)
 	rv = inet_pton(IK_UNFIX(s_af), presentation, host_address);
       }
       pcb->root0 = NULL;
-      return (0 < rv)? s_host_address : false_object;
+      return (0 < rv)? s_host_address : IK_FALSE_OBJECT;
     }
   default:
-    return false_object;
+    return IK_FALSE_OBJECT;
   }
 #else
   feature_failure(__func__);
@@ -2408,10 +2655,10 @@ ikrt_posix_inet_ntop (ikptr s_af, ikptr s_host_address, ikpcb * pcb)
 	memcpy(presentation, buffer, presentation_len);
 	return s_presentation;
       } else
-	return false_object;
+	return IK_FALSE_OBJECT;
     }
   default:
-    return false_object;
+    return IK_FALSE_OBJECT;
   }
 #else
   feature_failure(__func__);
@@ -2448,7 +2695,7 @@ hostent_to_struct (ikptr s_rtd, struct hostent * src, ikpcb * pcb)
 	    IK_ASS(IK_CDR(s_spine), ika_pair_alloc(pcb));
 	    s_spine = IK_CDR(s_spine);
 	  } else {
-	    IK_CDR(s_spine) = null_object;
+	    IK_CDR(s_spine) = IK_NULL_OBJECT;
 	    break;
 	  }
 	}
@@ -2457,7 +2704,7 @@ hostent_to_struct (ikptr s_rtd, struct hostent * src, ikpcb * pcb)
       pcb->root6 = NULL;
       IK_FIELD(s_dst, 1) = s_list_of_aliases;
     } else
-      IK_FIELD(s_dst, 1) = null_object;
+      IK_FIELD(s_dst, 1) = IK_NULL_OBJECT;
   }
   { /* store the host address type */
     IK_FIELD(s_dst, 2) = IK_FIX(src->h_addrtype);
@@ -2480,7 +2727,7 @@ hostent_to_struct (ikptr s_rtd, struct hostent * src, ikpcb * pcb)
 	    IK_ASS(IK_CDR(s_spine), ika_pair_alloc(pcb));
 	    s_spine = IK_CDR(s_spine);
 	  } else {
-	    IK_CDR(s_spine) = null_object;
+	    IK_CDR(s_spine) = IK_NULL_OBJECT;
 	    break;
 	  }
 	}
@@ -2489,7 +2736,7 @@ hostent_to_struct (ikptr s_rtd, struct hostent * src, ikpcb * pcb)
       pcb->root6 = NULL;
       IK_FIELD(s_dst, 4) = s_list_of_addrs;
     } else
-      IK_FIELD(s_dst, 4) = null_object;
+      IK_FIELD(s_dst, 4) = IK_NULL_OBJECT;
   }
   {/* store the first in the list of addresses */
     IK_FIELD(s_dst, 5) = IK_CAR(IK_FIELD(s_dst, 4));
@@ -2571,7 +2818,7 @@ ikrt_posix_host_entries (ikptr s_rtd, ikpcb * pcb)
 	      IK_ASS(IK_CDR(s_spine), ika_pair_alloc(pcb));
 	      s_spine = IK_CDR(s_spine);
 	    } else {
-	      IK_CDR(s_spine) = null_object;
+	      IK_CDR(s_spine) = IK_NULL_OBJECT;
 	      break;
 	    }
 	  }
@@ -2581,7 +2828,7 @@ ikrt_posix_host_entries (ikptr s_rtd, ikpcb * pcb)
       }
       pcb->root0 = NULL;
     } else
-      s_list_of_entries = null_object;
+      s_list_of_entries = IK_NULL_OBJECT;
   }
   endhostent();
   return s_list_of_entries;
@@ -2595,7 +2842,7 @@ ikrt_posix_host_entries (ikptr s_rtd, ikpcb * pcb)
  ** Network address informations.
  ** ----------------------------------------------------------------- */
 
-#if ((defined HAVE_STRUCT_ADDRINFO) || (defined HAVE_GETADDRINFO))
+#if ((defined HAVE_STRUCT_ADDRINFO) && (defined HAVE_GETADDRINFO))
 static ikptr
 addrinfo_to_struct (ikpcb * pcb, ikptr s_rtd, struct addrinfo * src, int with_canon_name)
 /* Convert  a  C  language  "struct  addrinfo" into  a  Scheme  language
@@ -2617,7 +2864,7 @@ addrinfo_to_struct (ikpcb * pcb, ikptr s_rtd, struct addrinfo * src, int with_ca
       IK_ASS(IK_FIELD(s_dst, 6),
 	     ika_bytevector_from_cstring(pcb, src->ai_canonname));
     } else
-      IK_FIELD(s_dst, 6) = false_object;
+      IK_FIELD(s_dst, 6) = IK_FALSE_OBJECT;
   }
   pcb->root9 = NULL;
   return s_dst;
@@ -2626,7 +2873,7 @@ addrinfo_to_struct (ikpcb * pcb, ikptr s_rtd, struct addrinfo * src, int with_ca
 ikptr
 ikrt_posix_getaddrinfo (ikptr s_rtd, ikptr s_node, ikptr s_service, ikptr s_hints_struct, ikpcb * pcb)
 {
-#ifdef HAVE_GETADDRINFO
+#if ((defined HAVE_STRUCT_ADDRINFO) && (defined HAVE_GETADDRINFO))
   const char *		node;
   const char *		service;
   struct addrinfo	hints;
@@ -2634,10 +2881,10 @@ ikrt_posix_getaddrinfo (ikptr s_rtd, ikptr s_node, ikptr s_service, ikptr s_hint
   struct addrinfo *	result;
   struct addrinfo *	iter;
   int			rv, with_canon_name;
-  node	  = (false_object != s_node)?    IK_BYTEVECTOR_DATA_CHARP(s_node)    : NULL;
-  service = (false_object != s_service)? IK_BYTEVECTOR_DATA_CHARP(s_service) : NULL;
+  node	  = (IK_FALSE_OBJECT != s_node)?    IK_BYTEVECTOR_DATA_CHARP(s_node)    : NULL;
+  service = (IK_FALSE_OBJECT != s_service)? IK_BYTEVECTOR_DATA_CHARP(s_service) : NULL;
   memset(&hints, '\0', sizeof(struct addrinfo));
-  if (false_object == s_hints_struct) {
+  if (IK_FALSE_OBJECT == s_hints_struct) {
     hints_p		= NULL;
     with_canon_name	= 0;
   } else {
@@ -2666,7 +2913,7 @@ ikrt_posix_getaddrinfo (ikptr s_rtd, ikptr s_node, ikptr s_service, ikptr s_hint
 	      IK_ASS(IK_CDR(s_spine), ika_pair_alloc(pcb));
 	      s_spine = IK_CDR(s_spine);
 	    } else {
-	      IK_CDR(s_spine) = null_object;
+	      IK_CDR(s_spine) = IK_NULL_OBJECT;
 	      break;
 	    }
 	  }
@@ -2677,7 +2924,7 @@ ikrt_posix_getaddrinfo (ikptr s_rtd, ikptr s_node, ikptr s_service, ikptr s_hint
       pcb->root0 = NULL;
       freeaddrinfo(result);
     } else
-      s_list_of_addrinfo = null_object;
+      s_list_of_addrinfo = IK_NULL_OBJECT;
     return s_list_of_addrinfo;
   } else {
     /* The  GAI_  codes	 are  already  negative in  the	 GNU  C	 Library
@@ -2728,7 +2975,7 @@ protoent_to_struct (ikpcb * pcb, ikptr s_rtd, struct protoent * src)
 	    IK_ASS(IK_CDR(s_spine), ika_pair_alloc(pcb));
 	    s_spine = IK_CDR(s_spine);
 	  } else {
-	    IK_CDR(s_spine) = null_object;
+	    IK_CDR(s_spine) = IK_NULL_OBJECT;
 	    break;
 	  }
 	}
@@ -2737,7 +2984,7 @@ protoent_to_struct (ikpcb * pcb, ikptr s_rtd, struct protoent * src)
       pcb->root8 = NULL;
       IK_FIELD(s_dst, 1) = s_list_of_aliases;
     } else
-      IK_FIELD(s_dst, 1) = null_object;
+      IK_FIELD(s_dst, 1) = IK_NULL_OBJECT;
     /* fill the field "p_proto" */
     IK_FIELD(s_dst, 2) = IK_FIX(src->p_proto);
   }
@@ -2753,7 +3000,7 @@ ikrt_posix_getprotobyname (ikptr s_rtd, ikptr s_name, ikpcb * pcb)
   struct protoent *	entry;
   name	= IK_BYTEVECTOR_DATA_CHARP(s_name);
   entry = getprotobyname(name);
-  return (entry)? protoent_to_struct(pcb, s_rtd, entry) : false_object;
+  return (entry)? protoent_to_struct(pcb, s_rtd, entry) : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -2764,7 +3011,7 @@ ikrt_posix_getprotobynumber (ikptr s_rtd, ikptr s_proto_num, ikpcb * pcb)
 #ifdef HAVE_GETPROTOBYNUMBER
   struct protoent *	entry;
   entry = getprotobynumber(IK_UNFIX(s_proto_num));
-  return (entry)? protoent_to_struct(pcb, s_rtd, entry) : false_object;
+  return (entry)? protoent_to_struct(pcb, s_rtd, entry) : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -2793,7 +3040,7 @@ ikrt_posix_protocol_entries (ikptr s_rtd, ikpcb * pcb)
 	      IK_ASS(IK_CDR(s_spine), ika_pair_alloc(pcb));
 	      s_spine = IK_CDR(s_spine);
 	    } else {
-	      IK_CDR(s_spine) = null_object;
+	      IK_CDR(s_spine) = IK_NULL_OBJECT;
 	      break;
 	    }
 	  }
@@ -2801,7 +3048,7 @@ ikrt_posix_protocol_entries (ikptr s_rtd, ikpcb * pcb)
 	pcb->root2 = NULL;
 	pcb->root1 = NULL;
       } else
-	s_list_of_entries = null_object;
+	s_list_of_entries = IK_NULL_OBJECT;
     }
     pcb->root0 = NULL;
   }
@@ -2842,7 +3089,7 @@ servent_to_struct (ikpcb * pcb, ikptr s_rtd, struct servent * src)
 	    IK_ASS(IK_CDR(s_spine), ika_pair_alloc(pcb));
 	    s_spine = IK_CDR(s_spine);
 	  } else {
-	    IK_CDR(s_spine) = null_object;
+	    IK_CDR(s_spine) = IK_NULL_OBJECT;
 	    break;
 	  }
 	}
@@ -2851,7 +3098,7 @@ servent_to_struct (ikpcb * pcb, ikptr s_rtd, struct servent * src)
       pcb->root8 = NULL;
       IK_FIELD(s_dst, 1) = s_list_of_aliases;
     } else
-      IK_FIELD(s_dst, 1) = null_object;
+      IK_FIELD(s_dst, 1) = IK_NULL_OBJECT;
     /* fill the field "s_port" */
     IK_FIELD(s_dst, 2) = IK_FIX(ntohs((uint16_t)(src->s_port)));
     /* fill the field "s_proto" */
@@ -2871,7 +3118,7 @@ ikrt_posix_getservbyname (ikptr s_rtd, ikptr s_name, ikptr s_proto, ikpcb * pcb)
   name	= IK_BYTEVECTOR_DATA_CHARP(s_name);
   proto = IK_BYTEVECTOR_DATA_CHARP(s_proto);
   entry = getservbyname(name, proto);
-  return (entry)? servent_to_struct(pcb, s_rtd, entry) : false_object;
+  return (entry)? servent_to_struct(pcb, s_rtd, entry) : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -2884,7 +3131,7 @@ ikrt_posix_getservbyport (ikptr s_rtd, ikptr s_port, ikptr s_proto, ikpcb * pcb)
   struct servent *	entry;
   proto = IK_BYTEVECTOR_DATA_CHARP(s_proto);
   entry = getservbyport((int)htons((uint16_t)IK_UNFIX(s_port)), proto);
-  return (entry)? servent_to_struct(pcb, s_rtd, entry) : false_object;
+  return (entry)? servent_to_struct(pcb, s_rtd, entry) : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -2913,7 +3160,7 @@ ikrt_posix_service_entries (ikptr s_rtd, ikpcb * pcb)
 	      IK_ASS(IK_CDR(s_spine), ika_pair_alloc(pcb));
 	      s_spine = IK_CDR(s_spine);
 	    } else {
-	      IK_CDR(s_spine) = null_object;
+	      IK_CDR(s_spine) = IK_NULL_OBJECT;
 	      break;
 	    }
 	  }
@@ -2923,7 +3170,7 @@ ikrt_posix_service_entries (ikptr s_rtd, ikpcb * pcb)
       }
       pcb->root0 = NULL;
     } else
-      s_list_of_entries = null_object;
+      s_list_of_entries = IK_NULL_OBJECT;
   }
   endservent();
   return s_list_of_entries;
@@ -2960,7 +3207,7 @@ netent_to_struct (ikpcb * pcb, ikptr s_rtd, struct netent * src)
 	    IK_ASS(IK_CDR(s_spine), ika_pair_alloc(pcb));
 	    s_spine = IK_CDR(s_spine);
 	  } else {
-	    IK_CDR(s_spine) = null_object;
+	    IK_CDR(s_spine) = IK_NULL_OBJECT;
 	    break;
 	  }
 	}
@@ -2969,7 +3216,7 @@ netent_to_struct (ikpcb * pcb, ikptr s_rtd, struct netent * src)
       pcb->root8 = NULL;
       IK_FIELD(s_dst, 1) = s_list_of_aliases;
     } else
-      IK_FIELD(s_dst, 1) = null_object;
+      IK_FIELD(s_dst, 1) = IK_NULL_OBJECT;
     IK_FIELD(s_dst, 2) = IK_FIX(src->n_addrtype);
     IK_ASS(IK_FIELD(s_dst, 3), ika_integer_from_ullong(pcb, (ik_ullong)src->n_net));
   }
@@ -2985,7 +3232,7 @@ ikrt_posix_getnetbyname (ikptr s_rtd, ikptr s_name, ikpcb * pcb)
   struct netent *	entry;
   name	= IK_BYTEVECTOR_DATA_CHARP(s_name);
   entry = getnetbyname(name);
-  return (entry)? netent_to_struct(pcb, s_rtd, entry) : false_object;
+  return (entry)? netent_to_struct(pcb, s_rtd, entry) : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -2998,7 +3245,7 @@ ikrt_posix_getnetbyaddr (ikptr s_rtd, ikptr s_net_num, ikptr s_type, ikpcb * pcb
   struct netent *	entry;
   net   = (uint32_t)ik_integer_to_ulong(s_net_num);
   entry = getnetbyaddr(net, IK_UNFIX(s_type));
-  return (entry)? netent_to_struct(pcb, s_rtd, entry) : false_object;
+  return (entry)? netent_to_struct(pcb, s_rtd, entry) : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -3026,7 +3273,7 @@ ikrt_posix_network_entries (ikptr s_rtd, ikpcb * pcb)
 	    IK_ASS(IK_CDR(s_spine), ika_pair_alloc(pcb));
 	    s_spine = IK_CDR(s_spine);
 	  } else {
-	    IK_CDR(s_spine) = null_object;
+	    IK_CDR(s_spine) = IK_NULL_OBJECT;
 	    break;
 	  }
 	}
@@ -3036,7 +3283,7 @@ ikrt_posix_network_entries (ikptr s_rtd, ikpcb * pcb)
     }
     pcb->root0 = NULL;
   } else
-    s_list_of_entries = null_object;
+    s_list_of_entries = IK_NULL_OBJECT;
   endnetent();
   return s_list_of_entries;
 #else
@@ -3227,7 +3474,7 @@ ikrt_posix_send (ikptr s_sock, ikptr s_buffer, ikptr s_size, ikptr s_flags)
   size_t	size;
   int		rv;
   buffer     = IK_BYTEVECTOR_DATA_VOIDP(s_buffer);
-  size	     = (size_t)((false_object != s_size)?
+  size	     = (size_t)((IK_FALSE_OBJECT != s_size)?
 			IK_UNFIX(s_size) : IK_BYTEVECTOR_LENGTH(s_buffer));
   errno	     = 0;
   rv	     = send(IK_NUM_TO_FD(s_sock), buffer, size, IK_UNFIX(s_flags));
@@ -3244,7 +3491,7 @@ ikrt_posix_recv (ikptr s_sock, ikptr s_buffer, ikptr s_size, ikptr s_flags)
   size_t	size;
   int		rv;
   buffer     = IK_BYTEVECTOR_DATA_VOIDP(s_buffer);
-  size	     = (size_t)((false_object != s_size)?
+  size	     = (size_t)((IK_FALSE_OBJECT != s_size)?
 			IK_UNFIX(s_size) : IK_BYTEVECTOR_LENGTH(s_buffer));
   errno	     = 0;
   rv	     = recv(IK_NUM_TO_FD(s_sock), buffer, size, IK_UNFIX(s_flags));
@@ -3266,7 +3513,7 @@ ikrt_posix_sendto (ikptr s_sock, ikptr s_buffer, ikptr s_size, ikptr s_flags, ik
   size_t		size;
   int			rv;
   buffer   = IK_BYTEVECTOR_DATA_VOIDP(s_buffer);
-  size	   = (size_t)((false_object != s_size)?
+  size	   = (size_t)((IK_FALSE_OBJECT != s_size)?
 		      IK_UNFIX(s_size) : IK_BYTEVECTOR_LENGTH(s_buffer));
   addr	   = IK_BYTEVECTOR_DATA_VOIDP(s_addr);
   addr_len = (socklen_t)IK_BYTEVECTOR_LENGTH(s_addr);
@@ -3290,7 +3537,7 @@ ikrt_posix_recvfrom (ikptr s_sock, ikptr s_buffer, ikptr s_size, ikptr s_flags, 
   size_t		size;
   int			rv;
   buffer     = IK_BYTEVECTOR_DATA_VOIDP(s_buffer);
-  size	     = (size_t)((false_object != s_size)?
+  size	     = (size_t)((IK_FALSE_OBJECT != s_size)?
 			IK_UNFIX(s_size) : IK_BYTEVECTOR_LENGTH(s_buffer));
   errno	     = 0;
   rv	     = recvfrom(IK_NUM_TO_FD(s_sock), buffer, size, IK_UNFIX(s_flags), addr, &addr_len);
@@ -3358,9 +3605,9 @@ ikrt_posix_setsockopt_int (ikptr s_sock, ikptr s_level, ikptr s_optname, ikptr s
   int		optval;
   socklen_t	optlen = sizeof(int);
   int		rv;
-  if (true_object == s_optval_num)
+  if (IK_TRUE_OBJECT == s_optval_num)
     optval = 1;
-  else if (false_object == s_optval_num)
+  else if (IK_FALSE_OBJECT == s_optval_num)
     optval = 0;
   else {
     long	num = ik_integer_to_long(s_optval_num);
@@ -3389,7 +3636,7 @@ ikrt_posix_getsockopt_int (ikptr s_sock, ikptr s_level, ikptr s_optname, ikpcb *
     pcb->root0 = &s_pair;
     {
       IK_ASS(IK_CAR(s_pair), ika_integer_from_long(pcb, (long)optval));
-      IK_CDR(s_pair) = true_object;
+      IK_CDR(s_pair) = IK_TRUE_OBJECT;
     }
     pcb->root0 = NULL;
     return s_pair;
@@ -3432,7 +3679,7 @@ ikrt_posix_getsockopt_size_t (ikptr s_sock, ikptr s_level, ikptr s_optname, ikpc
     pcb->root0 = &s_pair;
     {
       IK_ASS(IK_CAR(s_pair), ika_integer_from_size_t(pcb, optval));
-      IK_CDR(s_pair) = true_object;
+      IK_CDR(s_pair) = IK_TRUE_OBJECT;
     }
     pcb->root0 = NULL;
     return s_pair;
@@ -3452,7 +3699,7 @@ ikrt_posix_setsockopt_linger (ikptr s_sock, ikptr onoff, ikptr linger)
   struct linger optval;
   socklen_t	optlen = sizeof(struct linger);
   int		rv;
-  optval.l_onoff  = (true_object == onoff)? 1 : 0;
+  optval.l_onoff  = (IK_TRUE_OBJECT == onoff)? 1 : 0;
   optval.l_linger = IK_UNFIX(linger);
   errno = 0;
   rv	= setsockopt(IK_NUM_TO_FD(s_sock), SOL_SOCKET, SO_LINGER, &optval, optlen);
@@ -3474,7 +3721,7 @@ ikrt_posix_getsockopt_linger (ikptr s_sock, ikpcb * pcb)
     /* Return  a pair  to distinguish  the value  from an  encoded errno
        value. */
     ikptr	s_pair = ika_pair_alloc(pcb);
-    IK_CAR(s_pair) = optval.l_onoff? true_object : false_object;
+    IK_CAR(s_pair) = optval.l_onoff? IK_TRUE_OBJECT : IK_FALSE_OBJECT;
     IK_CDR(s_pair) = IK_FIX(optval.l_linger);
     return s_pair;
   } else
@@ -3541,7 +3788,7 @@ ikrt_posix_getgroups (ikpcb * pcb)
     if (-1 == count)
       return ik_errno_to_code();
     else if (0 == count)
-      return null_object;
+      return IK_NULL_OBJECT;
     else {
       ikptr	s_list_of_gids, s_spine;
       int	i;
@@ -3555,7 +3802,7 @@ ikrt_posix_getgroups (ikpcb * pcb)
 	    IK_ASS(IK_CDR(s_spine), ika_pair_alloc(pcb));
 	    s_spine = IK_CDR(s_spine);
 	  } else {
-	    IK_CDR(s_spine) = null_object;
+	    IK_CDR(s_spine) = IK_NULL_OBJECT;
 	    break;
 	  }
 	}
@@ -3656,7 +3903,7 @@ ikrt_posix_getlogin (ikpcb * pcb)
 #ifdef HAVE_GETLOGIN
   char *	username;
   username = getlogin();
-  return (username)? ika_bytevector_from_cstring(pcb, username) : false_object;
+  return (username)? ika_bytevector_from_cstring(pcb, username) : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -3694,7 +3941,7 @@ ikrt_posix_getpwuid (ikptr s_rtd, ikptr s_uid, ikpcb * pcb)
 #ifdef HAVE_GETPWUID
   struct passwd *	entry;
   entry = getpwuid(IK_NUM_TO_UID(s_uid));
-  return (entry)? passwd_to_struct(s_rtd, entry, pcb) : false_object;
+  return (entry)? passwd_to_struct(s_rtd, entry, pcb) : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -3707,7 +3954,7 @@ ikrt_posix_getpwnam (ikptr s_rtd, ikptr s_name, ikpcb * pcb)
   struct passwd *	entry;
   name	= IK_BYTEVECTOR_DATA_CHARP(s_name);
   entry = getpwnam(name);
-  return (entry)? passwd_to_struct(s_rtd, entry, pcb) : false_object;
+  return (entry)? passwd_to_struct(s_rtd, entry, pcb) : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -3736,7 +3983,7 @@ ikrt_posix_user_entries (ikptr s_rtd, ikpcb * pcb)
 	      IK_ASS(IK_CDR(s_spine), ika_pair_alloc(pcb));
 	      s_spine = IK_CDR(s_spine);
 	    } else {
-	      IK_CDR(s_spine) = null_object;
+	      IK_CDR(s_spine) = IK_NULL_OBJECT;
 	      break;
 	    }
 	  }
@@ -3746,7 +3993,7 @@ ikrt_posix_user_entries (ikptr s_rtd, ikpcb * pcb)
       }
       pcb->root0 = NULL;
     } else
-      s_list_of_entries = null_object;
+      s_list_of_entries = IK_NULL_OBJECT;
   }
   endpwent();
   return s_list_of_entries;
@@ -3786,7 +4033,7 @@ group_to_struct (ikptr s_rtd, struct group * src, ikpcb * pcb)
 	      IK_ASS(IK_CDR(s_spine), ika_pair_alloc(pcb));
 	      s_spine = IK_CDR(s_spine);
 	    } else {
-	      IK_CDR(s_spine) = null_object;
+	      IK_CDR(s_spine) = IK_NULL_OBJECT;
 	      break;
 	    }
 	  }
@@ -3794,7 +4041,7 @@ group_to_struct (ikptr s_rtd, struct group * src, ikpcb * pcb)
 	pcb->root7 = NULL;
 	pcb->root8 = NULL;
       } else
-	s_list_of_users = null_object;
+	s_list_of_users = IK_NULL_OBJECT;
       IK_FIELD(s_dst, 2) = s_list_of_users;
     }
   }
@@ -3808,7 +4055,7 @@ ikrt_posix_getgrgid (ikptr s_rtd, ikptr s_gid, ikpcb * pcb)
 #ifdef HAVE_GETGRGID
   struct group *       entry;
   entry = getgrgid(IK_NUM_TO_GID(s_gid));
-  return (entry)? group_to_struct(s_rtd, entry, pcb) : false_object;
+  return (entry)? group_to_struct(s_rtd, entry, pcb) : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -3821,7 +4068,7 @@ ikrt_posix_getgrnam (ikptr s_rtd, ikptr s_name, ikpcb * pcb)
   struct group *       entry;
   name	= IK_BYTEVECTOR_DATA_CHARP(s_name);
   entry = getgrnam(name);
-  return (entry)? group_to_struct(s_rtd, entry, pcb) : false_object;
+  return (entry)? group_to_struct(s_rtd, entry, pcb) : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -3849,7 +4096,7 @@ ikrt_posix_group_entries (ikptr s_rtd, ikpcb * pcb)
 	      IK_ASS(IK_CDR(s_spine), ika_pair_alloc(pcb));
 	      s_spine = IK_CDR(s_spine);
 	    } else {
-	      IK_CDR(s_spine) = null_object;
+	      IK_CDR(s_spine) = IK_NULL_OBJECT;
 	      break;
 	    }
 	  }
@@ -3859,7 +4106,7 @@ ikrt_posix_group_entries (ikptr s_rtd, ikpcb * pcb)
       }
       pcb->root0 = NULL;
     } else
-      s_list_of_entries = null_object;
+      s_list_of_entries = IK_NULL_OBJECT;
   }
   endgrent();
   return s_list_of_entries;
@@ -3985,7 +4232,7 @@ ikrt_posix_clock (ikpcb * pcb)
 #ifdef HAVE_CLOCK
   clock_t	T;
   T = clock();
-  return (((clock_t)-1) != T)? ika_flonum_from_double(pcb, (double)T) : false_object;
+  return (((clock_t)-1) != T)? ika_flonum_from_double(pcb, (double)T) : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -3996,7 +4243,7 @@ ikrt_posix_time (ikpcb * pcb)
 #ifdef HAVE_TIME
   time_t	T;
   T = time(NULL);
-  return (((time_t)-1) != T)? ika_flonum_from_double(pcb, (double)T) : false_object;
+  return (((time_t)-1) != T)? ika_flonum_from_double(pcb, (double)T) : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -4034,7 +4281,7 @@ ikrt_posix_times (ikptr s_rtd, ikpcb * pcb)
   struct tms	T = { 0, 0, 0, 0 };
   clock_t	rv;
   rv = times(&T);
-  return (((clock_t)-1) == rv)? false_object : tms_to_struct(s_rtd, &T, pcb);
+  return (((clock_t)-1) == rv)? IK_FALSE_OBJECT : tms_to_struct(s_rtd, &T, pcb);
 #else
   feature_failure(__func__);
 #endif
@@ -4085,7 +4332,7 @@ tm_to_struct (ikptr s_rtd, struct tm * src, ikpcb * pcb)
     IK_ASS(IK_FIELD(s_dst, 5), ika_integer_from_long(pcb, (long)(src->tm_year)));
     IK_ASS(IK_FIELD(s_dst, 6), ika_integer_from_long(pcb, (long)(src->tm_wday)));
     IK_ASS(IK_FIELD(s_dst, 7), ika_integer_from_long(pcb, (long)(src->tm_yday)));
-    IK_FIELD(s_dst, 8) = (src->tm_isdst)? true_object : false_object;
+    IK_FIELD(s_dst, 8) = (src->tm_isdst)? IK_TRUE_OBJECT : IK_FALSE_OBJECT;
     IK_ASS(IK_FIELD(s_dst, 9), ika_integer_from_long(pcb, src->tm_gmtoff));
     IK_ASS(IK_FIELD(s_dst,10), ika_bytevector_from_cstring(pcb, src->tm_zone));
   }
@@ -4101,7 +4348,7 @@ ikrt_posix_localtime (ikptr s_rtd, ikptr s_time_num, ikpcb * pcb)
   struct tm	T;
   struct tm *	rv;
   rv	= localtime_r(&time, &T);
-  return (rv)? tm_to_struct(s_rtd, &T, pcb) : false_object;
+  return (rv)? tm_to_struct(s_rtd, &T, pcb) : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -4115,7 +4362,7 @@ ikrt_posix_gmtime (ikptr s_rtd, ikptr s_time_num, ikpcb * pcb)
   struct tm *	rv;
   errno = 0;
   rv	= gmtime_r(&time, &T);
-  return (rv)? tm_to_struct(s_rtd, &T, pcb) : false_object;
+  return (rv)? tm_to_struct(s_rtd, &T, pcb) : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -4137,7 +4384,7 @@ struct_to_tm (ikptr s_src, struct tm * dst)
   dst->tm_year	= ik_integer_to_long(IK_FIELD(s_src, 5));
   dst->tm_wday	= ik_integer_to_long(IK_FIELD(s_src, 6));
   dst->tm_yday	= ik_integer_to_long(IK_FIELD(s_src, 7));
-  dst->tm_isdst = (true_object == IK_FIELD(s_src, 8))? 1 : 0;
+  dst->tm_isdst = (IK_TRUE_OBJECT == IK_FIELD(s_src, 8))? 1 : 0;
   dst->tm_yday	= ik_integer_to_long(IK_FIELD(s_src, 9));
   dst->tm_zone	= IK_BYTEVECTOR_DATA_CHARP(IK_FIELD(s_src, 10));
 }
@@ -4150,7 +4397,7 @@ ikrt_posix_timelocal (ikptr s_tm_struct, ikpcb * pcb)
   time_t	rv;
   struct_to_tm(s_tm_struct, &T);
   rv = timelocal(&T);
-  return (((time_t)-1) != rv)? ika_flonum_from_double(pcb, (double)rv) : false_object;
+  return (((time_t)-1) != rv)? ika_flonum_from_double(pcb, (double)rv) : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -4163,7 +4410,7 @@ ikrt_posix_timegm (ikptr s_tm_struct, ikpcb * pcb)
   time_t	rv;
   struct_to_tm(s_tm_struct, &T);
   rv = timegm(&T);
-  return (((time_t)-1) != rv)? ika_flonum_from_double(pcb, (double)rv) : false_object;
+  return (((time_t)-1) != rv)? ika_flonum_from_double(pcb, (double)rv) : IK_FALSE_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -4183,7 +4430,7 @@ ikrt_posix_strftime (ikptr s_template, ikptr s_tm_struct, ikpcb *pcb)
   output[0] = '\1';
   size = strftime(output, size, template, &T);
   return (0 == size && '\0' != output[0])?
-    false_object : ika_bytevector_from_cstring_len(pcb, output, size);
+    IK_FALSE_OBJECT : ika_bytevector_from_cstring_len(pcb, output, size);
 #else
   feature_failure(__func__);
 #endif
@@ -4207,9 +4454,9 @@ ikrt_posix_nanosleep (ikptr s_secs, ikptr s_nsecs, ikpcb * pcb)
     pcb->root0 = &s_pair;
     {
       IK_ASS(IK_CAR(s_pair),
-	     remaining.tv_sec?  ika_integer_from_long(pcb, remaining.tv_sec)  : false_object);
+	     remaining.tv_sec?  ika_integer_from_long(pcb, remaining.tv_sec)  : IK_FALSE_OBJECT);
       IK_ASS(IK_CDR(s_pair),
-	     remaining.tv_nsec? ika_integer_from_long(pcb, remaining.tv_nsec) : false_object);
+	     remaining.tv_nsec? ika_integer_from_long(pcb, remaining.tv_nsec) : IK_FALSE_OBJECT);
     }
     pcb->root0 = NULL;
     return s_pair;
@@ -4344,7 +4591,7 @@ ikrt_posix_signal_bub_init (void)
     arrived_signals[signum] = 0;
     sigaction(signum, &ac, NULL);
   }
-  return void_object;
+  return IK_VOID_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -4363,7 +4610,7 @@ ikrt_posix_signal_bub_final (void)
     sigaction(signum, &ac, NULL);
   }
   sigprocmask(SIG_UNBLOCK, &all_signals_set, NULL);
-  return void_object;
+  return IK_VOID_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -4375,7 +4622,7 @@ ikrt_posix_signal_bub_acquire (void)
 #if ((defined HAVE_SIGFILLSET) && (defined HAVE_SIGPROCMASK) && (defined HAVE_SIGACTION))
   sigprocmask(SIG_UNBLOCK, &all_signals_set, NULL);
   sigprocmask(SIG_BLOCK,   &all_signals_set, NULL);
-  return void_object;
+  return IK_VOID_OBJECT;
 #else
   feature_failure(__func__);
 #endif
@@ -4389,7 +4636,221 @@ ikrt_posix_signal_bub_delivered (ikptr s_signum)
   int	signum = IK_UNFIX(s_signum);
   int	is_set = arrived_signals[signum];
   arrived_signals[signum] = 0;
-  return is_set? true_object : false_object;
+  return is_set? IK_TRUE_OBJECT : IK_FALSE_OBJECT;
+#else
+  feature_failure(__func__);
+#endif
+}
+
+
+/** --------------------------------------------------------------------
+ ** Waiting for signals.
+ ** ----------------------------------------------------------------- */
+
+static void
+posix_siginfo_to_struct (siginfo_t * info, ikptr s_struct, ikpcb * pcb)
+{
+  pcb->root9 = &s_struct;
+  {
+    IK_ASS(IK_FIELD(s_struct, 0),
+#ifdef HAVE_SIGINFO_SI_SIGNO
+	   ika_integer_from_int(pcb, info->si_signo)
+#else
+	   IK_FALSE_OBJECT
+#endif
+	   );
+    IK_ASS(IK_FIELD(s_struct, 1),
+#ifdef HAVE_SIGINFO_SI_ERRNO
+	   ika_integer_from_int(pcb, info->si_errno)
+#else
+	   IK_FALSE_OBJECT
+#endif
+	   );
+    IK_ASS(IK_FIELD(s_struct, 2),
+#ifdef HAVE_SIGINFO_SI_CODE
+	   ika_integer_from_int(pcb, info->si_code)
+#else
+	   IK_FALSE_OBJECT
+#endif
+	   );
+    IK_ASS(IK_FIELD(s_struct, 3),
+#ifdef HAVE_SIGINFO_SI_TRAPNO
+	   ika_integer_from_int(pcb, info->si_trapno),
+#else
+	   IK_FALSE_OBJECT
+#endif
+	   );
+    IK_ASS(IK_FIELD(s_struct, 4),
+#ifdef HAVE_SIGINFO_SI_PID
+	   ika_integer_from_int(pcb, info->si_pid)
+#else
+	   IK_FALSE_OBJECT
+#endif
+	   );
+    IK_ASS(IK_FIELD(s_struct, 5),
+#ifdef HAVE_SIGINFO_SI_UID
+	   ika_integer_from_int(pcb, info->si_uid)
+#else
+	   IK_FALSE_OBJECT
+#endif
+	   );
+    IK_ASS(IK_FIELD(s_struct, 6),
+#ifdef HAVE_SIGINFO_SI_STATUS
+	   ika_integer_from_int(pcb, info->si_status)
+#else
+	   IK_FALSE_OBJECT
+#endif
+	   );
+    IK_ASS(IK_FIELD(s_struct, 7),
+#ifdef HAVE_SIGINFO_SI_UTIME
+	   ika_integer_from_llong(pcb, (ik_llong)(info->si_utime))
+#else
+	   IK_FALSE_OBJECT
+#endif
+	   );
+    IK_ASS(IK_FIELD(s_struct, 8),
+#ifdef HAVE_SIGINFO_SI_STIME
+	   ika_integer_from_llong(pcb, (long long)(info->si_stime))
+#else
+	   IK_FALSE_OBJECT
+#endif
+	   );
+    IK_ASS(IK_FIELD(s_struct, 9),
+#ifdef HAVE_SIGINFO_SI_VALUE
+	   ika_integer_from_int(pcb, info->si_value.sival_int)
+#else
+	   IK_FALSE_OBJECT
+#endif
+	   );
+    IK_ASS(IK_FIELD(s_struct, 10),
+#ifdef HAVE_SIGINFO_SI_VALUE
+	   ika_pointer_alloc(pcb, (ik_ulong)(info->si_value.sival_ptr))
+#else
+	   IK_FALSE_OBJECT
+#endif
+	   );
+    IK_ASS(IK_FIELD(s_struct, 11),
+#ifdef HAVE_SIGINFO_SI_INT
+	   ika_integer_from_int(pcb, info->si_int)
+#else
+	   IK_FALSE_OBJECT
+#endif
+	   );
+    IK_ASS(IK_FIELD(s_struct, 12),
+#ifdef HAVE_SIGINFO_SI_PTR
+	   ika_pointer_alloc(pcb, (ik_ulong)(info->si_ptr))
+#else
+	   IK_FALSE_OBJECT
+#endif
+	   );
+    IK_ASS(IK_FIELD(s_struct, 13),
+#ifdef HAVE_SIGINFO_SI_OVERRUN
+	   ika_integer_from_int(pcb, info->si_overrun)
+#else
+	   IK_FALSE_OBJECT
+#endif
+	   );
+    IK_ASS(IK_FIELD(s_struct, 14),
+#ifdef HAVE_SIGINFO_SI_TIMERID
+	   ika_integer_from_int(pcb, info->si_timerid)
+#else
+	   IK_FALSE_OBJECT
+#endif
+	   );
+    IK_ASS(IK_FIELD(s_struct, 15),
+#ifdef HAVE_SIGINFO_SI_ADDR
+	   ika_pointer_alloc(pcb, (ik_ulong)(info->si_addr))
+#else
+	   IK_FALSE_OBJECT
+#endif
+	   );
+    IK_ASS(IK_FIELD(s_struct, 16),
+#ifdef HAVE_SIGINFO_SI_BAND
+	   ika_integer_from_long(pcb, info->si_band)
+#else
+	   IK_FALSE_OBJECT
+#endif
+	   );
+    IK_ASS(IK_FIELD(s_struct, 17),
+#ifdef HAVE_SIGINFO_SI_FD
+	   ika_integer_from_int(pcb, info->si_fd)
+#else
+	   IK_FALSE_OBJECT
+#endif
+	   );
+    IK_ASS(IK_FIELD(s_struct, 18),
+#ifdef HAVE_SIGINFO_SI_ADDR_LSB
+	   ika_integer_from_int(pcb, (int)info->si_addr_lsb)
+#else
+	   IK_FALSE_OBJECT
+#endif
+	   );
+  }
+  pcb->root9 = NULL;
+}
+
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_posix_sigwaitinfo (ikptr s_signo, ikptr s_siginfo, ikpcb * pcb)
+/* Interface to the C  function "sigwaitinfo()".  Synchronously wait for
+   a queued signal; if successful  return a fixnum representing a signal
+   number, else return an encoded "errno" value.
+
+   S_SIGNO must be a fixnum representing an interprocess signal code.
+
+   S_SIGINFO must be an instance  of "struct-siginfo_t", which is filled
+   with the informations attached to the signal. */
+{
+#if ((defined HAVE_SIGEMPTYSET) && (defined HAVE_SIGADDSET) && (defined HAVE_SIGWAITINFO))
+  sigset_t	set;
+  siginfo_t	info;
+  int		rv;
+  sigemptyset(&set);
+  rv = sigaddset(&set, IK_NUM_TO_SIGNUM(s_signo));
+  if (-1 == rv)
+    return ik_errno_to_code();
+  rv = sigwaitinfo(&set, &info);
+  if (0 < rv) {
+    posix_siginfo_to_struct(&info, s_siginfo, pcb);
+    return IK_FIX(rv);
+  } else
+    return ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_sigtimedwait (ikptr s_signo, ikptr s_siginfo, ikptr s_timeout, ikpcb * pcb)
+/* Interface to the C function "sigtimedwait()".  Synchronously wait for
+   a  queued signal,  with  a  timeout; if  successful  return a  fixnum
+   representing a signal number, else return an encoded "errno" value.
+
+   S_SIGNO must be a fixnum representing an interprocess signal code.
+
+   S_SIGINFO must be an instance  of "struct-siginfo_t", which is filled
+   with the informations attached to the signal.
+
+   S_TIMEOUT must be an instance of "struct-timespec": it represents the
+   maximum interval of time to wait for the signal. */
+{
+#if ((defined HAVE_SIGEMPTYSET) && (defined HAVE_SIGADDSET) && (defined HAVE_SIGTIMEDWAIT))
+  sigset_t		set;
+  siginfo_t		info;
+  struct timespec	timeout;
+  int			rv;
+  sigemptyset(&set);
+  rv = sigaddset(&set, IK_NUM_TO_SIGNUM(s_signo));
+  if (-1 == rv)
+    return ik_errno_to_code();
+  timeout.tv_sec  = ik_integer_to_long(IK_FIELD(s_timeout, 0));
+  timeout.tv_nsec = ik_integer_to_long(IK_FIELD(s_timeout, 1));
+  rv = sigtimedwait(&set, &info, &timeout);
+  if (0 < rv) {
+    posix_siginfo_to_struct(&info, s_siginfo, pcb);
+    return IK_FIX(rv);
+  } else
+    return ik_errno_to_code();
 #else
   feature_failure(__func__);
 #endif
@@ -4409,7 +4870,7 @@ ikrt_posix_sysconf (ikptr s_parameter, ikpcb * pcb)
   errno = 0;
   value = sysconf((int)parameter);
   if (-1 == value)
-    return (errno)? ik_errno_to_code() : false_object;
+    return (errno)? ik_errno_to_code() : IK_FALSE_OBJECT;
   else
     return ika_integer_from_long(pcb, value);
 #else
@@ -4426,7 +4887,7 @@ ikrt_posix_pathconf (ikptr s_pathname, ikptr s_parameter, ikpcb * pcb)
   errno = 0;
   value = pathconf(pathname, (int)parameter);
   if (-1 == value)
-    return (errno)? ik_errno_to_code() : false_object;
+    return (errno)? ik_errno_to_code() : IK_FALSE_OBJECT;
   else
     return ika_integer_from_long(pcb, value);
 #else
@@ -4442,7 +4903,7 @@ ikrt_posix_fpathconf (ikptr s_fd, ikptr s_parameter, ikpcb * pcb)
   errno = 0;
   value = fpathconf(IK_UNFIX(s_fd), (int)parameter);
   if (-1 == value)
-    return (errno)? ik_errno_to_code() : false_object;
+    return (errno)? ik_errno_to_code() : IK_FALSE_OBJECT;
   else
     return ika_integer_from_long(pcb, value);
 #else
@@ -4469,12 +4930,1152 @@ ikrt_posix_confstr (ikptr s_parameter, ikpcb * pcb)
 #endif
 }
 
+
+/** --------------------------------------------------------------------
+ ** POSIX message queues.
+ ** ----------------------------------------------------------------- */
+
+ikptr
+ikrt_posix_mq_open (ikptr s_name, ikptr s_oflag, ikptr s_mode, ikptr s_attr,
+		    ikpcb * pcb)
+/* Interface to the C function  "mq_open()".  Create a new message queue
+   or  open an  existing  one.   If successful  return  a message  queue
+   descriptor, else return an encoded "errno" value.
+
+   S_NAME must be a bytevector holding a pathname in ASCII encoding.
+
+   S_OFLAG must be a fixnum representing the inclusive OR composition of
+   some of the following  flags: O_RDONLY, O_WRONLY, O_RDWR, O_NONBLOCK,
+   O_CREAT, O_EXCL.
+
+   S_MODE  must be  a  fixnum representing  access  permissions for  the
+   message queue pathname;  it should be an inclusive  OR composition of
+   some  of  the flags:  S_IRUSR,  S_IWUSR,  S_IXUSR, S_IRGRP,  S_IWGRP,
+   S_IXGRP, S_IROTH, S_IWOTH, S_IXOTH.
+
+   S_ATTR must be false or  an instance of "struct-mq-attr"; when false:
+   the queue is created with platform-dependent default attributes.  */
+{
+#ifdef HAVE_MQ_OPEN
+  const char *		name;
+  struct mq_attr	attr;
+  struct mq_attr *	attrp;
+  mqd_t			rv;
+  name = IK_BYTEVECTOR_DATA_CHARP(s_name);
+  if (IK_FALSE_OBJECT != s_attr) {
+    attr.mq_flags	= ik_integer_to_long(IK_FIELD(s_attr, 0));
+    attr.mq_maxmsg	= ik_integer_to_long(IK_FIELD(s_attr, 1));
+    attr.mq_msgsize	= ik_integer_to_long(IK_FIELD(s_attr, 2));
+    attr.mq_curmsgs	= ik_integer_to_long(IK_FIELD(s_attr, 3));
+    attrp = &attr;
+  } else
+    attrp = NULL;
+  errno = 0;
+  rv    = mq_open(name, IK_UNFIX(s_oflag), IK_UNFIX(s_mode), attrp);
+  return (((mqd_t)-1) != rv)? IK_FIX(rv) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_mq_close (ikptr s_mqd)
+/* Interface to  the C function  "mq_close()".  Close the  message queue
+   referenced by  the descriptor  S_MQD; notice  that the  message queue
+   will  still  exist  until  it  is  deleted  with  "mq_unlink()".   If
+   successful return  the fixnum  zero, else  return an  encoded "errno"
+   value. */
+{
+#ifdef HAVE_MQ_CLOSE
+  int	rv;
+  errno = 0;
+  rv = mq_close(IK_UNFIX(s_mqd));
+  return (0 == rv)? IK_FIX(rv) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_mq_unlink (ikptr s_name, ikpcb * pcb)
+/* Interface to the C function  "mq_unlink()".  Remove the message queue
+   whose  name is  S_NAME, which  must  be a  bytevector representing  a
+   pathname  in  ASCII  encoding;  the message  queue  name  is  removed
+   immediately,  while  the  message  queue  is  removed  when  all  the
+   processes  referencing it  close  their  descriptors.  If  successful
+   return the fixnum zero, else return an encoded "errno" value. */
+{
+#ifdef HAVE_MQ_UNLINK
+  const char *	name;
+  int		rv;
+  name = IK_BYTEVECTOR_DATA_CHARP(s_name);
+  errno = 0;
+  rv = mq_unlink(name);
+  return (0 == rv)? IK_FIX(0) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_posix_mq_send (ikptr s_mqd, ikptr s_message, ikptr s_priority)
+/* Interface to the C function "mq_send()".   Add a message to the queue
+   referenced by the descriptor S_MQD.   If successful return the fixnum
+   zero, else return an encoded "errno" value.
+
+   S_MESSAGE must be a Scheme  bytevector representing the message data.
+   S_PRIORITY must be an exact integer,  in the range of "unsigned int",
+   representing the priority of the message. */
+{
+#ifdef HAVE_MQ_SEND
+  const char *	msg_ptr;
+  size_t	msg_len;
+  unsigned	priority;
+  int		rv;
+  msg_ptr	= IK_BYTEVECTOR_DATA_CHARP(s_message);
+  msg_len	= IK_BYTEVECTOR_LENGTH(s_message);
+  priority	= ik_integer_to_uint(s_priority);
+  errno = 0;
+  rv = mq_send(IK_UNFIX(s_mqd), msg_ptr, msg_len, priority);
+  return (0 == rv)? IK_FIX(0) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_mq_timedsend (ikptr s_mqd, ikptr s_message, ikptr s_priority,
+			 ikptr s_epoch_timeout)
+/* Interface to the  C function "mq_timedsend()".  Add a  message to the
+   queue referenced by  the descriptor S_MQD.  If  successful return the
+   fixnum zero, else return an encoded "errno" value.
+
+   S_MESSAGE must be a Scheme bytevector representing the message data.
+
+   S_PRIORITY must be an exact integer,  in the range of "unsigned int",
+   representing the priority of the message.
+
+   S_EPOCH_TIMEOUT must be an instance of "struct-timespec" representing
+   an absolute time since the Epoch: if the queue is in blocking mode, a
+   call to this function will block until the timeout expires waiting to
+   deliver the message. */
+{
+#ifdef HAVE_MQ_TIMEDSEND
+  const char *		msg_ptr;
+  size_t		msg_len;
+  unsigned		priority;
+  struct timespec	timeout;
+  int			rv;
+  msg_ptr		= IK_BYTEVECTOR_DATA_CHARP(s_message);
+  msg_len		= IK_BYTEVECTOR_LENGTH(s_message);
+  priority		= ik_integer_to_uint(s_priority);
+  timeout.tv_sec	= (time_t)ik_integer_to_long(IK_FIELD(s_epoch_timeout, 0));
+  timeout.tv_nsec	= ik_integer_to_long(IK_FIELD(s_epoch_timeout, 1));
+  errno			= 0;
+  rv = mq_timedsend(IK_UNFIX(s_mqd), msg_ptr, msg_len, priority, &timeout);
+  return (0 == rv)? IK_FIX(0) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_posix_mq_receive (ikptr s_mqd, ikptr s_message, ikpcb * pcb)
+/* Interface  to  the  C  function "mq_receive()".   Remove  the  oldest
+   message with the  highest priority from the  message queue referenced
+   by S_MQD.  If successful return a  pair whose car is an exact integer
+   representing the  number of bytes in  the message and whose  cdr is a
+   non-negative exact integer representing  the priority of the message,
+   else return an encoded "errno" value.
+
+   S_MESSAGE must be  a Scheme bytevector providing the  buffer in which
+   the  function will  write the  received message;  its length  must be
+   greater  than  the maximum  message  length  specified in  the  queue
+   attributes. */
+{
+#ifdef HAVE_MQ_RECEIVE
+  char *	msg_ptr;
+  size_t	msg_len;
+  unsigned	priority;
+  ssize_t	rv;
+  msg_ptr	= IK_BYTEVECTOR_DATA_CHARP(s_message);
+  msg_len	= IK_BYTEVECTOR_LENGTH(s_message);
+  errno = 0;
+  rv = mq_receive(IK_UNFIX(s_mqd), msg_ptr, msg_len, &priority);
+  if (-1 != rv) {
+    ikptr	s_pair = ika_pair_alloc(pcb);
+    pcb->root0 = &s_pair;
+    {
+      IK_ASS(IK_CAR(s_pair), ika_integer_from_ssize_t(pcb, rv));
+      IK_ASS(IK_CDR(s_pair), ika_integer_from_uint(pcb, priority));
+    }
+    pcb->root0 = NULL;
+    return s_pair;
+  } else
+    return ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_mq_timedreceive (ikptr s_mqd, ikptr s_message, ikptr s_epoch_timeout, ikpcb * pcb)
+/* Interface to  the C function "mq_timedreceive()".   Remove the oldest
+   message with the  highest priority from the  message queue referenced
+   by S_MQD.  If successful return a  pair whose car is an exact integer
+   representing the  number of bytes in  the message and whose  cdr is a
+   non-negative exact integer representing  the priority of the message,
+   else return an encoded "errno" value.
+
+   S_MESSAGE must be  a Scheme bytevector providing the  buffer in which
+   the  function will  write the  received message;  its length  must be
+   greater  than  the maximum  message  length  specified in  the  queue
+   attrbutes.
+
+   S_EPOCH_TIMEOUT must be an instance of "struct-timespec" representing
+   an absolute time since the Epoch: if the queue is in blocking mode, a
+   call to this function will block until the timeout expires waiting to
+   receive the message. */
+{
+#ifdef HAVE_MQ_TIMEDRECEIVE
+  char *		msg_ptr;
+  size_t		msg_len;
+  unsigned		priority;
+  struct timespec	timeout;
+  ssize_t		rv;
+  msg_ptr		= IK_BYTEVECTOR_DATA_CHARP(s_message);
+  msg_len		= IK_BYTEVECTOR_LENGTH(s_message);
+  timeout.tv_sec	= (time_t)ik_integer_to_long(IK_FIELD(s_epoch_timeout, 0));
+  timeout.tv_nsec	= ik_integer_to_long(IK_FIELD(s_epoch_timeout, 1));
+  errno			= 0;
+  rv = mq_timedreceive(IK_UNFIX(s_mqd), msg_ptr, msg_len, &priority, &timeout);
+  if (-1 != rv) {
+    ikptr	s_pair = ika_pair_alloc(pcb);
+    pcb->root0 = &s_pair;
+    {
+      IK_ASS(IK_CAR(s_pair), ika_integer_from_ssize_t(pcb, rv));
+      IK_ASS(IK_CDR(s_pair), ika_integer_from_uint(pcb, priority));
+    }
+    pcb->root0 = NULL;
+    return s_pair;
+  } else
+    return ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_posix_mq_setattr (ikptr s_mqd, ikptr s_new_attr, ikptr s_old_attr, ikpcb * pcb)
+/* Interface to the C function "mq_setattr()".  Modify the attributes of
+   the message queue referenced by S_MQD.   The new values are read from
+   S_NEW_ATTR, which must  be an instance of  "struct-mq-attr".  The old
+   values  are  stored in  S_OLD_ATTR,  which  must  be an  instance  of
+   "struct-mq-attr".  If successful return  the fixnum zero, else return
+   an encoded "errno" value. */
+{
+#ifdef HAVE_MQ_SETATTR
+  struct mq_attr	new_attr = { 0L, 0L, 0L, 0L };
+  struct mq_attr	old_attr = { 0L, 0L, 0L, 0L };
+  int			rv;
+  new_attr.mq_flags	= ik_integer_to_long(IK_FIELD(s_new_attr, 0));
+  new_attr.mq_maxmsg	= ik_integer_to_long(IK_FIELD(s_new_attr, 1));
+  new_attr.mq_msgsize	= ik_integer_to_long(IK_FIELD(s_new_attr, 2));
+  new_attr.mq_curmsgs	= ik_integer_to_long(IK_FIELD(s_new_attr, 3));
+  errno = 0;
+  rv = mq_setattr(IK_UNFIX(s_mqd), &new_attr, &old_attr);
+  if (0 == rv) {
+    pcb->root0 = &s_old_attr;
+    {
+      IK_ASS(IK_FIELD(s_old_attr, 0), ika_integer_from_long(pcb, old_attr.mq_flags));
+      IK_ASS(IK_FIELD(s_old_attr, 1), ika_integer_from_long(pcb, old_attr.mq_maxmsg));
+      IK_ASS(IK_FIELD(s_old_attr, 2), ika_integer_from_long(pcb, old_attr.mq_msgsize));
+      IK_ASS(IK_FIELD(s_old_attr, 3), ika_integer_from_long(pcb, old_attr.mq_curmsgs));
+    }
+    pcb->root0 = NULL;
+    return IK_FIX(0);
+  }
+  else
+    return ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_mq_getattr (ikptr s_mqd, ikptr s_attr, ikpcb * pcb)
+/* Interface to the C  function "mq_getattr()".  Retrieve the attributes
+   of the message  queue referenced by S_MQD.  The values  are stored in
+   S_ATTR, which must be an instance of "struct-mq-attr".  If successful
+   return the fixnum zero, else return an encoded "errno" value. */
+{
+#ifdef HAVE_MQ_GETATTR
+  struct mq_attr	attr = { 0L, 0L, 0L, 0L };
+  int			rv;
+  errno = 0;
+  rv = mq_getattr(IK_UNFIX(s_mqd), &attr);
+  if (0 == rv) {
+    pcb->root0 = &s_attr;
+    {
+      IK_ASS(IK_FIELD(s_attr, 0), ika_integer_from_long(pcb, attr.mq_flags));
+      IK_ASS(IK_FIELD(s_attr, 1), ika_integer_from_long(pcb, attr.mq_maxmsg));
+      IK_ASS(IK_FIELD(s_attr, 2), ika_integer_from_long(pcb, attr.mq_msgsize));
+      IK_ASS(IK_FIELD(s_attr, 3), ika_integer_from_long(pcb, attr.mq_curmsgs));
+    }
+    return IK_FIX(0);
+  } else
+    return ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+
+
+/** --------------------------------------------------------------------
+ ** POSIX realtime clock functions.
+ ** ----------------------------------------------------------------- */
+
+/* We assume that "clockid_t" can be safely converted to a "long". */
+
+ikptr
+ikrt_posix_clock_getres (ikptr s_clock_id, ikptr s_struct_timespec, ikpcb * pcb)
+{
+#ifdef HAVE_CLOCK_GETRES
+  clockid_t		clock_id = (clockid_t)ik_integer_to_long(s_clock_id);
+  struct timespec	T;
+  int			rv;
+  errno = 0;
+  rv = clock_getres(clock_id, &T);
+  if (0 == rv) {
+    pcb->root0 = &s_struct_timespec;
+    {
+      IK_ASS(IK_FIELD(s_struct_timespec, 0), ika_integer_from_long(pcb, (long)T.tv_sec));
+      IK_ASS(IK_FIELD(s_struct_timespec, 1), ika_integer_from_long(pcb, T.tv_nsec));
+    }
+    pcb->root0 = NULL;
+    return IK_FIX(0);
+  } else
+    return ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_clock_gettime (ikptr s_clock_id, ikptr s_struct_timespec, ikpcb * pcb)
+{
+#ifdef HAVE_CLOCK_GETTIME
+  clockid_t		clock_id = (clockid_t)ik_integer_to_long(s_clock_id);
+  struct timespec	T;
+  int			rv;
+  errno = 0;
+  rv = clock_gettime(clock_id, &T);
+  if (0 == rv) {
+    pcb->root0 = &s_struct_timespec;
+    {
+      IK_ASS(IK_FIELD(s_struct_timespec, 0), ika_integer_from_long(pcb, (long)T.tv_sec));
+      IK_ASS(IK_FIELD(s_struct_timespec, 1), ika_integer_from_long(pcb, T.tv_nsec));
+    }
+    pcb->root0 = NULL;
+    return IK_FIX(0);
+  } else
+    return ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_clock_settime (ikptr s_clock_id, ikptr s_struct_timespec, ikpcb * pcb)
+{
+#ifdef HAVE_CLOCK_SETTIME
+  clockid_t		clock_id = (clockid_t)ik_integer_to_long(s_clock_id);
+  struct timespec	T;
+  int			rv;
+  errno = 0;
+  rv = clock_settime(clock_id, &T);
+  if (0 == rv) {
+    pcb->root0 = &s_struct_timespec;
+    {
+      IK_ASS(IK_FIELD(s_struct_timespec, 0), ika_integer_from_long(pcb, (long)T.tv_sec));
+      IK_ASS(IK_FIELD(s_struct_timespec, 1), ika_integer_from_long(pcb, T.tv_nsec));
+    }
+    pcb->root0 = NULL;
+    return IK_FIX(0);
+  } else
+    return ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_clock_getcpuclockid (ikptr s_pid, ikpcb * pcb)
+/* Interface  to the  C  function  "clock_getcpuclockid()".  Obtain  the
+   identifier of a process' CPU-time  clock; if successful return a pair
+   whose car  is an exact  integer representing  the id, else  return an
+   encoded  "errno" value.   S_PID  must be  a  fixnum representing  the
+   process identifier. */
+{
+#ifdef HAVE_CLOCK_GETCPUCLOCKID
+  pid_t		pid = IK_NUM_TO_PID(s_pid);
+  clockid_t	clock_id;
+  int		rv;
+  errno = 0;
+  rv = clock_getcpuclockid(pid, &clock_id);
+  if (0 == rv) {
+    ikptr	s_pair = ika_pair_alloc(pcb);
+    pcb->root0 = &s_pair;
+    {
+      IK_ASS(IK_CAR(s_pair), ika_integer_from_long(pcb, (long)clock_id));
+      IK_ASS(IK_CDR(s_pair), IK_FALSE_OBJECT);
+    }
+    pcb->root0 = NULL;
+    return s_pair;
+  } else
+    return ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+
+
+/** --------------------------------------------------------------------
+ ** POSIX shared memory.
+ ** ----------------------------------------------------------------- */
+
+ikptr
+ikrt_posix_shm_open (ikptr s_name, ikptr s_oflag, ikptr s_mode)
+{
+#ifdef HAVE_SHM_OPEN
+  const char *	name = IK_BYTEVECTOR_DATA_CHARP(s_name);
+  int		rv;
+  errno = 0;
+  rv = shm_open(name, IK_UNFIX(s_oflag), IK_UNFIX(s_mode));
+  return (-1 != rv)? IK_FD_TO_NUM(rv) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_shm_unlink (ikptr s_name)
+{
+#ifdef HAVE_SHM_UNLINK
+  const char *	name = IK_BYTEVECTOR_DATA_CHARP(s_name);
+  int		rv;
+  errno = 0;
+  rv = shm_unlink(name);
+  return (0 == rv)? IK_FIX(0) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+
+
+/** --------------------------------------------------------------------
+ ** POSIX semaphores.
+ ** ----------------------------------------------------------------- */
+
+ikptr
+ikrt_posix_sizeof_sem_t (ikpcb * pcb)
+{
+#ifdef HAVE_SEM_OPEN
+  /* It is "sizeof(sem_t)  == 16" on my  i686-pc-linux-gnu (Marco Maggi;
+    Jul 10, 2012).
+
+    fprintf(stderr, "sem_t = %d\n", sizeof(sem_t));
+  */
+  return ika_integer_from_int(pcb, sizeof(sem_t));
+#else
+  feature_failure(__func__);
+#endif
+}
+
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_posix_sem_open (ikptr s_name, ikptr s_oflag, ikptr s_mode, ikptr s_value, ikpcb * pcb)
+/* Interface  to the  C function  "sem_open()".  Initialise  and open  a
+   named semaphore using the pathname S_NAME, which must be a bytevector
+   holding an  ASCII encoded pathname.   If successful return  a pointer
+   object  referencing the  semaphore,  else return  an encoded  "errno"
+   value.
+
+   S_OFLAG  must  be  a  fixnum  representing  a  bitwise  inclusive  OR
+   combination of some of the following values: O_CREAT, O_EXCL, O_RDWR.
+
+   S_MODE  must  be  a  fixnum   representing  a  bitwise  inclusive  OR
+   combination  of  some  of  the following  values:  S_IRUSR,  S_IWUSR,
+   S_IXUSR, S_IRGRP, S_IWGRP, S_IXGRP, S_IROTH, S_IWOTH, S_IXOTH.
+
+   S_VALUE must be a  exact integer in the range of  the C language type
+   "unsigned int".
+
+   Named semaphores must  be closed with "sem_close()"  and removed with
+   "sem_unlink()". */
+{
+#ifdef HAVE_SEM_OPEN
+  const char *	name	= IK_BYTEVECTOR_DATA_CHARP(s_name);
+  int		oflag	= IK_UNFIX(s_oflag);
+  int		mode	= IK_UNFIX(s_mode);
+  ik_uint	value	= ik_integer_to_uint(s_value);
+  sem_t *	rv;
+  errno = 0;
+  rv    = sem_open(name, oflag, mode, value);
+  if (SEM_FAILED != rv) {
+    return ika_pointer_alloc(pcb, (ik_ulong)rv);
+  } else
+    return ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_sem_close (ikptr s_sem)
+/* Interface to the C function "sem_close()".  Close the named semaphore
+   referenced by  S_SEM, which must be  a pointer object; note  that the
+   semaphore will continue to exist  until "sem_unlink()" is called.  If
+   successful return  the fixnum  zero, else  return an  encoded "errno"
+   value. */
+{
+#ifdef HAVE_SEM_CLOSE
+  sem_t *	sem = IK_POINTER_DATA_VOIDP(s_sem);
+  int		rv;
+  errno = 0;
+  rv    = sem_close(sem);
+  return (0 == rv)? IK_FIX(0) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_sem_unlink (ikptr s_name)
+/* Interface  to  the  C  function  "sem_unlink()".   Remove  the  named
+   semaphore  referenced   by  S_NAME,   which  must  be   a  bytevector
+   representing a  pathname in ASCII  encoding; note that  the semaphore
+   name is removed  immediately, but the semaphore  itself will continue
+   to  exist   until  all  the   processes  referencing  it   will  call
+   "sem_close()".  If successful return the  fixnum zero, else return an
+   encoded "errno" value. */
+{
+#ifdef HAVE_SEM_UNLINK
+  const char *	name = IK_BYTEVECTOR_DATA_CHARP(s_name);
+  int		rv;
+  errno = 0;
+  rv    = sem_unlink(name);
+  return (0 == rv)? IK_FIX(0) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_posix_sem_init (ikptr s_sem, ikptr s_pshared, ikptr s_value, ikpcb * pcb)
+/* Interface  to the  C  function "sem_init()".   Initialise an  unnamed
+   semaphore; if successful return S_SEM  itself, else return an encoded
+   "errno" value.
+
+   S_SEM must be a pointer object referencing a memory region big enough
+   to hold a C language "sem_t"  data structure; such memory region must
+   be allocated in such  a way that it can be  shared among the entities
+   interested in accessing the semaphore.
+
+   S_PSHARED  is  interpreted  as  a  boolean  value:  when  false,  the
+   semaphore  is meant  to  be  shared among  multiple  threads in  this
+   process;  when  true, the  semaphore  is  meant  to be  shared  among
+   multiple processes resulting from forking the current process.
+
+   S_VALUE must be an exact integer in  the range of the C language type
+   "unsigned int": it represents the initial value of the semaphore.
+
+   Unnamed semaphores must be finalised with "sem_destroy()". */
+{
+#ifdef HAVE_SEM_INIT
+  sem_t *	sem	= IK_POINTER_DATA_VOIDP(s_sem);
+  int		pshared = (IK_FALSE_OBJECT != s_pshared);
+  unsigned int	value	= ik_integer_to_uint(s_value);
+  int		rv;
+  errno = 0;
+  rv    = sem_init(sem, pshared, value);
+  return (0 == rv)? s_sem : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_sem_destroy (ikptr s_sem)
+/* Interface to  the C  function "sem_destroy()".  Finalise  the unnamed
+   semaphore referenced  by S_SEM,  which must be  a pointer  object; if
+   successful return  the fixnum  zero, else  return an  encoded "errno"
+   value. */
+{
+#ifdef HAVE_SEM_DESTROY
+  sem_t *	sem = IK_POINTER_DATA_VOIDP(s_sem);
+  int		rv;
+  errno = 0;
+  rv    = sem_destroy(sem);
+  return (0 == rv)? IK_FIX(0) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_posix_sem_post (ikptr s_sem)
+/* Interface  to the  C function  "sem_post()".  Increment  (unlock) the
+   unnamed  semaphore  referenced by  S_SEM,  which  must be  a  pointer
+   object; if successful return the  fixnum zero, else return an encoded
+   "errno" value. */
+{
+#ifdef HAVE_SEM_POST
+  sem_t *	sem = IK_POINTER_DATA_VOIDP(s_sem);
+  int		rv;
+  errno = 0;
+  rv    = sem_post(sem);
+  return (0 == rv)? IK_FIX(0) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_sem_wait (ikptr s_sem)
+/* Interface  to  the C  function  "sem_wait()".   Decrement (lock)  the
+   unnamed  semaphore  referenced by  S_SEM,  which  must be  a  pointer
+   object, until  the semaphore  is unlocked;  if successful  return the
+   fixnum zero, else return an encoded "errno" value. */
+{
+#ifdef HAVE_SEM_WAIT
+  sem_t *	sem = IK_POINTER_DATA_VOIDP(s_sem);
+  int		rv;
+  errno = 0;
+  rv    = sem_wait(sem);
+  return (0 == rv)? IK_FIX(0) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_sem_trywait (ikptr s_sem)
+/* Interface to  the C  function "sem_trywait()".  Decrement  (lock) the
+   unnamed  semaphore  referenced by  S_SEM,  which  must be  a  pointer
+   object;  if successful  in locking  return the  boolean true,  if the
+   semaphore is already locked return  the boolean false, else return an
+   encoded "errno" value. */
+{
+#ifdef HAVE_SEM_TRYWAIT
+  sem_t *	sem = IK_POINTER_DATA_VOIDP(s_sem);
+  int		rv;
+  errno = 0;
+  rv    = sem_trywait(sem);
+  if (0 == rv)
+    return IK_TRUE_OBJECT;
+  else if (EAGAIN == errno)
+    return IK_FALSE_OBJECT;
+  else
+    return ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_sem_timedwait (ikptr s_sem, ikptr s_abs_timeout)
+/* Interface to the C  function "sem_timedwait()".  Attempt to decrement
+   (lock) the  unnamed semaphore  referenced by S_SEM,  which must  be a
+   pointer object, with a timeout.   If successful in locking return the
+   boolean  true; if  the  semaphore is  already locked  and  it is  not
+   unlocked  before the  timeout expiration:  return the  boolean false;
+   else return an encoded "errno" value.
+
+   S_ABS_TIMEOUT must  be an instance of  "struct-timespec" representing
+   the absolute timeout since the Epoch. */
+{
+#ifdef HAVE_SEM_TIMEDWAIT
+  sem_t *		sem = IK_POINTER_DATA_VOIDP(s_sem);
+  struct timespec	abs_timeout;
+  int			rv;
+  abs_timeout.tv_sec	= (time_t)ik_integer_to_long(IK_FIELD(s_abs_timeout, 0));
+  abs_timeout.tv_nsec	=         ik_integer_to_long(IK_FIELD(s_abs_timeout, 1));
+  errno = 0;
+  rv    = sem_timedwait(sem, &abs_timeout);
+  if (0 == rv)
+    return IK_TRUE_OBJECT;
+  else if (ETIMEDOUT == errno)
+    return IK_FALSE_OBJECT;
+  else
+    return ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_sem_getvalue (ikptr s_sem, ikpcb * pcb)
+/* Interface to  the C function "sem_getvalue()".   Retrieve the current
+   value of the  semaphore referenced by S_SEM, which must  be a pointer
+   object; if  successful return a  pair whose  car is an  exact integer
+   representing the value and whose cdr  is set to false, else return an
+   encoded "errno" value. */
+{
+#ifdef HAVE_SEM_GETVALUE
+  sem_t *	sem = IK_POINTER_DATA_VOIDP(s_sem);
+  int		value;
+  int		rv;
+  errno = 0;
+  rv    = sem_getvalue(sem, &value);
+  if (0 == rv) {
+    ikptr	s_pair = ika_pair_alloc(pcb);
+    pcb->root0 = &s_pair;
+    {
+      IK_ASS(IK_CAR(s_pair), ika_integer_from_int(pcb, value));
+      IK_ASS(IK_CDR(s_pair), IK_FALSE_OBJECT);
+    }
+    pcb->root0 = NULL;
+    return s_pair;
+  } else
+    return ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+
+
+/** --------------------------------------------------------------------
+ ** POSIX per-process timers.
+ ** ----------------------------------------------------------------- */
+
+ikptr
+ikrt_posix_timer_create (ikptr s_clock_id, ikptr s_sigevent, ikpcb * pcb)
+/* Interface  to   the  C  function  "timer_create()".    Create  a  new
+   per-process interval timer, initially  disarmed; if successful return
+   a  pair  whose  car  is  an  exact  integer  representing  the  timer
+   identifier and  whose cdr  is false; else  return an  encoded "errno"
+   value.
+
+   S_CLOCK_ID must be an exact  integer representing the identifier of a
+   clock to  be used to  measure time; it can  be one of  the constants:
+   CLOCK_REALTIME,       CLOCK_MONOTONIC,      CLOCK_PROCESS_CPUTIME_ID,
+   CLOCK_THREAD_CPUTIME_ID or the return value of CLOCK-GETCPUCLOCKID.
+
+   S_SIGEVENT  can   be  false  or  an   instance  of  "struct-sigevent"
+   specifying how the process is  notified of timer events.
+
+   * When false: the call sets up  the notification as with a C language
+     "struct  sigevent"  having:  "sigev_notify"  set  to  SIGEV_SIGNAL,
+     "sigev_signo" set  to SIGALRM,  "sigev.sival_int" set to  the timer
+     identifier.
+
+   * When a  "struct-sigevent" instance: at present,  the only supported
+     method is with "sigev_notify" set to SIGEV_SIGNAL and "sigev_signo"
+     set to the signal number, all the other fields being zero. */
+{
+#ifdef HAVE_TIMER_CREATE
+  clockid_t		clock_id = (clockid_t)ik_integer_to_long(s_clock_id);
+  struct sigevent	sev;
+  struct sigevent *	sevp;
+  timer_t		timer_id;
+  int			rv;
+  if (IK_FALSE_OBJECT == s_sigevent) {
+    sevp = NULL;
+  } else {
+    sev.sigev_notify		= ik_integer_to_int(IK_FIELD(s_sigevent, 0));
+    sev.sigev_signo		= ik_integer_to_int(IK_FIELD(s_sigevent, 1));
+    sev.sigev_value.sival_int	= 0;
+    sev.sigev_notify_attributes	= NULL;
+#if 0 /* On  GNU+Linux "sigev_notify_function"  shares the  storage with
+	 "sigev_notify_attributes". */
+    sev.sigev_notify_function	= NULL;
+#endif
+#if 0 /* On GNU+Linux "sigev_notify_thread_id" is not present. */
+    sev.sigev_notify_thread_id	= (pid_t)0;
+#endif
+    sevp = &sev;
+  }
+  errno = 0;
+  rv = timer_create(clock_id, sevp, &timer_id);
+  if (0 == rv) {
+    ikptr	s_pair = ika_pair_alloc(pcb);
+    pcb->root0 = &s_pair;
+    {
+      IK_ASS(IK_CAR(s_pair), ika_integer_from_long(pcb, (long)timer_id));
+      IK_ASS(IK_CDR(s_pair), IK_FALSE_OBJECT);
+    }
+    pcb->root0 = NULL;
+    return s_pair;
+  } else
+    return ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_timer_delete (ikptr s_timer_id)
+/* Interface  to  the C  function  "timer_delete()".   Delete the  timer
+   referenced by S_TIMER_ID; if successful  return the fixnum zero, else
+   return an encoded "errno" value. */
+{
+#ifdef HAVE_TIMER_DELETE
+  timer_t	timer_id = (timer_t)ik_integer_to_long(s_timer_id);
+  int		rv;
+  errno = 0;
+  rv = timer_delete(timer_id);
+  return (0 == rv)? IK_FIX(0) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_timer_settime (ikptr s_timer_id, ikptr s_flags,
+			  ikptr s_new_timer_spec, ikptr s_old_timer_spec,
+			  ikpcb * pcb)
+/* Interface to  the C  function "timer_settime()".   Arms or  disarms a
+   timer; if successful  return the fixnum zero, else  return an encoded
+   "errno" value.
+
+   S_TIMER_ID must be an exact  integer representing a timer identifier.
+   S_FLAGS must be the fixnum zero or the value of TIMER_ABSTIME.
+
+   S_NEW_TIMER_SPEC must be an instance of "struct-itimerspec" and it is
+   used to arm or disarm the timer.
+
+   S_OLD_TIMER_SPEC must be false or an instance of "struct-itimerspec";
+   in the  latter case:  the instance  is mutated  to represent  the old
+   timer specification. */
+{
+#ifdef HAVE_TIMER_SETTIME
+  timer_t		timer_id      = (timer_t)ik_integer_to_long(s_timer_id);
+  ikptr			s_it_interval = IK_FIELD(s_new_timer_spec, 0);
+  ikptr			s_it_value    = IK_FIELD(s_new_timer_spec, 1);
+  struct itimerspec	new_spec;
+  struct itimerspec	old_spec;
+  int			rv;
+  new_spec.it_interval.tv_sec	= (time_t)ik_integer_to_long(IK_FIELD(s_it_interval, 0));
+  new_spec.it_interval.tv_nsec	=         ik_integer_to_long(IK_FIELD(s_it_interval, 1));
+  new_spec.it_value.tv_sec	= (time_t)ik_integer_to_long(IK_FIELD(s_it_value,    0));
+  new_spec.it_value.tv_nsec	=         ik_integer_to_long(IK_FIELD(s_it_value,    1));
+  errno = 0;
+  rv    = timer_settime(timer_id, IK_UNFIX(s_flags), &new_spec, &old_spec);
+  if (0 == rv) {
+    if (IK_FALSE_OBJECT != s_old_timer_spec) {
+      pcb->root0 = &s_old_timer_spec;
+      {
+	IK_ASS(IK_FIELD(IK_FIELD(s_old_timer_spec, 0), 0), \
+	       ika_integer_from_long(pcb, (long)old_spec.it_interval.tv_sec));
+	IK_ASS(IK_FIELD(IK_FIELD(s_old_timer_spec, 0), 1), \
+	       ika_integer_from_long(pcb,       old_spec.it_interval.tv_nsec));
+	IK_ASS(IK_FIELD(IK_FIELD(s_old_timer_spec, 1), 0), \
+	       ika_integer_from_long(pcb, (long)old_spec.it_value.tv_sec));
+	IK_ASS(IK_FIELD(IK_FIELD(s_old_timer_spec, 1), 1), \
+	       ika_integer_from_long(pcb,       old_spec.it_value.tv_nsec));
+      }
+      pcb->root0 = NULL;
+    }
+    return IK_FIX(0);
+  } else
+    return ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_timer_gettime (ikptr s_timer_id, ikptr s_curr_timer_spec, ikpcb * pcb)
+/* Interface to the C  function "timer_gettime()".  Retrieve the current
+   timer  specification associated  to  the  identifier S_TIMER_ID.   If
+   successful return  the fixnum  zero, else  return an  encoded "errno"
+   value.
+
+   S_CURR_TIMER_SPEC must  be an instance of  "struct-itimerspec", which
+   is filled with the current timer specification.  */
+{
+#ifdef HAVE_TIMER_GETTIME
+  timer_t		timer_id      = (timer_t)ik_integer_to_long(s_timer_id);
+  struct itimerspec	curr_spec;
+  int			rv;
+  errno = 0;
+  rv    = timer_gettime(timer_id, &curr_spec);
+  if (0 == rv) {
+    pcb->root0 = &s_curr_timer_spec;
+    {
+      IK_ASS(IK_FIELD(IK_FIELD(s_curr_timer_spec, 0), 0), \
+	     ika_integer_from_long(pcb, (long)curr_spec.it_interval.tv_sec));
+      IK_ASS(IK_FIELD(IK_FIELD(s_curr_timer_spec, 0), 1), \
+	     ika_integer_from_long(pcb,       curr_spec.it_interval.tv_nsec));
+      IK_ASS(IK_FIELD(IK_FIELD(s_curr_timer_spec, 1), 0), \
+	     ika_integer_from_long(pcb, (long)curr_spec.it_value.tv_sec));
+      IK_ASS(IK_FIELD(IK_FIELD(s_curr_timer_spec, 1), 1), \
+	     ika_integer_from_long(pcb,       curr_spec.it_value.tv_nsec));
+    }
+    pcb->root0 = NULL;
+    return IK_FIX(0);
+  } else
+    return ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_timer_getoverrun (ikptr s_timer_id, ikpcb * pcb)
+/* Interface to the C  function "timer_getoverrun()".  Get overrun count
+   for  the  timer referenced  by  S_TIMER_ID;  if successful  return  a
+   non-negative  exact integer  representing  the overrun  count of  the
+   specified timer, else return an encoded "errno" value. */
+{
+#ifdef HAVE_TIMER_GETOVERRUN
+  timer_t	timer_id      = (timer_t)ik_integer_to_long(s_timer_id);
+  int		rv;
+  errno = 0;
+  rv    = timer_getoverrun(timer_id);
+  if (-1 != rv) {
+    return ika_integer_from_int(pcb, rv);
+  } else
+    return ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+
+
+/** --------------------------------------------------------------------
+ ** Resource usage.
+ ** ----------------------------------------------------------------- */
+
+ikptr
+ikrt_posix_RLIM_INFINITY (ikpcb * pcb)
+{
+#ifdef RLIM_INFINITY
+  return ika_integer_from_uint64(pcb, RLIM_INFINITY);
+#else
+  return IK_FALSE_OBJECT;
+#endif
+}
+
+ikptr
+ikrt_posix_setrlimit (ikptr s_resource, ikptr s_rlim)
+{
+#ifdef HAVE_SETRLIMIT
+  int		resource = ik_integer_to_int(s_resource);
+  struct rlimit	rlim;
+  int		rv;
+  switch (sizeof(rlim_t)) {
+  case 4:
+    rlim.rlim_cur	= ik_integer_to_uint32(IK_FIELD(s_rlim, 0));
+    rlim.rlim_max	= ik_integer_to_uint32(IK_FIELD(s_rlim, 1));
+    break;
+  case 8:
+    rlim.rlim_cur	= ik_integer_to_uint64(IK_FIELD(s_rlim, 0));
+    rlim.rlim_max	= ik_integer_to_uint64(IK_FIELD(s_rlim, 1));
+    break;
+  default:
+    errno = EINVAL;
+    return ik_errno_to_code();
+  }
+  errno = 0;
+  rv    = setrlimit(resource, &rlim);
+  return (0 == rv)? IK_FIX(0) : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_getrlimit (ikptr s_resource, ikptr s_rlim, ikpcb * pcb)
+{
+#ifdef HAVE_GETRLIMIT
+  int		resource = ik_integer_to_int(s_resource);
+  struct rlimit	rlim;
+  int		rv;
+  errno = 0;
+  rv    = getrlimit(resource, &rlim);
+  if (0 == rv) {
+    switch (sizeof(rlim_t)) {
+    case 4:
+      pcb->root0 = &s_rlim;
+      {
+	IK_ASS(IK_FIELD(s_rlim, 0), ika_integer_from_uint32(pcb, rlim.rlim_cur));
+	IK_ASS(IK_FIELD(s_rlim, 1), ika_integer_from_uint32(pcb, rlim.rlim_max));
+      }
+      pcb->root0 = NULL;
+      break;
+    case 8:
+      pcb->root0 = &s_rlim;
+      {
+	IK_ASS(IK_FIELD(s_rlim, 0), ika_integer_from_uint64(pcb, rlim.rlim_cur));
+	IK_ASS(IK_FIELD(s_rlim, 1), ika_integer_from_uint64(pcb, rlim.rlim_max));
+      }
+      pcb->root0 = NULL;
+      break;
+    default:
+      errno = EINVAL;
+      return ik_errno_to_code();
+    }
+    return IK_FIX(0);
+  } else
+    return ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_getrusage (ikptr s_processes, ikptr s_rusage, ikpcb * pcb)
+#define VICARE_POSIX_STRUCT_RUSAGE_RU_UTIME	0
+#define VICARE_POSIX_STRUCT_RUSAGE_RU_STIME	1
+#define VICARE_POSIX_STRUCT_RUSAGE_RU_MAXRSS	2
+#define VICARE_POSIX_STRUCT_RUSAGE_RU_IXRSS	3
+#define VICARE_POSIX_STRUCT_RUSAGE_RU_IDRSS	4
+#define VICARE_POSIX_STRUCT_RUSAGE_RU_ISRSS	5
+#define VICARE_POSIX_STRUCT_RUSAGE_RU_MINFLT	6
+#define VICARE_POSIX_STRUCT_RUSAGE_RU_MAJFLT	7
+#define VICARE_POSIX_STRUCT_RUSAGE_RU_NSWAP	8
+#define VICARE_POSIX_STRUCT_RUSAGE_RU_INBLOCK	9
+#define VICARE_POSIX_STRUCT_RUSAGE_RU_OUBLOCK	10
+#define VICARE_POSIX_STRUCT_RUSAGE_RU_MSGSND	11
+#define VICARE_POSIX_STRUCT_RUSAGE_RU_MSGRCV	12
+#define VICARE_POSIX_STRUCT_RUSAGE_RU_NSIGNALS	13
+#define VICARE_POSIX_STRUCT_RUSAGE_RU_NVCSW	14
+#define VICARE_POSIX_STRUCT_RUSAGE_RU_NIVCSW	15
+{
+#ifdef HAVE_GETRUSAGE
+  int		processes = ik_integer_to_int(s_processes);
+  struct rusage	usage;
+  int		rv;
+  errno = 0;
+  rv    = getrusage(processes, &usage);
+  if (0 == rv) {
+#ifdef HAVE_RUSAGE_RU_UTIME
+    IK_ASS(IK_FIELD(IK_FIELD(s_rusage,VICARE_POSIX_STRUCT_RUSAGE_RU_UTIME),0),
+	   ika_integer_from_long(pcb,usage.ru_utime.tv_sec));
+    IK_ASS(IK_FIELD(IK_FIELD(s_rusage,VICARE_POSIX_STRUCT_RUSAGE_RU_UTIME),1),
+	   ika_integer_from_long(pcb,usage.ru_utime.tv_sec));
+#endif
+#ifdef HAVE_RUSAGE_RU_STIME
+    IK_ASS(IK_FIELD(IK_FIELD(s_rusage,VICARE_POSIX_STRUCT_RUSAGE_RU_STIME),0),
+	   ika_integer_from_long(pcb,usage.ru_stime.tv_sec));
+    IK_ASS(IK_FIELD(IK_FIELD(s_rusage,VICARE_POSIX_STRUCT_RUSAGE_RU_STIME),1),
+	   ika_integer_from_long(pcb,usage.ru_stime.tv_sec));
+#endif
+#ifdef HAVE_RUSAGE_RU_MAXRSS
+    IK_ASS(IK_FIELD(s_rusage,VICARE_POSIX_STRUCT_RUSAGE_RU_MAXRSS),
+	   ika_integer_from_long(pcb, usage.ru_maxrss));
+#endif
+#ifdef HAVE_RUSAGE_RU_IXRSS
+    IK_ASS(IK_FIELD(s_rusage,VICARE_POSIX_STRUCT_RUSAGE_RU_IXRSS),
+	   ika_integer_from_long(pcb, usage.ru_ixrss));
+#endif
+#ifdef HAVE_RUSAGE_RU_IDRSS
+    IK_ASS(IK_FIELD(s_rusage,VICARE_POSIX_STRUCT_RUSAGE_RU_IDRSS),
+	   ika_integer_from_long(pcb, usage.ru_idrss));
+#endif
+#ifdef HAVE_RUSAGE_RU_ISRSS
+    IK_ASS(IK_FIELD(s_rusage,VICARE_POSIX_STRUCT_RUSAGE_RU_ISRSS),
+	   ika_integer_from_long(pcb, usage.ru_isrss));
+#endif
+#ifdef HAVE_RUSAGE_RU_MINFLT
+    IK_ASS(IK_FIELD(s_rusage,VICARE_POSIX_STRUCT_RUSAGE_RU_MINFLT),
+	   ika_integer_from_long(pcb, usage.ru_minflt));
+#endif
+#ifdef HAVE_RUSAGE_RU_MAJFLT
+    IK_ASS(IK_FIELD(s_rusage,VICARE_POSIX_STRUCT_RUSAGE_RU_MAJFLT),
+	   ika_integer_from_long(pcb, usage.ru_majflt));
+#endif
+#ifdef HAVE_RUSAGE_RU_NSWAP
+    IK_ASS(IK_FIELD(s_rusage,VICARE_POSIX_STRUCT_RUSAGE_RU_NSWAP),
+	   ika_integer_from_long(pcb, usage.ru_nswap));
+#endif
+#ifdef HAVE_RUSAGE_RU_INBLOCK
+    IK_ASS(IK_FIELD(s_rusage,VICARE_POSIX_STRUCT_RUSAGE_RU_INBLOCK),
+	   ika_integer_from_long(pcb, usage.ru_inblock));
+#endif
+#ifdef HAVE_RUSAGE_RU_OUBLOCK
+    IK_ASS(IK_FIELD(s_rusage,VICARE_POSIX_STRUCT_RUSAGE_RU_OUBLOCK),
+	   ika_integer_from_long(pcb, usage.ru_oublock));
+#endif
+#ifdef HAVE_RUSAGE_RU_MSGSND
+    IK_ASS(IK_FIELD(s_rusage,VICARE_POSIX_STRUCT_RUSAGE_RU_MSGSND),
+	   ika_integer_from_long(pcb, usage.ru_msgsnd));
+#endif
+#ifdef HAVE_RUSAGE_RU_MSGRCV
+    IK_ASS(IK_FIELD(s_rusage,VICARE_POSIX_STRUCT_RUSAGE_RU_MSGRCV),
+	   ika_integer_from_long(pcb, usage.ru_msgrcv));
+#endif
+#ifdef HAVE_RUSAGE_RU_NSIGNALS
+    IK_ASS(IK_FIELD(s_rusage,VICARE_POSIX_STRUCT_RUSAGE_RU_NSIGNALS),
+	   ika_integer_from_long(pcb, usage.ru_nsignals));
+#endif
+#ifdef HAVE_RUSAGE_RU_NVCSW
+    IK_ASS(IK_FIELD(s_rusage,VICARE_POSIX_STRUCT_RUSAGE_RU_NVCSW),
+	   ika_integer_from_long(pcb, usage.ru_nvcsw));
+#endif
+#ifdef HAVE_RUSAGE_RU_NIVCSW
+    IK_ASS(IK_FIELD(s_rusage,VICARE_POSIX_STRUCT_RUSAGE_RU_NIVCSW),
+	   ika_integer_from_long(pcb, usage.ru_nivcsw));
+#endif
+    return IK_FIX(0);
+  } else
+    return ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+
+
+/** --------------------------------------------------------------------
+ ** Host to/from network byte order.
+ ** ----------------------------------------------------------------- */
+
+ikptr
+ikrt_posix_htonl (ikptr s_host_long, ikpcb * pcb)
+{
+#ifdef HAVE_HTONL
+  uint32_t	in = ik_integer_to_uint32(s_host_long);
+  uint32_t	rv;
+  rv = htonl(in);
+  return ika_integer_from_uint32(pcb, rv);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_htons (ikptr s_host_long, ikpcb * pcb)
+{
+#ifdef HAVE_HTONS
+  uint16_t	in = ik_integer_to_uint16(s_host_long);
+  uint16_t	rv;
+  rv = htons(in);
+  return ika_integer_from_uint16(pcb, rv);
+#else
+  feature_failure(__func__);
+#endif
+}
+
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_posix_ntohl (ikptr s_host_long, ikpcb * pcb)
+{
+#ifdef HAVE_NTOHL
+  uint32_t	in = ik_integer_to_uint32(s_host_long);
+  uint32_t	rv;
+  rv = ntohl(in);
+  return ika_integer_from_uint32(pcb, rv);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_posix_ntohs (ikptr s_host_long, ikpcb * pcb)
+{
+#ifdef HAVE_NTOHS
+  uint16_t	in = ik_integer_to_uint16(s_host_long);
+  uint16_t	rv;
+  rv = ntohs(in);
+  return ika_integer_from_uint16(pcb, rv);
+#else
+  feature_failure(__func__);
+#endif
+}
 
 
 /** --------------------------------------------------------------------
  ** Miscellaneous functions.
  ** ----------------------------------------------------------------- */
-
-
 
 /* end of file */

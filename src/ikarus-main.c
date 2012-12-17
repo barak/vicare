@@ -73,7 +73,7 @@ ikarus_main (int argc, char** argv, char* boot_file)
   { /* Set up arg_list from the  last "argv" to the first; the resulting
        list will end in COMMAND-LINE. */
 
-    ikptr	arg_list	= null_object;
+    ikptr	arg_list	= IK_NULL_OBJECT;
     int		i		= argc-1;
     for (; i > 0; --i) {
       if (0 == strcmp(argv[i], "--repl-on-sigint")) {
@@ -91,6 +91,7 @@ ikarus_main (int argc, char** argv, char* boot_file)
 	arg_list = p+pair_tag;
       }
     }
+    pcb->argv0    = argv[0];
     pcb->arg_list = arg_list;
   }
   register_handlers(repl_on_sigint);
@@ -98,6 +99,13 @@ ikarus_main (int argc, char** argv, char* boot_file)
   ik_fasl_load(pcb, boot_file);
   ik_delete_pcb(pcb);
   return 0;
+}
+
+
+ikptr
+ikrt_get_argv0_string (ikpcb * pcb)
+{
+  return ika_bytevector_from_cstring(pcb, pcb->argv0);
 }
 
 

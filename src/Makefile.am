@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
-vicarelibdir=$(pkglibdir)
+AM_CFLAGS = -Wall
 
 SRCS	= \
 	cpu_has_sse2.S			\

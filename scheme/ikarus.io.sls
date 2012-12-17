@@ -476,6 +476,8 @@
     reset-input-port!		reset-output-port!
     port-id			port-fd
     string->filename-func	filename->string-func
+    (rename (string->filename-func	string->pathname-func)
+	    (filename->string-func	pathname->string-func))
     port-dump-status
 
     ;; networking
@@ -587,6 +589,7 @@
 		  reset-input-port!		reset-output-port!
 		  port-id			port-fd
 		  string->filename-func		filename->string-func
+		  string->pathname-func		pathname->string-func
 		  port-dump-status
 
 		  ;; networking
@@ -604,22 +607,7 @@
     (prefix (vicare unsafe-capi)
 	    capi.)
     (vicare unsafe-unicode)
-    (vicare platform-constants))
-
-
-;;;; emergency debugging
-
-(define (emergency-platform-write-fd str)
-  ;;Interface to the system  "write()" function.  In case something goes
-  ;;wrong while modifying  the code in this library, it  may be that the
-  ;;compiled  image  fails  to  write  understandable  messages  to  the
-  ;;standard ports  using the R6RS functions.  This  macro allows direct
-  ;;interface to the platform's stderr.
-  ;;
-  (let ((bv (string->utf8 str)))
-    (capi.platform-write-fd 2 bv 0 (unsafe.bytevector-length bv))
-    ;;and a newline
-    (capi.platform-write-fd 2 '#vu8(10) 0 1)))
+    (vicare platform constants))
 
 
 ;;;; port attributes
@@ -2089,6 +2077,10 @@
 	   (set-cookie-row-number!       cookie (+ 1 (cookie-row-number       cookie)))
 	   (set-cookie-column-number!    cookie 1)
 	   ch)
+	  ((unsafe.char= ch #\tab)
+	   (set-cookie-character-offset! cookie (+ 1 (cookie-character-offset cookie)))
+	   (set-cookie-column-number!    cookie (+ 8 (cookie-column-number    cookie)))
+	   ch)
 	  (else
 	   (set-cookie-character-offset! cookie (+ 1 (cookie-character-offset cookie)))
 	   (set-cookie-column-number!    cookie (+ 1 (cookie-column-number    cookie)))
@@ -2322,8 +2314,6 @@
 	(when port
 	  ;;Notice that, as defined  by R6RS, CLOSE-PORT does nothing if
 	  ;;PORT has already been closed.
-;;; (with-port (port)
-;;;   (emergency-platform-write-fd (string-append "closing guarded port " port.ID)))
 
 ;;;FIXME This CLOSE-PORT is the  whole purpose of having a guardian.  If
 ;;;it  is commented  out:  it is  to  investigate if  it  is causing  an
@@ -3865,7 +3855,8 @@
   ;;Defined  by Ikarus.   Return true  if PORT  has  already been
   ;;closed.
   ;;
-  (with-arguments-validation ('port-closed?)
+  (define who 'port-closed?)
+  (with-arguments-validation (who)
       ((port port))
     (%unsafe.port-closed? port)))
 
@@ -6998,9 +6989,6 @@
 	     (%raise-io-error 'read! port-identifier count (make-i/o-read-error))))))
 
   (define (write! src.bv src.start requested-count)
-    ;; (emergency-platform-write-fd (format "socket ~a writing ~a bytes: ~a"
-    ;; 				   sock requested-count
-    ;; 				   (subbytevector-u8 src.bv src.start (+ src.start requested-count))))
     (let ((rv (capi.platform-write-fd sock src.bv src.start requested-count)))
       (cond ((unsafe.fx>= rv 0)
 	     rv)

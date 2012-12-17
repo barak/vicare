@@ -4,23 +4,26 @@ testdir				= $(srcdir)
 VICARE_SELECTED_TESTS		= $(testdir)/test-*$(file)*.sps
 VICARE_SELECTED_LONG_TESTS	= $(testdir)/long-test-*$(file)*.sps
 VICARE_SELECTED_FOREIGN_TESTS	= $(testdir)/foreign-test-*$(file)*.sps
-VICARE_SELECTED_PROOFS		= $(testdir)/proof-*$(file)*.sps
+VICARE_SELECTED_DEMOS		= $(testdir)/demo-*$(file)*.sps
 
+VICARE_FASL_DIRECTORY	= $(builddir)/../lib/fasl
 VICARE_TEST_SEARCH_PATH	= $(srcdir):$(srcdir)/../lib:$(builddir)/../lib:$(srcdir)/../scheme
+VICARE_TEST_FASL_PATH	= $(VICARE_FASL_DIRECTORY):$(VICARE_FASL_PATH)
 
 # The variable "user_flags"  is for the user to be  set on the command
 # line of "make".
 VICARE		= $(builddir)/../src/vicare
 VICARE_BOOT	= $(builddir)/../scheme/vicare.boot
-VICARE_FLAGS	= -b $(VICARE_BOOT) --debug $(user_flags) --r6rs-script
+VICARE_FLAGS	= -b $(VICARE_BOOT) $(user_flags) --r6rs-script
 VICARE_ENV	= VICARE_LIBRARY_PATH=$(VICARE_TEST_SEARCH_PATH)	\
+		  VICARE_FASL_DIRECTORY=$(VICARE_FASL_DIRECTORY)	\
 		  CHECK_TEST_NAME=$(name)				\
 		  VICARE_SRC_DIR=$(srcdir) VICARE_BUILDDIR=$(builddir)	\
 		  LD_LIBRARY_PATH=$(builddir)/../src/.libs
 VICARE_RUN	= $(VICARE_ENV) $(GDB) $(VICARE) $(VICARE_FLAGS)
 
 .PHONY: test tests test-r6rs long-test long-tests
-.PHONY: proof proofs foreign-test foreign-tests
+.PHONY: demo demos foreign-test foreign-tests
 
 test tests:
 	@echo
@@ -37,9 +40,9 @@ foreign-test foreign-tests:
 	@for f in $(VICARE_SELECTED_FOREIGN_TESTS); do $(VICARE_RUN) $$f; done
 	@echo
 
-proof proofs:
+demo demos:
 	@echo
-	@for f in $(VICARE_SELECTED_PROOFS); do $(VICARE_RUN) $$f; done
+	@for f in $(VICARE_SELECTED_DEMOS); do $(VICARE_RUN) $$f; done
 	@echo
 
 #page
@@ -70,11 +73,16 @@ test-exec-modes:
 #page
 #### interface to "make check"
 
-VICARE_INST_ENV	= VICARE_LIBRARY_PATH=$$VICARE_LIBRARY_PATH:$(srcdir):$(srcdir)/../scheme
-VICARE_INST_RUN	= $(VICARE_INST_ENV) vicare
+VICARE_CHECK_FLAGS	= -b $(VICARE_BOOT) $(user_flags)
+VICARE_CHECK_RUN	= $(VICARE_ENV) $(VICARE) $(VICARE_CHECK_FLAGS)
+
+VICARE_INSTCHECK_FLAGS	= --print-loaded-libraries $(user_flags)
+VICARE_LIBDIR		= $(libdir)/scheme
+VICARE_INSTCHECK_ENV	= VICARE_LIBRARY_PATH=$(DESTDIR)$(VICARE_LIBDIR):$(VICARE_LIBRARY_PATH):$(srcdir):$(srcdir)/../scheme LD_LIBRARY_PATH=$(DESTDIR)$(libdir) VICARE_CHECK_QUIET=yes
+VICARE_INSTCHECK_RUN	= $(VICARE_INSTCHECK_ENV) $(DESTDIR)$(bindir)/vicare $(VICARE_INSTCHECK_FLAGS)
 
 # TESTS and TESTS_ENVIRONMENT are Automake variables.
-TESTS_ENVIRONMENT	= $(VICARE_RUN)
+TESTS_ENVIRONMENT	= VICARE_CHECK_QUIET=yes $(VICARE_CHECK_RUN)
 TESTS			=	\
 	test-r6rs-arithmetic-bitwise.sps		\
 	test-r6rs-arithmetic-fixnums.sps		\
@@ -122,24 +130,39 @@ TESTS			=	\
 	test-ikarus-symbol-table.sps			\
 	test-ikarus-unicode.sps				\
 	\
+	test-vicare-arguments-validation.sps		\
 	test-vicare-bignums.sps				\
 	test-vicare-bytevectors.sps			\
 	test-vicare-chars.sps				\
+	test-vicare-collect.sps				\
+	test-vicare-enumerations.sps			\
 	test-vicare-equality.sps			\
+	test-vicare-errno.sps				\
+	test-vicare-expander.sps			\
+	test-vicare-debugging.sps			\
 	test-vicare-flonum-formatter.sps		\
 	test-vicare-flonum-parser.sps			\
+	test-vicare-general-c-buffers.sps		\
+	test-vicare-keywords.sps			\
+	test-vicare-infix.sps				\
 	test-vicare-io.sps				\
 	test-vicare-language-extensions.sps		\
 	test-vicare-lists.sps				\
 	test-vicare-log.sps				\
 	test-vicare-parameters.sps			\
+	test-vicare-parser-logic.sps			\
+	test-vicare-platform.sps			\
 	test-vicare-pointers.sps			\
 	test-vicare-promises.sps			\
 	test-vicare-reader.sps				\
+	test-vicare-records-procedural.sps		\
+	test-vicare-records-syntactic.sps		\
 	test-vicare-round.sps				\
+	test-vicare-string-to-number.sps		\
 	test-vicare-strings.sps				\
 	test-vicare-structs.sps				\
 	test-vicare-symbols.sps				\
+	test-vicare-syntactic-extensions.sps		\
 	test-vicare-system.sps				\
 	test-vicare-vectors.sps				\
 	test-vicare-weak-tables.sps			\
@@ -167,9 +190,20 @@ TESTS	+= test-vicare-ffi.sps
 endif
 
 if WANT_POSIX
-TESTS	+= test-vicare-posix.sps			\
-	   test-vicare-shared-memory.sps		\
-	   test-vicare-sel.sps
+TESTS	+= \
+	test-vicare-posix-basic.sps		\
+	test-vicare-posix-net.sps		\
+	test-vicare-posix-mmap.sps		\
+	test-vicare-posix-bub.sps		\
+	test-vicare-posix-time.sps		\
+	test-vicare-posix-timers.sps		\
+	test-vicare-posix-message-queue.sps	\
+	test-vicare-posix-shared-memory.sps	\
+	test-vicare-posix-semaphores.sps	\
+	test-vicare-posix-sigwait.sps		\
+	\
+	test-vicare-shared-memory.sps		\
+	test-vicare-sel.sps
 endif
 
 if WANT_GLIBC
@@ -185,14 +219,17 @@ TESTS	+= foreign-test-vicare-cre2.sps
 endif
 
 installcheck-local:
-	@for f in $(TESTS); do $(VICARE_INST_RUN) $(srcdir)/$$f; done
+	@for f in $(TESTS); do $(VICARE_INSTCHECK_RUN) $(srcdir)/$$f; done
+
+XFAIL_TESTS = \
+	test-vicare-log.sps			\
+	test-issue-008.sps
 
 #page
 #### extra files to be distributed
 
-EXTRA_DIST =	\
+EXTRA_DIST = \
 	ikarus-test-framework.sls			\
-	checks.sls					\
 	lists.sls					\
 	lists/low.sls					\
 	lists/stx.sls					\
@@ -236,6 +273,11 @@ EXTRA_DIST =	\
 	exec-modes-helpers/r6rs-forms			\
 	exec-modes-helpers/r6rs-program.sps		\
 	test-exec-modes.sh				\
+	\
+	demo-vicare-gcc.sps				\
+	demo-vicare-readline.sps			\
+	demo-vicare-timerfd.sps				\
+	demo-issue-35.sps				\
 	\
 	long-test-r6rs-run.sps				\
 	long-test-r6rs-run-via-eval.sps			\
@@ -292,30 +334,56 @@ EXTRA_DIST =	\
 	test-ikarus-symbol-table.sps			\
 	test-ikarus-unicode.sps				\
 	\
+	test-vicare-arguments-validation.sps		\
 	test-vicare-bignums.sps				\
 	test-vicare-bytevectors.sps			\
 	test-vicare-chars.sps				\
+	test-vicare-collect.sps				\
+	test-vicare-enumerations.sps			\
 	test-vicare-equality.sps			\
+	test-vicare-errno.sps				\
+	test-vicare-expander.sps			\
+	test-vicare-debugging.sps			\
 	test-vicare-ffi.sps				\
 	test-vicare-flonum-formatter.sps		\
 	test-vicare-flonum-parser.sps			\
+	test-vicare-general-c-buffers.sps		\
 	test-vicare-glibc.sps				\
+	test-vicare-keywords.sps			\
+	test-vicare-infix.sps				\
 	test-vicare-io.sps				\
 	test-vicare-language-extensions.sps		\
 	test-vicare-linux.sps				\
 	test-vicare-lists.sps				\
 	test-vicare-log.sps				\
 	test-vicare-parameters.sps			\
+	test-vicare-parser-logic.sps			\
+	test-vicare-platform.sps			\
 	test-vicare-pointers.sps			\
-	test-vicare-posix.sps				\
+	\
+	test-vicare-posix-basic.sps			\
+	test-vicare-posix-net.sps			\
+	test-vicare-posix-mmap.sps			\
+	test-vicare-posix-bub.sps			\
+	test-vicare-posix-time.sps			\
+	test-vicare-posix-timers.sps			\
+	test-vicare-posix-message-queue.sps		\
+	test-vicare-posix-shared-memory.sps		\
+	test-vicare-posix-semaphores.sps		\
+	test-vicare-posix-sigwait.sps			\
+	\
 	test-vicare-promises.sps			\
 	test-vicare-reader.sps				\
+	test-vicare-records-procedural.sps		\
+	test-vicare-records-syntactic.sps		\
 	test-vicare-round.sps				\
 	test-vicare-sel.sps				\
 	test-vicare-shared-memory.sps			\
+	test-vicare-string-to-number.sps		\
 	test-vicare-strings.sps				\
 	test-vicare-structs.sps				\
 	test-vicare-symbols.sps				\
+	test-vicare-syntactic-extensions.sps		\
 	test-vicare-system.sps				\
 	test-vicare-vectors.sps				\
 	test-vicare-weak-tables.sps			\
@@ -338,13 +406,6 @@ EXTRA_DIST =	\
 	test-issue-024.sps				\
 	test-issue-025-sign-in-exact-rationals.sps	\
 	\
-	foreign-test-vicare-cre2.sps			\
-	\
-	proof-vicare-gcc.sps				\
-	proof-vicare-readline.sps
-
+	foreign-test-vicare-cre2.sps
 
 ### end of file
-# Local Variables:
-# mode: makefile-gmake
-# End:

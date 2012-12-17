@@ -13,6 +13,7 @@ bootexec_DATA		= $(NEW_BOOT_FILE)
 #nodist_pkglib_DATA	= $(NEW_BOOT_FILE)
 
 BOOT_IMAGE_SEARCH_PATH	= .:$(srcdir):$(srcdir)/../lib:$(builddir)/../lib
+VICARE_FASL_DIRECTORY	= $(builddir)/../lib/fasl
 
 #VICARE_SIZE_OF_VOIDP		= $(shell grep SIZEOF_VOID_P ../config.h | sed "s/.*\(.\)/\1/g")
 VICARE_SIZE_OF_VOIDP		= @VICARE_SIZE_OF_VOIDP@
@@ -22,7 +23,7 @@ VICARE_ARGUMENTS_VALIDATION	= @VICARE_ARGUMENTS_VALIDATION@
 IKARUS_PREBUILT_BOOT	= $(srcdir)/ikarus.boot.$(VICARE_SIZE_OF_VOIDP).prebuilt
 VICARE_PREBUILT_BOOT	= $(srcdir)/vicare.boot.$(VICARE_SIZE_OF_VOIDP).prebuilt
 
-CLEANFILES		= $(nodist_vicarelib_DATA) ikarus.config.ss
+CLEANFILES		= $(nodist_pkglib_DATA) ikarus.config.ss vicare.boot
 MAINTAINERCLEANFILES	= last-revision
 
 all: $(nodist_vicarelib_DATA)
@@ -40,13 +41,16 @@ ikarus.config.ss: Makefile last-revision ../config.h
 	echo '(define (host-info) "$(target)")' >>$@
 	echo '(define wordsize $(VICARE_SIZE_OF_VOIDP))' >>$@
 	echo '(define platform-endianness (quote $(VICARE_PLATFORM_ENDIANNESS)))' >>$@
-	echo '(define arguments-validation (positive? $(VICARE_ARGUMENTS_VALIDATION)))' >>$@
-	echo '(define bootfile "$(vicarelibdir)/vicare.boot")' >>$@
+	echo '(define bootfile "$(pkglibdir)/vicare.boot")' >>$@
 
 #page
 # To  create the  new boot  image we  use a  prebuilt boot  image; the
 # environment variable names are  hardcoded in the prebuilt boot image
 # and are the Ikarus' ones.
+#
+#Notice that VICARE_FASL_DIRECTORY is set to the empty string: this is
+#because  the  fasl  files  are  not generated  by  the  prebuilt  and
+#distributed boot image, and so they cannot be used here.
 #
 $(NEW_BOOT_FILE): $(EXTRA_DIST) ikarus.config.ss last-revision
 	VICARE_SRC_DIR=$(srcdir)			\
@@ -71,7 +75,8 @@ $(NEW_BOOT_FILE): $(EXTRA_DIST) ikarus.config.ss last-revision
 boot-image-64-bit: last-revision
 	echo '(define vicare-version "$(PACKAGE_VERSION)")' >ikarus.config.ss
 	echo "(define vicare-revision \"$$(cat $(srcdir)/last-revision)\")" >>ikarus.config.ss
-	echo '(define vicare-lib-dir "$(vicarelibdir)")' >>ikarus.config.ss
+	echo '(define vicare-lib-dir "$(pkglibdir)")' >>ikarus.config.ss
+	echo '(define scheme-lib-dir "$(libdir)/scheme")' >>ikarus.config.ss
 	echo '(define (host-info) "$(target)")' >>ikarus.config.ss
 	echo '(define wordsize 8)' >>ikarus.config.ss
 	echo '(define platform-endianness (quote $(VICARE_PLATFORM_ENDIANNESS)))' >>ikarus.config.ss
@@ -105,7 +110,7 @@ boot-image-64-bit: last-revision
 try-vicare-boot: $(EXTRA_DIST) ikarus.config.ss last-revision
 	VICARE_SRC_DIR=$(srcdir)			\
    VICARE_BUILD_DIR=$(builddir)				\
-   VICARE_FASL_DIRECTORY=''				\
+   VICARE_FASL_DIRECTORY=$(VICARE_FASL_DIRECTORY)	\
    VICARE_LIBRARY_PATH=$(BOOT_IMAGE_SEARCH_PATH)	\
    $(NEW_EXECUTABLE) -b vicare.boot.try			\
    --r6rs-script $(srcdir)/makefile.sps
@@ -139,6 +144,7 @@ EXTRA_DIST= last-revision				\
 	ikarus.control.sls				\
 	ikarus.date-string.sls				\
 	ikarus.debugger.sls				\
+	ikarus.emergency.sls				\
 	ikarus.enumerations.sls				\
 	ikarus.equal.sls				\
 	ikarus.exceptions.sls				\
@@ -148,6 +154,7 @@ EXTRA_DIST= last-revision				\
 	ikarus.guardians.sls				\
 	ikarus.handlers.sls				\
 	ikarus.hash-tables.sls				\
+	ikarus.keywords.sls				\
 	ikarus.intel-assembler.sls			\
 	ikarus.io.sls					\
 	ikarus.lists.sls				\
@@ -155,6 +162,7 @@ EXTRA_DIST= last-revision				\
 	ikarus.main.sls					\
 	ikarus.multiple-values.sls			\
 	ikarus.numerics.sls				\
+	ikarus.options.sls				\
 	ikarus.pairs.sls				\
 	ikarus.pointers.sls				\
 	ikarus.posix.sls				\
