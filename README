@@ -38,9 +38,12 @@ processors, with experimental support  for 64-bit machines; it is tested
 only on GNU+Linux,  no official support for other  platforms is present.
 "Vicare" is pronounced the etruscan way.
 
-  Vicare implements  an optionally included  foreign-functions interface
-based on Libffi.   The last time the maintainer  updated this paragraph,
-it had tested Libffi version 3.0.10.
+  Vicare offers arbitrary precision integers through GMP.  It implements
+an optionally included foreign-functions interface based on Libffi.  The
+last time  the maintainer updated  this paragraph, it had  tested Libffi
+version 3.0.10.
+
+  A port to R6RS of the SRFI libraries is included in the distribution.
 
   Current official maintainers are:
 
@@ -218,6 +221,9 @@ notice.
     Collector".   In  Proceedings  of  the  SIGPLAN  '93  Conference  on
     Programming Language Design and Implementation, 207-216, June 1993.
 
+  The included SRFI  libraries were ported to R6RS  by Derick Eddington;
+see the files README.srfi and LICENSE.srfi for details.
+
 
 B. Bug reports
 --------------
@@ -231,10 +237,8 @@ Vicare's GitHub site:
 C. Resources
 ------------
 
-The  latest version of  this package  can be  downloaded from  Github or
-Google Code:
+The latest version of this package can be downloaded from Google Code:
 
-            <http://github.com/marcomaggi/vicare/downloads>
 	<http://code.google.com/p/vicare-scheme/downloads/list>
 
 the home page of the Vicare project is at:
@@ -261,6 +265,10 @@ collection of R6 Scheme libraries:
   The library Libffi can be found at:
 
 		    <http://sourceware.org/libffi/>
+
+  The GMP library is available at:
+
+			  <http://gmplib.org/>
 
   The library RE2 is available at:
 

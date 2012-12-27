@@ -167,8 +167,11 @@
 		  subbytevector-s8	subbytevector-s8/count)
     (prefix (vicare words) words.)
     (vicare syntactic-extensions)
-    (prefix (vicare unsafe-operations) unsafe.)
-    (prefix (vicare installation-configuration) config.))
+    (prefix (vicare unsafe-operations) unsafe.))
+
+  (module (platform-endianness)
+    (import (vicare include))
+    (include/verbose "ikarus.config.ss"))
 
 
 ;;;; helpers
@@ -493,7 +496,7 @@
   ;;underlying  machine  architecture).   This  may  be  any  endianness
   ;;symbol, including a symbol other than "big" and "little".
   ;;
-  config.platform-endianness)
+  platform-endianness)
 
 (define make-bytevector
   ;;Defined  by R6RS.   Return a  newly allocated  bytevector  of BV.LEN
@@ -1910,12 +1913,6 @@
 
 ;;;; any integer list to bytevector functions
 
-(define uint-list->bytevector
-  (%make-xint-list->bytevector 'uint-list->bytevector bytevector-uint-set!/who))
-
-(define sint-list->bytevector
-  (%make-xint-list->bytevector 'sint-list->bytevector bytevector-sint-set!/who))
-
 (define (%make-xint-list->bytevector who bv-set!)
   (define (race h t ls idx endianness size)
     (if (pair? h)
@@ -1941,6 +1938,12 @@
     (if (and (fixnum? size) (fx> size 0))
 	(race ls ls ls 0 endianness size)
       (die who "size must be a positive integer" size))))
+
+(define uint-list->bytevector
+  (%make-xint-list->bytevector 'uint-list->bytevector bytevector-uint-set!/who))
+
+(define sint-list->bytevector
+  (%make-xint-list->bytevector 'sint-list->bytevector bytevector-sint-set!/who))
 
 
 

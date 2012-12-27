@@ -4422,7 +4422,7 @@ ikrt_posix_strftime (ikptr s_template, ikptr s_tm_struct, ikpcb *pcb)
   struct tm	T;
   const char *	template;
 #undef SIZE
-#define SIZE	4096
+#define SIZE	IK_CHUNK_SIZE
   size_t	size=SIZE;
   char		output[SIZE+1];
   template = IK_BYTEVECTOR_DATA_CHARP(s_template);
@@ -4487,14 +4487,38 @@ ikrt_current_time (ikptr t)
 ikptr
 ikrt_gmt_offset (ikptr t)
 {
-#if ((defined HAVE_GMTIME) && (defined HAVE_MKTIME))
+#if ((defined HAVE_GMTIME_R) && (defined HAVE_MKTIME))
   time_t	clock;
-  struct tm *	m;
+  struct tm	m;
   time_t	gmtclock;
   clock	   = IK_UNFIX(IK_FIELD(t, 0)) * 1000000 + IK_UNFIX(IK_FIELD(t, 1));
   gmtime_r(&clock, &m);
-  gmtclock = mktime(m);
+  gmtclock = mktime(&m);
   return IK_FIX(clock - gmtclock);
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_bvftime (ikptr outbv, ikptr fmtbv)
+{
+#if ((defined HAVE_TIME) && (defined HAVE_LOCALTIME_R) && (defined HAVE_STRFTIME))
+  time_t	t;
+  struct tm	tmp;
+  int		rv;
+  t     = time(NULL);
+  errno = 0;
+  localtime_r(&t, &tmp);
+  errno = 0;
+  rv    = strftime((char*)(long)(outbv + off_bytevector_data),
+		   IK_UNFIX(IK_REF(outbv, off_bytevector_length)) + 1,
+		   (char*)(long)(fmtbv + off_bytevector_data),
+		   &tmp);
+#ifdef VICARE_DEBUGGING
+  if (rv == 0)
+    ik_debug_message("error in strftime: %s\n", strerror(errno));
+#endif
+  return IK_FIX(rv);
 #else
   feature_failure(__func__);
 #endif

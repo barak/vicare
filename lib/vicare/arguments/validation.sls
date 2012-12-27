@@ -33,8 +33,15 @@
     with-dangerous-arguments-validation
     arguments-validation-forms
 
+    ;; pairs
+    pair.vicare-arguments-validation
+    list.vicare-arguments-validation
+
     ;; booleans
     boolean.vicare-arguments-validation
+
+    ;; numbers
+    number.vicare-arguments-validation
 
     ;; fixnums
     fixnum.vicare-arguments-validation
@@ -43,6 +50,7 @@
     negative-fixnum.vicare-arguments-validation
     non-positive-fixnum.vicare-arguments-validation
     non-negative-fixnum.vicare-arguments-validation
+    non-zero-fixnum.vicare-arguments-validation
     fixnum-in-inclusive-range.vicare-arguments-validation
     fixnum-in-exclusive-range.vicare-arguments-validation
     even-fixnum.vicare-arguments-validation
@@ -174,11 +182,37 @@
 
     ;; pointers
     pointer.vicare-arguments-validation
+    non-null-pointer.vicare-arguments-validation
     pointer/false.vicare-arguments-validation
 
     ;; memory-blocks
     memory-block.vicare-arguments-validation
     memory-block/false.vicare-arguments-validation
+
+    ;; characters
+    char.vicare-arguments-validation
+
+    ;; flonums
+    flonum.vicare-arguments-validation
+
+    ;; bignums
+    bignum.vicare-arguments-validation
+
+    ;; ratnums
+    ratnum.vicare-arguments-validation
+
+    ;; real
+    real.vicare-arguments-validation
+    real-exact.vicare-arguments-validation
+
+    ;; compnum
+    compnum.vicare-arguments-validation
+
+    ;; cflonum
+    cflonum.vicare-arguments-validation
+
+    ;; complex
+    complex.vicare-arguments-validation
 
     ;; input/output ports
     port.vicare-arguments-validation
@@ -407,11 +441,29 @@
     (main stx)))
 
 
+;;;; pairs
+
+(define-argument-validation (pair who obj)
+  (pair? obj)
+  (assertion-violation who "expected pair as argument" obj))
+
+(define-argument-validation (list who obj)
+  (list? obj)
+  (assertion-violation who "expected list as argument" obj))
+
+
 ;;;; booleans
 
 (define-argument-validation (boolean who obj)
   (boolean? obj)
   (assertion-violation who "expected boolean as argument" obj))
+
+
+;;;; numbers
+
+(define-argument-validation (number who obj)
+  (number? obj)
+  (assertion-violation who "expected number as argument" obj))
 
 
 ;;;; fixnums validation
@@ -443,6 +495,11 @@
   (and (fixnum? obj)
        ($fx<= 0 obj))
   (assertion-violation who "expected non-negative fixnum as argument" obj))
+
+(define-argument-validation (non-zero-fixnum who obj)
+  (and (fixnum? obj)
+       (not (fxzero? obj)))
+  (assertion-violation who "expected non-zero fixnum as argument" obj))
 
 (define-argument-validation (fixnum-in-inclusive-range who obj min max)
   (and (fixnum? obj)
@@ -1156,6 +1213,11 @@
   (or (not obj) (pointer? obj))
   (assertion-violation who "expected false or pointer as argument" obj))
 
+(define-argument-validation (non-null-pointer who obj)
+  (and (pointer? obj)
+       (not (pointer-null? obj)))
+  (assertion-violation who "expected non NULL pointer as argument" obj))
+
 
 ;;;; memory-blocks
 
@@ -1166,6 +1228,62 @@
 (define-argument-validation (memory-block/false who obj)
   (or (not obj) (memory-block? obj))
   (assertion-violation who "expected false or memory-block as argument" obj))
+
+
+;;;; flonums validation
+
+(define-argument-validation (flonum who obj)
+  (flonum? obj)
+  (assertion-violation who "expected flonum as argument" obj))
+
+;;;; bignums validation
+
+(define-argument-validation (bignum who obj)
+  (bignum? obj)
+  (assertion-violation who "expected bignum as argument" obj))
+
+;;;; ratnums validation
+
+(define-argument-validation (ratnum who obj)
+  (ratnum? obj)
+  (assertion-violation who "expected ratnum as argument" obj))
+
+;;;; compnums validation
+
+(define-argument-validation (compnum who obj)
+  (compnum? obj)
+  (assertion-violation who "expected compnum as argument" obj))
+
+;;;; cflonums validation
+
+(define-argument-validation (cflonum who obj)
+  (cflonum? obj)
+  (assertion-violation who "expected cflonum as argument" obj))
+
+;;;; real validation
+
+(define-argument-validation (real who obj)
+  (real? obj)
+  (assertion-violation who "expected real number as argument" obj))
+
+(define-argument-validation (real-exact who obj)
+  (or (fixnum? obj)
+      (bignum? obj)
+      (ratnum? obj))
+  (assertion-violation who "expected exact real number as argument" obj))
+
+;;;; complex validation
+
+(define-argument-validation (complex who obj)
+  (complex? obj)
+  (assertion-violation who "expected complex number as argument" obj))
+
+
+;;;; characters
+
+(define-argument-validation (char who obj)
+  (char? obj)
+  (assertion-violation who "expected character as argument" obj))
 
 
 ;;;; ports

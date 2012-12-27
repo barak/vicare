@@ -10,6 +10,7 @@
 ;;;	original Ikarus distribution.
 ;;;
 ;;;Copyright (C) 2006-2010 Abdulaziz Ghuloum <aghuloum@cs.indiana.edu>
+;;;Modified by Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
 ;;;it under the terms of the  GNU General Public License as published by
@@ -26,21 +27,22 @@
 ;;;
 
 #!ikarus
-(import (ikarus))
+(import (ikarus)
+  (vicare checks))
 
 (define (test-rounding)
   (define (test-round x)
-    (let ([rx (round x)])
+    (define who 'test-round)
+    (let ((rx (round x)))
       (unless (integer? rx)
-	(error 'test-round "not an integer result for" x rx))
-      (let ([diff (abs (- (abs x) (abs rx)))])
-	(cond
-	 [(= diff 1/2)
-	  (unless (even? rx)
-	    (error 'test-round "non-even rounding for" x rx))]
-	 [else
-	  (unless (< diff 1/2)
-	    (error 'test-round "rounding the wrong way for" x rx))]))))
+	(error who "not an integer result for" x rx))
+      (let ((diff (abs (- (abs x) (abs rx)))))
+	(cond ((= diff 1/2)
+	       (unless (even? rx)
+		 (error who "non-even rounding for" x rx)))
+	      (else
+	       (unless (< diff 1/2)
+		 (error who "rounding the wrong way for" x rx)))))))
   (test-round -251/100)
   (test-round -250/100)
   (test-round -249/100)
@@ -87,11 +89,7 @@
   (test-round +2.50)
   (test-round -2.50)
   (test-round +3.50)
-  (test-round -3.50)
-
-
-
-  )
+  (test-round -3.50))
 
 (define (test-eqv)
   (define (test-eqv x y result)
@@ -112,7 +110,7 @@
 (define (test-exact-integer-sqrt)
   (define (f i j inc)
     (when (< i j)
-      (let-values ([(s r) (exact-integer-sqrt i)])
+      (let-values (((s r) (exact-integer-sqrt i)))
 	(unless (and (= (+ (* s s) r) i)
 		     (< i (* (+ s 1) (+ s 1))))
 	  (error 'exact-integer-sqrt "wrong result" i))
@@ -127,8 +125,8 @@
   (test-exact-integer-sqrt)
   (test-eqv))
 
-(display "*** testing Ikarus numerics\n\n" (current-error-port))
+(check-display "*** testing Ikarus numerics\n\n")
 (run-tests)
-(display "; *** done\n" (current-error-port))
+(check-display "; *** done\n\n")
 
 ;;; end of file

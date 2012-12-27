@@ -1,7 +1,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.68)
-AC_INIT([Vicare Scheme],[0.2d19],[marco.maggi-ipsu@poste.it],
+AC_INIT([Vicare Scheme],[0.2d20],[marco.maggi-ipsu@poste.it],
   [vicare-scheme],[http://marcomaggi.github.com/vicare.html])
 AC_CANONICAL_TARGET
 AC_CONFIG_SRCDIR([src/])
@@ -100,6 +100,22 @@ AC_ARG_ENABLE([binfmt],
   [vicare_enable_binfmt=no])
 AC_MSG_RESULT([$vicare_enable_binfmt])
 AM_CONDITIONAL([WANT_BINFMT],[test x$vicare_enable_binfmt = xyes])
+
+dnl --------------------------------------------------------------------
+
+AC_MSG_CHECKING([whether to enable timing of tests])
+AC_ARG_ENABLE([time-tests],
+  [AS_HELP_STRING([--enable-time-tests],
+     [enable timing of tests (default: no)])],
+  [if test x$enableval = xyes
+   then vicare_time_tests=yes
+   else vicare_time_tests=no
+   fi],
+  [vicare_time_tests=no])
+AC_MSG_RESULT([$vicare_time_tests])
+AM_CONDITIONAL([WANT_TIME_TESTS],[test x$vicare_time_tests = xyes])
+AM_COND_IF([WANT_TIME_TESTS],
+  [AC_CHECK_PROG([TIME_PROGRAM],[time],[time],[:])])
 
 #page
 #### basic system inspection
@@ -208,8 +224,9 @@ AC_FUNC_MEMCMP
 AC_FUNC_MMAP
 AC_FUNC_STRFTIME
 AC_FUNC_STRTOD
-AC_CHECK_FUNCS([bzero gettimeofday memmove memset mmap munmap sqrt strerror getaddrinfo])
+AC_CHECK_FUNCS([bzero memmove memset mmap munmap sqrt strerror getaddrinfo])
 AC_CHECK_FUNCS([stat lstat realpath unlink mkdir])
+AC_CHECK_FUNCS([gettimeofday time localtime_r mktime gmtime_r strftime])
 AC_CHECK_TYPES([struct tm],,,[VICARE_INCLUDES])
 AC_CHECK_FUNCS([getenv])
 AC_CHECK_FUNCS([sigaltstack sigemptyset sigaddset sigfillset sigprocmask sigaction])
@@ -358,7 +375,7 @@ AM_COND_IF([WANT_POSIX],[
   AC_CHECK_FUNCS([getgrgid getgrnam setgrent getgrent endgrent])
   AC_CHECK_FUNCS([ctermid setsid getsid getpgrp setpgid tcgetpgrp tcsetpgrp tcgetsid])
   AC_CHECK_TYPES([struct tms],,,[VICARE_INCLUDES])
-  AC_CHECK_FUNCS([clock time times localtime_r gmtime_r timelocal timegm strftime nanosleep mktime])
+  AC_CHECK_FUNCS([clock times timelocal timegm nanosleep])
   AC_CHECK_FUNCS([setitimer getitimer alarm])
   AC_CHECK_FUNCS([getrusage getrlimit setrlimit])
 

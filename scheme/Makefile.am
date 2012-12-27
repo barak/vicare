@@ -35,7 +35,7 @@ ikarus.config.ss: Makefile last-revision ../config.h
 	echo '(define vicare-version "$(PACKAGE_VERSION)")' >$@
 	echo "(define vicare-revision \"$$(cat $(srcdir)/last-revision)\")" >>$@
 	echo '(define vicare-lib-dir "$(pkglibdir)")' >>$@
-	echo '(define scheme-lib-dir "$(libdir)/scheme")' >>$@
+	echo '(define scheme-lib-dir "$(libdir)/scheme/r6rs")' >>$@
 	echo '(define (host-info) "$(target)")' >>$@
 	echo '(define wordsize $(VICARE_SIZE_OF_VOIDP))' >>$@
 	echo '(define platform-endianness (quote $(VICARE_PLATFORM_ENDIANNESS)))' >>$@
@@ -56,7 +56,7 @@ $(NEW_BOOT_FILE): $(EXTRA_DIST) ikarus.config.ss last-revision
   VICARE_FASL_DIRECTORY=''				\
   VICARE_LIBRARY_PATH=$(BOOT_IMAGE_SEARCH_PATH)		\
   $(NEW_EXECUTABLE) -b $(VICARE_PREBUILT_BOOT)		\
-  --r6rs-script $(srcdir)/makefile.sps
+  $(user_flags) --r6rs-script $(srcdir)/makefile.sps
 
 #$(NEW_BOOT_FILE): $(EXTRA_DIST) ikarus.config.ss last-revision
 # 	VICARE_SRC_DIR=$(srcdir)			\
@@ -74,7 +74,7 @@ boot-image-64-bit: last-revision
 	echo '(define vicare-version "$(PACKAGE_VERSION)")' >ikarus.config.ss
 	echo "(define vicare-revision \"$$(cat $(srcdir)/last-revision)\")" >>ikarus.config.ss
 	echo '(define vicare-lib-dir "$(pkglibdir)")' >>ikarus.config.ss
-	echo '(define scheme-lib-dir "$(libdir)/scheme")' >>ikarus.config.ss
+	echo '(define scheme-lib-dir "$(libdir)/scheme/r6rs")' >>ikarus.config.ss
 	echo '(define (host-info) "$(target)")' >>ikarus.config.ss
 	echo '(define wordsize 8)' >>ikarus.config.ss
 	echo '(define platform-endianness (quote $(VICARE_PLATFORM_ENDIANNESS)))' >>ikarus.config.ss
@@ -111,7 +111,7 @@ try-vicare-boot: $(EXTRA_DIST) ikarus.config.ss last-revision
    VICARE_FASL_DIRECTORY=$(VICARE_FASL_DIRECTORY)	\
    VICARE_LIBRARY_PATH=$(BOOT_IMAGE_SEARCH_PATH)	\
    $(NEW_EXECUTABLE) -b vicare.boot.try			\
-   --r6rs-script $(srcdir)/makefile.sps
+   $(user_flags) --r6rs-script $(srcdir)/makefile.sps
 
 #page
 #### stuff needed by GNU Automake
@@ -131,6 +131,7 @@ EXTRA_DIST= last-revision				\
 	\
 	ikarus.apply.sls				\
 	ikarus.apropos.sls				\
+	ikarus.bignums.sls				\
 	ikarus.bytevectors.sls				\
 	ikarus.cafe.sls					\
 	ikarus.chars.sls				\
@@ -140,7 +141,6 @@ EXTRA_DIST= last-revision				\
 	ikarus.command-line.sls				\
 	ikarus.conditions.sls				\
 	ikarus.control.sls				\
-	ikarus.date-string.sls				\
 	ikarus.debugger.sls				\
 	ikarus.emergency.sls				\
 	ikarus.enumerations.sls				\
@@ -159,7 +159,14 @@ EXTRA_DIST= last-revision				\
 	ikarus.load.sls					\
 	ikarus.main.sls					\
 	ikarus.multiple-values.sls			\
-	ikarus.numerics.sls				\
+	ikarus.numerics.flonums.sls			\
+	ikarus.numerics.generic-arithmetic.sls		\
+	ikarus.numerics.flonum-conversion.sls		\
+	ikarus.numerics.rationalize.sls			\
+	ikarus.numerics.div-and-mod.sls			\
+	ikarus.numerics.flonums.div-and-mod.sls		\
+	ikarus.numerics.bitwise.misc.sls		\
+	ikarus.numerics.complex-numbers.sls		\
 	ikarus.options.sls				\
 	ikarus.pairs.sls				\
 	ikarus.pointers.sls				\
@@ -169,6 +176,7 @@ EXTRA_DIST= last-revision				\
 	ikarus.pretty-print.sls				\
 	ikarus.promises.sls				\
 	ikarus.foreign-libraries.sls			\
+	ikarus.ratnums.sls				\
 	ikarus.reader.sls				\
 	ikarus.readline.sls				\
 	ikarus.records.procedural.sls			\

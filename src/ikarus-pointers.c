@@ -169,23 +169,6 @@ ikrt_pointer_set_null (ikptr pointer)
 
 /* ------------------------------------------------------------------ */
 
-/* Stale function to  be removed at the next boot  image rotation (Marco
-   Maggi; Mon Sep 24, 2012). */
-ikptr
-ikrt_pointer_from_scheme_object (ikptr s_obj, ikpcb * pcb)
-{
-  return IK_VOID;
-}
-/* Stale function to  be removed at the next boot  image rotation (Marco
-   Maggi; Mon Sep 24, 2012). */
-ikptr
-ikrt_pointer_to_scheme_object (ikptr s_pointer, ikpcb * pcb)
-{
-  return IK_VOID;
-}
-
-/* ------------------------------------------------------------------ */
-
 ikptr
 ikrt_pointer_to_int (ikptr pointer, ikpcb* pcb)
 {
@@ -553,7 +536,9 @@ ikptr
 ikrt_with_local_storage (ikptr s_lengths, ikptr s_thunk, ikpcb * pcb)
 {
   ikptr		code_entry	= IK_REF(s_thunk, off_closure_code);
-  ikptr		code_ptr	= code_entry - off_code_data;
+  /* S_CODE  is a  tagged pointer  to the  code object  implementing the
+     closure S_THUNK. */
+  ikptr		s_code		= code_entry - off_code_data;
   int		arity		= IK_VECTOR_LENGTH(s_lengths);
   long		total_length	= 0;
   long		lengths[arity];
@@ -574,7 +559,7 @@ ikrt_with_local_storage (ikptr s_lengths, ikptr s_thunk, ikpcb * pcb)
 	iku_pointer_alloc(pcb, (ik_ulong)&(buffer[offset]));
     }
     /* Call the Scheme procedure. */
-    s_result = ik_exec_code(pcb, code_ptr, IK_FIX(-arity), s_thunk);
+    s_result = ik_exec_code(pcb, s_code, IK_FIX(-arity), s_thunk);
   }
   ik_leave_c_function(pcb, sk);
   return s_result;
