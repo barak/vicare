@@ -10,6 +10,7 @@
 ;;;	the original Ikarus distribution.
 ;;;
 ;;;Copyright (C) 2006-2010 Abdulaziz Ghuloum <aghuloum@cs.indiana.edu>
+;;;Modified by Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
 ;;;it under the terms of the  GNU General Public License as published by
@@ -27,7 +28,8 @@
 
 #!ikarus
 (import (ikarus)
-  (ikarus-test-framework))
+  (ikarus-test-framework)
+  (vicare checks))
 
 (define (%printf . args)
   (when #f
@@ -38,45 +40,43 @@
   (test-bignum->flonum))
 
 (define (t x s)
-  (let ([fl (format "~a" (exact->inexact x))])
+  (let ((fl (format "~a" (exact->inexact x))))
     (unless (string=? s fl)
       (error 'bignum->flonum
 	"incorrect result for ~s\n expected ~a, \n      got ~a" x s fl))))
 
 (define-syntax test*
   (syntax-rules ()
-    [(_ name [num str] ...)
+    ((_ name (num str) ...)
      (define-tests name
-       [(lambda (x) (string=? str (number->string x))) (exact->inexact num)]
-       ...)]))
+       ((lambda (x) (string=? str (number->string x))) (exact->inexact num))
+       ...))))
 
 (define (testnum x)
   (define precision 53)
 ;;;(assert (bignum? x))
-  (let ([fl (inexact x)])
-    (let ([n (if (> x 0) x (- x))])
-      (let ([bits (bitwise-length n)])
-	(%printf "bits(~s) = ~s\n" n bits)
-	(cond
-	 [(<= bits precision)
-	  (unless (= x (exact fl))
-	    (error #f "should be exactly equal" x fl (exact fl)))]
-	 [else
-	  (let ([hi53 (sra n (- bits precision))]
-		[lo (bitwise-and n (- (sll 1 (- bits precision)) 1))]
-		[breakpoint (sll 1 (- bits precision 1))])
-	    (assert (= n (+ lo (sll hi53 (- bits precision)))))
-	    (let ([fl2
-		   (cond
-		    [(or (< lo breakpoint)
-			 (and (= lo breakpoint) (even? hi53)))
-		     (* (inexact hi53) (sll 1 (- bits precision)))]
-		    [else
-		     (* (inexact (+ hi53 1)) (sll 1 (- bits precision)))])])
-	      (let ([fl2 (if (> x 0) fl2 (* fl2 -1))])
-		(%printf "x=~s fl=~s\n" x fl)
-		(unless (fl=? fl fl2)
-		  (error #f "should be equal" x fl fl2)))))])))))
+  (let* ((fl   (inexact x))
+	 (n    (if (> x 0) x (- x)))
+	 (bits (bitwise-length n)))
+    (%printf "bits(~s) = ~s\n" n bits)
+    (if (<= bits precision)
+	(unless (= x (exact fl))
+	  (error #f "should be exactly equal" x fl (exact fl)))
+      (let ((hi53	(sra n (- bits precision)))
+	    (lo		(bitwise-and n (- (sll 1 (- bits precision)) 1)))
+	    (breakpoint	(sll 1 (- bits precision 1))))
+	(assert (= n (+ lo (sll hi53 (- bits precision)))))
+	(let ((fl2 (cond ((or (< lo breakpoint)
+			      (and (= lo breakpoint) (even? hi53)))
+			  (* (inexact hi53) (sll 1 (- bits precision))))
+			 (else
+			  (* (inexact (+ hi53 1)) (sll 1 (- bits precision)))))))
+	  (let ((fl2 (if (> x 0)
+			 fl2
+		       (* fl2 -1))))
+	    (%printf "x=~s fl=~s\n" x fl)
+	    (unless (fl=? fl fl2)
+	      (error #f "should be equal" x fl fl2))))))))
 
 (define (test-pos-neg x)
   (testnum x)
@@ -150,8 +150,8 @@
    1340780792994259858813973235560875797249452437522567973398106813134915148656547489875113635440585039972930371997426831929539813244507897782529778440889958413407807929942598588139732355608757972494524375225679733981068131349151486565474898751136354405850399729303719974268319295398132445078977825297784408899584))
 
 (set-port-buffer-mode! (current-output-port) (buffer-mode none))
-(display "*** testing Ikarus bignum to flonum\n" (current-error-port))
+(check-display "*** testing Ikarus bignum to flonum\n")
 (run-tests)
-(display "; *** done\n\n" (current-error-port))
+(check-display "; *** done\n\n")
 
 ;;; end of file

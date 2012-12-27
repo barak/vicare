@@ -28,6 +28,31 @@
 ;;;
 
 
+;;;;copyright notice for RECEIVE
+;;;
+;;;Copyright (C) John David Stone (1999). All Rights Reserved.
+;;;
+;;;Permission is hereby granted, free of charge, to any person obtaining
+;;;a  copy of  this  software and  associated  documentation files  (the
+;;;"Software"), to  deal in the Software  without restriction, including
+;;;without limitation  the rights to use, copy,  modify, merge, publish,
+;;;distribute, sublicense,  and/or sell copies  of the Software,  and to
+;;;permit persons to whom the Software is furnished to do so, subject to
+;;;the following conditions:
+;;;
+;;;The  above  copyright notice  and  this  permission  notice shall  be
+;;;included in all copies or substantial portions of the Software.
+;;;
+;;;THE  SOFTWARE IS  PROVIDED "AS  IS",  WITHOUT WARRANTY  OF ANY  KIND,
+;;;EXPRESS OR  IMPLIED, INCLUDING BUT  NOT LIMITED TO THE  WARRANTIES OF
+;;;MERCHANTABILITY,    FITNESS   FOR    A    PARTICULAR   PURPOSE    AND
+;;;NONINFRINGEMENT. IN  NO EVENT SHALL THE AUTHORS  OR COPYRIGHT HOLDERS
+;;;BE LIABLE  FOR ANY CLAIM, DAMAGES  OR OTHER LIABILITY,  WHETHER IN AN
+;;;ACTION OF  CONTRACT, TORT  OR OTHERWISE, ARISING  FROM, OUT OF  OR IN
+;;;CONNECTION  WITH THE SOFTWARE  OR THE  USE OR  OTHER DEALINGS  IN THE
+;;;SOFTWARE.
+
+
 #!r6rs
 (library (vicare syntactic-extensions)
   (export
@@ -41,6 +66,7 @@
     with-pathnames
     with-bytevectors		with-bytevectors/or-false
     callet			callet*
+    receive
 
     ;; arguments validation
     define-argument-validation
@@ -50,21 +76,19 @@
 
     ;; miscellaneous dispatching
     case-word-size		case-endianness
-    case-one-operand		case-two-operands
     case-fixnums		case-integers
+    case-symbols
     define-exact-integer->symbol-function
+    cond-numeric-operand	cond-real-numeric-operand
+    cond-exact-integer-operand	cond-inexact-integer-operand
+    cond-exact-real-numeric-operand
 
     ;; auxiliary syntaxes
-    big			little
-    fixnum		bignum
-    flonum		cflonum
-    compnum)
+    big				little)
   (import (ikarus)
     (for (prefix (vicare installation-configuration)
 		 config.)
 	 expand)
-    (only (ikarus system $fx)
-	  $fx=)
     (only (vicare arguments validation)
 	  define-argument-validation
 	  with-arguments-validation
@@ -90,10 +114,24 @@
        (define-syntax ?name
 	 (identifier-syntax ghost))))))
 
-(define-syntax define-inline-constant
+#;(define-syntax define-inline-constant
   (syntax-rules ()
     ((_ ?name ?value)
      (define-syntax ?name (identifier-syntax ?value)))))
+(define-syntax define-inline-constant
+  ;;We want to allow a generic expression to generate the constant value
+  ;;at expand time.
+  ;;
+  (syntax-rules ()
+    ((_ ?name ?expr)
+     (define-syntax ?name
+       (let ((const ?expr))
+	 (lambda (stx)
+	   (syntax-case stx ()
+	     (?id
+	      (identifier? #'?id)
+	      (with-syntax ((VALUE const))
+		#'(quote VALUE))))))))))
 
 (define-syntax define-syntax*
   (syntax-rules ()
@@ -299,6 +337,13 @@
 	   ...)
        . ?body))))
 
+(define-syntax receive
+  (syntax-rules ()
+    ((_ ?formals ?expression ?form0 ?form ...)
+     (call-with-values
+	 (lambda () ?expression)
+       (lambda ?formals ?form0 ?form ...)))))
+
 
 (define-syntax case-word-size
   (if (= 4 config.wordsize)
@@ -344,6 +389,8 @@
 	(else
 	 ?else-body0 ?else-body ...))
      (let ((fx ?expr))
+       (import (only (ikarus system $fx)
+		     $fx=))
        (cond ((or ($fx= ?fixnum0 fx)
 		  ($fx= ?fixnum  fx)
 		  ...)
@@ -356,6 +403,8 @@
 	 ?fx-body0 ?fx-body ...)
 	...)
      (let ((fx ?expr))
+       (import (only (ikarus system $fx)
+		     $fx=))
        (cond ((or ($fx= ?fixnum0 fx)
 		  ($fx= ?fixnum  fx)
 		  ...)
@@ -391,6 +440,34 @@
 	     ...)))
     ))
 
+(define-syntax case-symbols
+  (syntax-rules (else)
+    ((_ ?expr
+	((?symbol0 ?symbol ...)
+	 ?sym-body0 ?sym-body ...)
+	...
+	(else
+	 ?else-body0 ?else-body ...))
+     (let ((sym ?expr))
+       (cond ((or (eq? (quote ?symbol0) sym)
+		  (eq? (quote ?symbol)  sym)
+		  ...)
+	      ?sym-body0 ?sym-body ...)
+	     ...
+	     (else
+	      ?else-body0 ?else-body ...))))
+    ((_ ?expr
+	((?symbol0 ?symbol ...)
+	 ?sym-body0 ?sym-body ...)
+	...)
+     (let ((sym ?expr))
+       (cond ((or (eq? (quote ?symbol0) sym)
+		  (eq? (quote ?symbol)  sym)
+		  ...)
+	      ?sym-body0 ?sym-body ...)
+	     ...)))
+    ))
+
 (define-argument-validation (exact-integer who obj)
   (and (integer? obj) (exact? obj))
   (assertion-violation who "expected exact integer as argument" obj))
@@ -410,98 +487,325 @@
 
 ;;;; math functions dispatching
 
-(define-syntax fixnum	(syntax-rules ()))
-(define-syntax bignum	(syntax-rules ()))
-(define-syntax flonum	(syntax-rules ()))
-(define-syntax cflonum	(syntax-rules ()))
-(define-syntax compnum	(syntax-rules ()))
+(define-syntax cond-exact-integer-operand
+  (syntax-rules (else fixnum? bignum?)
+    ((_ ?num
+	((fixnum?)	?body-fx0 ?body-fx ...)
+	((bignum?)	?body-bg0 ?body-bg ...)
+	(else		?body-el0 ?body-el ...))
+     (let ((num ?num))
+       (cond ((fixnum?  num)	?body-fx0 ?body-fx ...)
+	     ((bignum?  num)	?body-bg0 ?body-bg ...)
+	     (else		?body-el0 ?body-el ...))))))
 
-(define-syntax case-one-operand
-  (syntax-rules (fixnum bignum flonum cflonum compnum)
-    ((case-one-operand (?who ?op)
-       ((fixnum)	. ?fixnum-body)
-       ((bignum)	. ?bignum-body)
-       ((flonum)	. ?flonum-body)
-       ((cflonum)	. ?cflonum-body)
-       ((compnum)	. ?compnum-body))
-     (let ((op ?op))
-       (cond ((fixnum?  op)	. ?fixnum-body)
-	     ((bignum?  op)	. ?bignum-body)
-	     ((flonum?  op)	. ?flonum-body)
-	     ((cflonum? op)	. ?cflonum-body)
-	     ((compnum? op)	. ?compnum-body)
+(define-syntax cond-inexact-integer-operand
+  (syntax-rules (else fixnum? bignum? flonum?)
+    ((_ ?num
+	((fixnum?)	?body-fx0 ?body-fx ...)
+	((bignum?)	?body-bg0 ?body-bg ...)
+	((flonum?)	?body-fl0 ?body-fl ...)
+	(else		?body-el0 ?body-el ...))
+     (let ((num ?num))
+       (cond ((fixnum?  num)	?body-fx0 ?body-fx ...)
+	     ((bignum?  num)	?body-bg0 ?body-bg ...)
+	     ((flonum?  num)	?body-fl0 ?body-fl ...)
+	     (else		?body-el0 ?body-el ...))))))
+
+(define-syntax cond-exact-real-numeric-operand
+  (syntax-rules (else fixnum? bignum? ratnum?)
+    ((_ ?num
+	((fixnum?)	?body-fx0 ?body-fx ...)
+	((bignum?)	?body-bg0 ?body-bg ...)
+	((ratnum?)	?body-rn0 ?body-rn ...)
+	(else		?body-el0 ?body-el ...))
+     (let ((num ?num))
+       (cond ((fixnum?  num)	?body-fx0 ?body-fx ...)
+	     ((bignum?  num)	?body-bg0 ?body-bg ...)
+	     ((ratnum?  num)	?body-rn0 ?body-rn ...)
+	     (else		?body-el0 ?body-el ...))))))
+
+;;; --------------------------------------------------------------------
+
+(define-syntax cond-real-numeric-operand
+  (syntax-rules (else fixnum? bignum? ratnum? flonum?)
+    ((_ ?num
+	((fixnum?)	?body-fx0 ?body-fx ...)
+	((bignum?)	?body-bg0 ?body-bg ...)
+	((ratnum?)	?body-rt0 ?body-rt ...)
+	((flonum?)	?body-fl0 ?body-fl ...)
+	(else		?body-el0 ?body-el ...))
+     (let ((num ?num))
+       (cond ((fixnum?  num)	?body-fx0 ?body-fx ...)
+	     ((bignum?  num)	?body-bg0 ?body-bg ...)
+	     ((ratnum?  num)	?body-rt0 ?body-rt ...)
+	     ((flonum?  num)	?body-fl0 ?body-fl ...)
+	     (else		?body-el0 ?body-el ...))))
+
+    ;;As above but with flonums before ratnums.
+    ;;
+    ((_ ?num
+	((fixnum?)	?body-fx0 ?body-fx ...)
+	((bignum?)	?body-bg0 ?body-bg ...)
+	((flonum?)	?body-fl0 ?body-fl ...)
+	((ratnum?)	?body-rt0 ?body-rt ...)
+	(else		?body-el0 ?body-el ...))
+     (let ((num ?num))
+       (cond ((fixnum?  num)	?body-fx0 ?body-fx ...)
+	     ((bignum?  num)	?body-bg0 ?body-bg ...)
+	     ((flonum?  num)	?body-fl0 ?body-fl ...)
+	     ((ratnum?  num)	?body-rt0 ?body-rt ...)
+	     (else		?body-el0 ?body-el ...))))
+
+    ;;As above but with flonums first.
+    ;;
+    ((_ ?num
+	((flonum?)	?body-fl0 ?body-fl ...)
+	((fixnum?)	?body-fx0 ?body-fx ...)
+	((bignum?)	?body-bg0 ?body-bg ...)
+	((ratnum?)	?body-rt0 ?body-rt ...)
+	(else		?body-el0 ?body-el ...))
+     (let ((num ?num))
+       (cond ((flonum?  num)	?body-fl0 ?body-fl ...)
+	     ((fixnum?  num)	?body-fx0 ?body-fx ...)
+	     ((bignum?  num)	?body-bg0 ?body-bg ...)
+	     ((ratnum?  num)	?body-rt0 ?body-rt ...)
+	     (else		?body-el0 ?body-el ...))))
+    ))
+
+;;; --------------------------------------------------------------------
+
+(define-syntax cond-numeric-operand
+  (syntax-rules (else
+		 zero? exact? inexact?
+		 fixnum? bignum? ratnum? flonum? compnum? cflonum? real? complex?)
+
+    ;;Dispatch for all the numeric types.
+    ;;
+    ((_ ?num
+	((fixnum?)	?body-fx0 ?body-fx ...)
+	((bignum?)	?body-bg0 ?body-bg ...)
+	((ratnum?)	?body-rt0 ?body-rt ...)
+	((flonum?)	?body-fl0 ?body-fl ...)
+	((compnum?)	?body-cn0 ?body-cn ...)
+	((cflonum?)	?body-cf0 ?body-cf ...)
+	(else		?body-el0 ?body-el ...))
+     (let ((num ?num))
+       (cond ((fixnum?  num)	?body-fx0 ?body-fx ...)
+	     ((bignum?  num)	?body-bg0 ?body-bg ...)
+	     ((ratnum?  num)	?body-rt0 ?body-rt ...)
+	     ((flonum?  num)	?body-fl0 ?body-fl ...)
+	     ((compnum? num)	?body-cn0 ?body-cn ...)
+	     ((cflonum? num)	?body-cf0 ?body-cf ...)
+	     (else		?body-el0 ?body-el ...))))
+
+    ;;Dispatch for  all the  numeric types,  but flonums  before ratnums
+    ;;because they are more likely.
+    ;;
+    ((_ ?num
+	((fixnum?)	?body-fx0 ?body-fx ...)
+	((bignum?)	?body-bg0 ?body-bg ...)
+	((flonum?)	?body-fl0 ?body-fl ...)
+	((ratnum?)	?body-rt0 ?body-rt ...)
+	((compnum?)	?body-cn0 ?body-cn ...)
+	((cflonum?)	?body-cf0 ?body-cf ...)
+	(else		?body-el0 ?body-el ...))
+     (let ((num ?num))
+       (cond ((fixnum?  num)	?body-fx0 ?body-fx ...)
+	     ((bignum?  num)	?body-bg0 ?body-bg ...)
+	     ((flonum?  num)	?body-fl0 ?body-fl ...)
+	     ((ratnum?  num)	?body-rt0 ?body-rt ...)
+	     ((compnum? num)	?body-cn0 ?body-cn ...)
+	     ((cflonum? num)	?body-cf0 ?body-cf ...)
+	     (else		?body-el0 ?body-el ...))))
+
+    ;; --------------------------------------------------
+
+    ;;Dispatch for all the numeric types, but flonums first because they
+    ;;are most likely.
+    ;;
+    ((_ ?num
+	((flonum?)	?body-fl0 ?body-fl ...)
+	((cflonum?)	?body-cf0 ?body-cf ...)
+	((fixnum?)	?body-fx0 ?body-fx ...)
+	((bignum?)	?body-bg0 ?body-bg ...)
+	((ratnum?)	?body-rt0 ?body-rt ...)
+	((compnum?)	?body-cn0 ?body-cn ...)
+	(else		?body-el0 ?body-el ...))
+     (let ((num ?num))
+       (cond ((flonum?  num)	?body-fl0 ?body-fl ...)
+	     ((cflonum? num)	?body-cf0 ?body-cf ...)
+	     ((fixnum?  num)	?body-fx0 ?body-fx ...)
+	     ((bignum?  num)	?body-bg0 ?body-bg ...)
+	     ((ratnum?  num)	?body-rt0 ?body-rt ...)
+	     ((compnum? num)	?body-cn0 ?body-cn ...)
+	     (else		?body-el0 ?body-el ...))))
+
+    ;; --------------------------------------------------
+
+    ((_ ?num
+	((real?)	?body-re0 ?body-re ...)
+	((compnum?)	?body-cn0 ?body-cn ...)
+	((cflonum?)	?body-cf0 ?body-cf ...)
+	(else		?body-el0 ?body-el ...))
+     (let ((num ?num))
+       (cond ((or (fixnum?  num)
+		  (bignum?  num)
+		  (ratnum?  num)
+		  (flonum?  num))
+	      ?body-re0 ?body-re ...)
+	     ((compnum? num)	?body-cn0 ?body-cn ...)
+	     ((cflonum? num)	?body-cf0 ?body-cf ...)
+	     (else		?body-el0 ?body-el ...))))
+
+    ;; --------------------------------------------------
+
+    ((_ ?num
+	((flonum?)	?body-fl0 ?body-fl ...)
+	((zero?)	?body-zr0 ?body-zr ...)
+	((real? exact?)	?body-re0 ?body-re ...)
+	(else		?body-el0 ?body-el ...))
+     (let ((num ?num))
+       (import (only (ikarus system $fx)
+		     $fxzero?))
+       (cond ((flonum? num)
+	      ?body-fl0 ?body-fl ...)
+	     ((and (fixnum? num) ($fxzero? num))
+	      ?body-zr0 ?body-zr ...)
+	     ((or (fixnum? num) (bignum? num) (ratnum? num))
+	      ?body-re0 ?body-re ...)
 	     (else
-	      (assertion-violation ?who "invalid numeric operand" op)))))))
+	      ?body-el0 ?body-el ...))))
 
-(define-syntax case-two-operands
-  (syntax-rules (fixnum bignum flonum cflonum compnum)
-    ((case-two-operands (?who ?op1 ?op2)
-       ((fixnum)
-	((fixnum)	. ?fixnum/fixnum-body)
-	((bignum)	. ?fixnum/bignum-body)
-	((flonum)	. ?fixnum/flonum-body)
-	((cflonum)	. ?fixnum/cflonum-body)
-	((compnum)	. ?fixnum/compnum-body))
-       ((bignum)
-	((fixnum)	. ?bignum/fixnum-body)
-	((bignum)	. ?bignum/bignum-body)
-	((flonum)	. ?bignum/flonum-body)
-	((cflonum)	. ?bignum/cflonum-body)
-	((compnum)	. ?bignum/compnum-body))
-       ((flonum)
-	((fixnum)	. ?flonum/fixnum-body)
-	((bignum)	. ?flonum/bignum-body)
-	((flonum)	. ?flonum/flonum-body)
-	((cflonum)	. ?flonum/cflonum-body)
-	((compnum)	. ?flonum/compnum-body))
-       ((cflonum)
-	((fixnum)	. ?cflonum/fixnum-body)
-	((bignum)	. ?cflonum/bignum-body)
-	((flonum)	. ?cflonum/flonum-body)
-	((cflonum)	. ?cflonum/cflonum-body)
-	((compnum)	. ?cflonum/compnum-body))
-       ((compnum)
-	((fixnum)	. ?compnum/fixnum-body)
-	((bignum)	. ?compnum/bignum-body)
-	((flonum)	. ?compnum/flonum-body)
-	((cflonum)	. ?compnum/cflonum-body)
-	((compnum)	. ?compnum/compnum-body)))
-     (case-one-operand (?who ?op1)
-       ((fixnum)
-	(case-one-operand (?who ?op2)
-	  ((fixnum)	. ?fixnum/fixnum-body)
-	  ((bignum)	. ?fixnum/bignum-body)
-	  ((flonum)	. ?fixnum/flonum-body)
-	  ((cflonum)	. ?fixnum/cflonum-body)
-	  ((compnum)	. ?fixnum/compnum-body)))
-       ((bignum)
-	(case-one-operand (?who ?op2)
-	  ((fixnum)	. ?bignum/fixnum-body)
-	  ((bignum)	. ?bignum/bignum-body)
-	  ((flonum)	. ?bignum/flonum-body)
-	  ((cflonum)	. ?bignum/cflonum-body)
-	  ((compnum)	. ?bignum/compnum-body)))
-       ((flonum)
-	(case-one-operand (?who ?op2)
-	  ((fixnum)	. ?flonum/fixnum-body)
-	  ((bignum)	. ?flonum/bignum-body)
-	  ((flonum)	. ?flonum/flonum-body)
-	  ((cflonum)	. ?flonum/cflonum-body)
-	  ((compnum)	. ?flonum/compnum-body)))
-       ((cflonum)
-	(case-one-operand (?who ?op2)
-	  ((fixnum)	. ?cflonum/fixnum-body)
-	  ((bignum)	. ?cflonum/bignum-body)
-	  ((flonum)	. ?cflonum/flonum-body)
-	  ((cflonum)	. ?cflonum/cflonum-body)
-	  ((compnum)	. ?cflonum/compnum-body)))
-       ((compnum)
-	(case-one-operand (?who ?op2)
-	  ((fixnum)	. ?compnum/fixnum-body)
-	  ((bignum)	. ?compnum/bignum-body)
-	  ((flonum)	. ?compnum/flonum-body)
-	  ((cflonum)	. ?compnum/cflonum-body)
-	  ((compnum)	. ?compnum/compnum-body)))))))
+    ;; --------------------------------------------------
+
+    ((_ ?num
+	((flonum?)	?body-fl0 ?body-fl ...)
+	((real? exact?)	?body-re0 ?body-re ...)
+	(else		?body-el0 ?body-el ...))
+     (let ((num ?num))
+       (cond ((flonum? num)
+	      ?body-fl0 ?body-fl ...)
+	     ((or (fixnum? num) (bignum? num) (ratnum? num))
+	      ?body-re0 ?body-re ...)
+	     (else
+	      ?body-el0 ?body-el ...))))
+
+    ;; --------------------------------------------------
+
+    ;;Dispatch for all the numeric types, complex first.
+    ;;
+    ((_ ?num
+	((compnum?)	?body-cn0 ?body-cn ...)
+	((cflonum?)	?body-cf0 ?body-cf ...)
+	((fixnum?)	?body-fx0 ?body-fx ...)
+	((bignum?)	?body-bg0 ?body-bg ...)
+	((ratnum?)	?body-rt0 ?body-rt ...)
+	((flonum?)	?body-fl0 ?body-fl ...)
+	(else		?body-el0 ?body-el ...))
+     (let ((num ?num))
+       (cond ((compnum? num)	?body-cn0 ?body-cn ...)
+	     ((cflonum? num)	?body-cf0 ?body-cf ...)
+	     ((fixnum?  num)	?body-fx0 ?body-fx ...)
+	     ((bignum?  num)	?body-bg0 ?body-bg ...)
+	     ((ratnum?  num)	?body-rt0 ?body-rt ...)
+	     ((flonum?  num)	?body-fl0 ?body-fl ...)
+	     (else		?body-el0 ?body-el ...))))
+    ))
+
+;;; --------------------------------------------------------------------
+
+;; (define-syntax fixnum	(syntax-rules ()))
+;; (define-syntax bignum	(syntax-rules ()))
+;; (define-syntax flonum	(syntax-rules ()))
+;; (define-syntax cflonum	(syntax-rules ()))
+;; (define-syntax compnum	(syntax-rules ()))
+
+;; (define-syntax case-one-operand
+;;   (syntax-rules (fixnum bignum flonum cflonum compnum)
+;;     ((case-one-operand (?who ?op)
+;;        ((fixnum)	. ?fixnum-body)
+;;        ((bignum)	. ?bignum-body)
+;;        ((flonum)	. ?flonum-body)
+;;        ((cflonum)	. ?cflonum-body)
+;;        ((compnum)	. ?compnum-body))
+;;      (let ((op ?op))
+;;        (cond ((fixnum?  op)	. ?fixnum-body)
+;; 	     ((bignum?  op)	. ?bignum-body)
+;; 	     ((flonum?  op)	. ?flonum-body)
+;; 	     ((cflonum? op)	. ?cflonum-body)
+;; 	     ((compnum? op)	. ?compnum-body)
+;; 	     (else
+;; 	      (assertion-violation ?who "invalid numeric operand" op)))))))
+
+;; (define-syntax case-two-operands
+;;   (syntax-rules (fixnum bignum flonum cflonum compnum)
+;;     ((case-two-operands (?who ?op1 ?op2)
+;;        ((fixnum)
+;; 	((fixnum)	. ?fixnum/fixnum-body)
+;; 	((bignum)	. ?fixnum/bignum-body)
+;; 	((flonum)	. ?fixnum/flonum-body)
+;; 	((cflonum)	. ?fixnum/cflonum-body)
+;; 	((compnum)	. ?fixnum/compnum-body))
+;;        ((bignum)
+;; 	((fixnum)	. ?bignum/fixnum-body)
+;; 	((bignum)	. ?bignum/bignum-body)
+;; 	((flonum)	. ?bignum/flonum-body)
+;; 	((cflonum)	. ?bignum/cflonum-body)
+;; 	((compnum)	. ?bignum/compnum-body))
+;;        ((flonum)
+;; 	((fixnum)	. ?flonum/fixnum-body)
+;; 	((bignum)	. ?flonum/bignum-body)
+;; 	((flonum)	. ?flonum/flonum-body)
+;; 	((cflonum)	. ?flonum/cflonum-body)
+;; 	((compnum)	. ?flonum/compnum-body))
+;;        ((cflonum)
+;; 	((fixnum)	. ?cflonum/fixnum-body)
+;; 	((bignum)	. ?cflonum/bignum-body)
+;; 	((flonum)	. ?cflonum/flonum-body)
+;; 	((cflonum)	. ?cflonum/cflonum-body)
+;; 	((compnum)	. ?cflonum/compnum-body))
+;;        ((compnum)
+;; 	((fixnum)	. ?compnum/fixnum-body)
+;; 	((bignum)	. ?compnum/bignum-body)
+;; 	((flonum)	. ?compnum/flonum-body)
+;; 	((cflonum)	. ?compnum/cflonum-body)
+;; 	((compnum)	. ?compnum/compnum-body)))
+;;      (case-one-operand (?who ?op1)
+;;        ((fixnum)
+;; 	(case-one-operand (?who ?op2)
+;; 	  ((fixnum)	. ?fixnum/fixnum-body)
+;; 	  ((bignum)	. ?fixnum/bignum-body)
+;; 	  ((flonum)	. ?fixnum/flonum-body)
+;; 	  ((cflonum)	. ?fixnum/cflonum-body)
+;; 	  ((compnum)	. ?fixnum/compnum-body)))
+;;        ((bignum)
+;; 	(case-one-operand (?who ?op2)
+;; 	  ((fixnum)	. ?bignum/fixnum-body)
+;; 	  ((bignum)	. ?bignum/bignum-body)
+;; 	  ((flonum)	. ?bignum/flonum-body)
+;; 	  ((cflonum)	. ?bignum/cflonum-body)
+;; 	  ((compnum)	. ?bignum/compnum-body)))
+;;        ((flonum)
+;; 	(case-one-operand (?who ?op2)
+;; 	  ((fixnum)	. ?flonum/fixnum-body)
+;; 	  ((bignum)	. ?flonum/bignum-body)
+;; 	  ((flonum)	. ?flonum/flonum-body)
+;; 	  ((cflonum)	. ?flonum/cflonum-body)
+;; 	  ((compnum)	. ?flonum/compnum-body)))
+;;        ((cflonum)
+;; 	(case-one-operand (?who ?op2)
+;; 	  ((fixnum)	. ?cflonum/fixnum-body)
+;; 	  ((bignum)	. ?cflonum/bignum-body)
+;; 	  ((flonum)	. ?cflonum/flonum-body)
+;; 	  ((cflonum)	. ?cflonum/cflonum-body)
+;; 	  ((compnum)	. ?cflonum/compnum-body)))
+;;        ((compnum)
+;; 	(case-one-operand (?who ?op2)
+;; 	  ((fixnum)	. ?compnum/fixnum-body)
+;; 	  ((bignum)	. ?compnum/bignum-body)
+;; 	  ((flonum)	. ?compnum/flonum-body)
+;; 	  ((cflonum)	. ?compnum/cflonum-body)
+;; 	  ((compnum)	. ?compnum/compnum-body)))))))
 
 
 ;;;; done

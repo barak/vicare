@@ -52,16 +52,20 @@
 	    not)
     (ikarus system $fx)
     (ikarus system $flonums)
+    (ikarus system $compnums)
     (ikarus system $pairs)
     (ikarus system $chars)
     (ikarus system $strings)
     (ikarus system $vectors)
     (only (ikarus system $compnums)
 	  $cflonum-real
-	  $cflonum-imag)
+	  $cflonum-imag
+	  $compnum-imag)
     (only (ikarus system $pointers)
 	  $pointer=)
     (ikarus system $foreign)
+    (only (vicare syntactic-extensions)
+	  cond-numeric-operand)
     ;;These are the ones implemented as primitive operations.
     (rename (only (ikarus)
 		  fixnum? flonum? bignum? ratnum? compnum? cflonum?
@@ -122,12 +126,13 @@
       (sys:ratnum? x)))
 
 (define (real-valued? x)
-  (cond ((real? x)
-	 #t)
-	((cflonum? x)
-	 ($fl= ($cflonum-imag x) 0.0))
-	(else
-	 #f)))
+  (cond ((sys:fixnum? x)	#t)
+	((sys:bignum? x)	#t)
+	((sys:ratnum? x)	#t)
+	((sys:flonum? x)	#t)
+	((sys:compnum? x)	(zero? ($compnum-imag x)))
+	((sys:cflonum? x)	($flzero? ($cflonum-imag x)))
+	(else			#f)))
 
 (define (rational? x)
   (cond ((sys:fixnum? x) #t)
@@ -141,6 +146,19 @@
 	((cflonum? x)
 	 (and ($fl= ($cflonum-imag x) 0.0)
 	      ($flonum-rational? ($cflonum-real x))))
+	((compnum? x)
+	 ;;The real  part must be  rational valued.  The  imaginary part
+	 ;;must be exact or inexact zero.
+	 (and (let ((imp ($compnum-imag x)))
+		(or (and (fixnum?  imp)
+			 ($fxzero? imp))
+		    (and (flonum?  imp)
+			 ($fl= 0.0 imp))))
+	      (let ((rep ($compnum-real x)))
+		(or (fixnum?   rep)
+		    (bignum?   rep)
+		    (rational? rep)
+		    ($flonum-rational? rep)))))
 	(else #f)))
 
 (define (integer? x)
@@ -155,6 +173,19 @@
 	((cflonum? x)
 	 (and ($fl= ($cflonum-imag x) 0.0)
 	      ($flonum-integer? ($cflonum-real x))))
+	((compnum? x)
+	 ;;The real part must be an integer.  The imaginary part must be
+	 ;;exact or inexact zero.
+	 (and (let ((imp ($compnum-imag x)))
+		(cond ((and (fixnum?  imp)
+			    ($fxzero? imp)))
+		      ((and (flonum?  imp)
+			    ($fl= 0.0 imp)))
+		      (else #f)))
+	      (let ((rep ($compnum-real x)))
+		(or (fixnum? rep)
+		    (bignum? rep)
+		    ($flonum-integer? rep)))))
 	(else #f)))
 
 
@@ -163,7 +194,9 @@
 	((sys:bignum?  x) #t)
 	((sys:ratnum?  x) #t)
 	((sys:flonum?  x) #f)
-	((sys:compnum? x) #t)
+	((sys:compnum? x)
+	 (and (exact? ($compnum-real x))
+	      (exact? ($compnum-imag x))))
 	((sys:cflonum? x) #f)
 	(else
 	 (assertion-violation 'exact? "expected number as argument" x))))
@@ -173,7 +206,9 @@
 	((sys:fixnum?  x) #f)
 	((sys:bignum?  x) #f)
 	((sys:ratnum?  x) #f)
-	((sys:compnum? x) #f)
+	((sys:compnum? x)
+	 (or (inexact? ($compnum-real x))
+	     (inexact? ($compnum-imag x))))
 	((sys:cflonum? x) #t)
 	(else
 	 (assertion-violation 'inexact? "expected number as argument" x))))
@@ -183,7 +218,9 @@
 	((sys:fixnum?  x) #t)
 	((sys:bignum?  x) #t)
 	((sys:ratnum?  x) #t)
-	((sys:compnum? x) #t)
+	((sys:compnum? x)
+	 (or (finite? ($compnum-real x))
+	     (finite? ($compnum-imag x))))
 	((sys:cflonum? x)
 	 (and (flfinite? ($cflonum-real x))
 	      (flfinite? ($cflonum-imag x))))
@@ -195,7 +232,9 @@
 	((sys:fixnum?  x) #f)
 	((sys:bignum?  x) #f)
 	((sys:ratnum?  x) #f)
-	((sys:compnum? x) #f)
+	((sys:compnum? x)
+	 (or (infinite? ($compnum-real x))
+	     (infinite? ($compnum-imag x))))
 	((sys:cflonum? x)
 	 (or (flinfinite? ($cflonum-real x))
 	     (flinfinite? ($cflonum-imag x))))
@@ -207,10 +246,12 @@
 	((sys:fixnum?  x) #f)
 	((sys:bignum?  x) #f)
 	((sys:ratnum?  x) #f)
-	((sys:compnum? x) #f)
+	((sys:compnum? x)
+	 (or (nan? ($compnum-real x))
+	     (nan? ($compnum-imag x))))
 	((sys:cflonum? x)
-	 (or (nan? ($cflonum-real x))
-	     (nan? ($cflonum-imag x))))
+	 (or (flnan? ($cflonum-real x))
+	     (flnan? ($cflonum-imag x))))
 	(else
 	 (assertion-violation 'nan? "expected number as argument" x))))
 

@@ -10,6 +10,13 @@ VICARE_FASL_DIRECTORY	= $(builddir)/../lib/fasl
 VICARE_TEST_SEARCH_PATH	= $(srcdir):$(srcdir)/../lib:$(builddir)/../lib:$(srcdir)/../scheme
 VICARE_TEST_FASL_PATH	= $(VICARE_FASL_DIRECTORY):$(VICARE_FASL_PATH)
 
+# Enable timing of test files  execution.  We cannot include this in the
+# separator  because  it needs  to  be  placed  between the  environment
+# variables and the actual command line.
+if WANT_TIME_TESTS
+VICARE_TIME_TESTS	= $(TIME_PROGRAM) -p
+endif
+
 # The variable "user_flags"  is for the user to be  set on the command
 # line of "make".
 VICARE		= $(builddir)/../src/vicare
@@ -20,7 +27,7 @@ VICARE_ENV	= VICARE_LIBRARY_PATH=$(VICARE_TEST_SEARCH_PATH)	\
 		  CHECK_TEST_NAME=$(name)				\
 		  VICARE_SRC_DIR=$(srcdir) VICARE_BUILDDIR=$(builddir)	\
 		  LD_LIBRARY_PATH=$(builddir)/../src/.libs
-VICARE_RUN	= $(VICARE_ENV) $(GDB) $(VICARE) $(VICARE_FLAGS)
+VICARE_RUN	= $(VICARE_ENV) $(VICARE_TIME_TESTS) $(GDB) $(VICARE) $(VICARE_FLAGS)
 
 .PHONY: test tests test-r6rs long-test long-tests
 .PHONY: demo demos foreign-test foreign-tests
@@ -111,11 +118,13 @@ TESTS			=	\
 	test-r6rs-unicode.sps				\
 	\
 	test-ikarus-bignum-to-flonum.sps		\
+	test-ikarus-bitwise.sps				\
 	test-ikarus-bytevectors.sps			\
 	test-ikarus-case-folding.sps			\
 	test-ikarus-div-and-mod.sps			\
 	test-ikarus-enums.sps				\
 	test-ikarus-fasl.sps				\
+	test-ikarus-fixnums.sps				\
 	test-ikarus-fldiv-and-mod.sps			\
 	test-ikarus-guardians.sps			\
 	test-ikarus-hashtables.sps			\
@@ -140,6 +149,8 @@ TESTS			=	\
 	test-vicare-errno.sps				\
 	test-vicare-expander.sps			\
 	test-vicare-debugging.sps			\
+	test-vicare-fixnums.sps				\
+	test-vicare-flonum-base.sps			\
 	test-vicare-flonum-formatter.sps		\
 	test-vicare-flonum-parser.sps			\
 	test-vicare-general-c-buffers.sps		\
@@ -147,13 +158,54 @@ TESTS			=	\
 	test-vicare-infix.sps				\
 	test-vicare-io.sps				\
 	test-vicare-language-extensions.sps		\
+	test-vicare-letrec-syntax.sps			\
 	test-vicare-lists.sps				\
 	test-vicare-log.sps				\
+	test-vicare-numerics-neg.sps			\
+	test-vicare-numerics-inv.sps			\
+	test-vicare-numerics-add.sps			\
+	test-vicare-numerics-sub.sps			\
+	test-vicare-numerics-mul.sps			\
+	test-vicare-numerics-div.sps			\
+	test-vicare-numerics-gcd.sps			\
+	test-vicare-numerics-lcm.sps			\
+	test-vicare-numerics-quotient.sps		\
+	test-vicare-numerics-remainder.sps		\
+	test-vicare-numerics-modulo.sps			\
+	test-vicare-numerics-square.sps			\
+	test-vicare-numerics-cube.sps			\
+	test-vicare-numerics-sign.sps			\
+	test-vicare-numerics-expt-fixnums.sps		\
+	test-vicare-numerics-expt-bignums.sps		\
+	test-vicare-numerics-expt-flonums.sps		\
+	test-vicare-numerics-expt-ratnums.sps		\
+	test-vicare-numerics-expt-cflonums.sps		\
+	test-vicare-numerics-expt-compnums.sps		\
+	test-vicare-numerics-max.sps			\
+	test-vicare-numerics-min.sps			\
+	test-vicare-numerics-abs.sps			\
+	test-vicare-numerics-log.sps			\
+	test-vicare-numerics-exponential.sps		\
+	test-vicare-numerics-trigon-sin.sps		\
+	test-vicare-numerics-trigon-cos.sps		\
+	test-vicare-numerics-trigon-tan.sps		\
+	test-vicare-numerics-trigon-asin.sps		\
+	test-vicare-numerics-trigon-acos.sps		\
+	test-vicare-numerics-trigon-atan.sps		\
+	test-vicare-numerics-hyper-sinh.sps		\
+	test-vicare-numerics-hyper-cosh.sps		\
+	test-vicare-numerics-hyper-tanh.sps		\
+	test-vicare-numerics-hyper-asinh.sps		\
+	test-vicare-numerics-hyper-acosh.sps		\
+	test-vicare-numerics-hyper-atanh.sps		\
+	test-vicare-numerics-complex-numbers.sps	\
+	test-vicare-numerics-sqrt.sps			\
 	test-vicare-parameters.sps			\
 	test-vicare-parser-logic.sps			\
 	test-vicare-platform.sps			\
 	test-vicare-pointers.sps			\
 	test-vicare-promises.sps			\
+	test-vicare-time.sps				\
 	test-vicare-reader.sps				\
 	test-vicare-records-procedural.sps		\
 	test-vicare-records-syntactic.sps		\
@@ -168,7 +220,25 @@ TESTS			=	\
 	test-vicare-weak-tables.sps			\
 	test-vicare-words.sps				\
 	\
+	test-srfi-0-cond-expand.sps			\
+	test-srfi-1-lists.sps				\
+	test-srfi-2-and-let-star.sps			\
+	test-srfi-6-basic-string-ports.sps		\
+	test-srfi-8-receive.sps				\
+	test-srfi-9-records.sps				\
+	test-srfi-11-let-values.sps			\
+	test-srfi-13-strings.sps			\
+	test-srfi-14-char-sets.sps			\
+	test-srfi-26-cut.sps				\
+	test-srfi-31-rec.sps				\
+	test-srfi-37-args-fold.sps			\
+	test-srfi-39-parameters.sps			\
+	test-srfi-61-general-cond.sps			\
+	test-srfi-78-lightweight-testing.sps		\
+	test-srfi-98-os-environment-variables.sps	\
+	\
 	test-issue-001-equal-hash.sps			\
+	test-issue-003.sps				\
 	test-issue-006-fxreverse-bit-field.sps		\
 	test-issue-007.sps				\
 	test-issue-008.sps				\
@@ -221,9 +291,7 @@ endif
 installcheck-local:
 	@for f in $(TESTS); do $(VICARE_INSTCHECK_RUN) $(srcdir)/$$f; done
 
-XFAIL_TESTS = \
-	test-vicare-log.sps			\
-	test-issue-008.sps
+#XFAIL_TESTS = test-vicare-log.sps
 
 #page
 #### extra files to be distributed
@@ -278,12 +346,11 @@ EXTRA_DIST = \
 	demo-vicare-readline.sps			\
 	demo-vicare-timerfd.sps				\
 	demo-issue-35.sps				\
+	demo-tcp-connect.sps				\
 	\
 	long-test-r6rs-run.sps				\
 	long-test-r6rs-run-via-eval.sps			\
 	long-test-ikarus-bignums.sps			\
-	long-test-ikarus-bitwise.sps			\
-	long-test-ikarus-fixnums.sps			\
 	long-test-ikarus-io.sps				\
 	long-test-ikarus-parse-flonums.sps		\
 	long-test-ikarus-string-to-number.sps		\
@@ -315,11 +382,13 @@ EXTRA_DIST = \
 	test-r6rs-unicode.sps				\
 	\
 	test-ikarus-bignum-to-flonum.sps		\
+	test-ikarus-bitwise.sps				\
 	test-ikarus-bytevectors.sps			\
 	test-ikarus-case-folding.sps			\
 	test-ikarus-div-and-mod.sps			\
 	test-ikarus-enums.sps				\
 	test-ikarus-fasl.sps				\
+	test-ikarus-fixnums.sps				\
 	test-ikarus-fldiv-and-mod.sps			\
 	test-ikarus-guardians.sps			\
 	test-ikarus-hashtables.sps			\
@@ -345,6 +414,8 @@ EXTRA_DIST = \
 	test-vicare-expander.sps			\
 	test-vicare-debugging.sps			\
 	test-vicare-ffi.sps				\
+	test-vicare-fixnums.sps				\
+	test-vicare-flonum-base.sps			\
 	test-vicare-flonum-formatter.sps		\
 	test-vicare-flonum-parser.sps			\
 	test-vicare-general-c-buffers.sps		\
@@ -354,8 +425,48 @@ EXTRA_DIST = \
 	test-vicare-io.sps				\
 	test-vicare-language-extensions.sps		\
 	test-vicare-linux.sps				\
+	test-vicare-letrec-syntax.sps			\
 	test-vicare-lists.sps				\
 	test-vicare-log.sps				\
+	test-vicare-numerics-neg.sps			\
+	test-vicare-numerics-inv.sps			\
+	test-vicare-numerics-add.sps			\
+	test-vicare-numerics-sub.sps			\
+	test-vicare-numerics-mul.sps			\
+	test-vicare-numerics-div.sps			\
+	test-vicare-numerics-gcd.sps			\
+	test-vicare-numerics-lcm.sps			\
+	test-vicare-numerics-quotient.sps		\
+	test-vicare-numerics-remainder.sps		\
+	test-vicare-numerics-modulo.sps			\
+	test-vicare-numerics-square.sps			\
+	test-vicare-numerics-cube.sps			\
+	test-vicare-numerics-sign.sps			\
+	test-vicare-numerics-expt-fixnums.sps		\
+	test-vicare-numerics-expt-bignums.sps		\
+	test-vicare-numerics-expt-flonums.sps		\
+	test-vicare-numerics-expt-ratnums.sps		\
+	test-vicare-numerics-expt-cflonums.sps		\
+	test-vicare-numerics-expt-compnums.sps		\
+	test-vicare-numerics-max.sps			\
+	test-vicare-numerics-min.sps			\
+	test-vicare-numerics-abs.sps			\
+	test-vicare-numerics-log.sps			\
+	test-vicare-numerics-exponential.sps		\
+	test-vicare-numerics-trigon-sin.sps		\
+	test-vicare-numerics-trigon-cos.sps		\
+	test-vicare-numerics-trigon-tan.sps		\
+	test-vicare-numerics-trigon-asin.sps		\
+	test-vicare-numerics-trigon-acos.sps		\
+	test-vicare-numerics-trigon-atan.sps		\
+	test-vicare-numerics-hyper-sinh.sps		\
+	test-vicare-numerics-hyper-cosh.sps		\
+	test-vicare-numerics-hyper-tanh.sps		\
+	test-vicare-numerics-hyper-asinh.sps		\
+	test-vicare-numerics-hyper-acosh.sps		\
+	test-vicare-numerics-hyper-atanh.sps		\
+	test-vicare-numerics-complex-numbers.sps	\
+	test-vicare-numerics-sqrt.sps			\
 	test-vicare-parameters.sps			\
 	test-vicare-parser-logic.sps			\
 	test-vicare-platform.sps			\
@@ -373,6 +484,7 @@ EXTRA_DIST = \
 	test-vicare-posix-sigwait.sps			\
 	\
 	test-vicare-promises.sps			\
+	test-vicare-time.sps				\
 	test-vicare-reader.sps				\
 	test-vicare-records-procedural.sps		\
 	test-vicare-records-syntactic.sps		\
@@ -389,7 +501,25 @@ EXTRA_DIST = \
 	test-vicare-weak-tables.sps			\
 	test-vicare-words.sps				\
 	\
+	test-srfi-0-cond-expand.sps			\
+	test-srfi-1-lists.sps				\
+	test-srfi-2-and-let-star.sps			\
+	test-srfi-6-basic-string-ports.sps		\
+	test-srfi-8-receive.sps				\
+	test-srfi-9-records.sps				\
+	test-srfi-11-let-values.sps			\
+	test-srfi-13-strings.sps			\
+	test-srfi-14-char-sets.sps			\
+	test-srfi-26-cut.sps				\
+	test-srfi-31-rec.sps				\
+	test-srfi-37-args-fold.sps			\
+	test-srfi-39-parameters.sps			\
+	test-srfi-61-general-cond.sps			\
+	test-srfi-78-lightweight-testing.sps		\
+	test-srfi-98-os-environment-variables.sps	\
+	\
 	test-issue-001-equal-hash.sps			\
+	test-issue-003.sps				\
 	test-issue-006-fxreverse-bit-field.sps		\
 	test-issue-007.sps				\
 	test-issue-008.sps				\

@@ -1,0 +1,5786 @@
+@node syslib
+@chapter Low level, fast, unsafe operations
+
+
+The bindings documented in this chapter are low level operations inlined
+by the compiler; mostly they are defined in the source file
+@file{pass-specify-rep-primops.ss}.
+
+They are unsafe because when acting upon wrong arguments will cause
+undefined behaviour (probably a crash).  They are also faster than the
+public interface exported by @library{ikarus} and @library{rnrs}.
+
+@menu
+* syslib symbols::              Low level symbol operations.
+* syslib fixnums::              Low level fixnum operations.
+* syslib bignums::              Low level bignum operations.
+* syslib flonums::              Low level flonum operations.
+* syslib ratnums::              Low level ratnum operations.
+* syslib compnums::             Low level compnum operations.
+* syslib cflonums::             Low level cflonum operations.
+* syslib numerics::             Low level numerics operations.
+* syslib chars::                Low level character operations.
+* syslib pairs::                Low level pair operations.
+* syslib structs::              Low level structure operations.
+* syslib vectors::              Low level vector operations.
+* syslib bytevectors::          Low level bytevector operations.
+* syslib strings::              Low level string operations.
+* syslib ports::                Low level port structures.
+* syslib transcoders::          Low level transcoder operations.
+* syslib pointers::             Low level pointer operations.
+* syslib codes::                Low level code objects operations.
+* syslib closures::             Low level closures operations.
+* syslib compiler::             Interface to compiler passes.
+@end menu
+
+@c page
+@node syslib symbols
+@section Low level symbol operations
+
+
+@cindex @library{ikarus system $symbols}, library
+@cindex Library @library{ikarus system $symbols}
+
+
+The arguments @var{sym} must be references to symbol blocks, the
+arguments @var{str} must be references to strings.  The following
+bindings are exported by the @library{ikarus system $symbols} library.
+
+
+@deffn {Unsafe Operation} $make-symbol @var{str}
+Allocate a new symbol block and initialise the @code{string} field with
+@var{str}; return the reference to the symbol block.
+
+The @code{ustring} is initialised to the fixnum zero.  The @code{value}
+and @code{proc} fields are initialised to a special machine word value
+meaning ``unbound''.  The @code{plist} field is initialised to nil.
+@end deffn
+
+
+@deffn {Unsafe Operation} $symbol-string @var{sym}
+@deffnx {Unsafe Operation} $symbol-unique-string @var{sym}
+@deffnx {Unsafe Operation} $symbol-plist @var{sym}
+Accessors for the fields of @var{sym}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $set-symbol-string! @var{sym} @var{str}
+@deffnx {Unsafe Operation} $set-symbol-unique-string! @var{sym} @var{str}
+@deffnx {Unsafe Operation} $set-symbol-plist! @var{sym} @var{ell}
+Mutators for the fields of @var{sym}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $symbol-value @var{sym}
+@deffnx {Unsafe Operation} $set-symbol-value! @var{sym} @var{val}
+The @code{value} field has multiple purposes:
+
+@itemize
+@item
+When @var{sym} is the unique identifier of a data structure type: the
+@code{value} field holds the @rtd{} of the data structure.
+
+@item
+Top level bindings in compiled Scheme code are represented by gensyms;
+the value of a top level binding is stored in the @code{value} field of
+a gensym memory block.
+@end itemize
+@end deffn
+
+
+@deffn {Unsafe Operation} $symbol-proc @var{sym}
+@deffnx {Unsafe Operation} $set-symbol-proc! @var{sym} @var{proc}
+Accessor and mutator for the field @code{proc}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $set-symbol-value/proc! @var{sym} @var{val}
+Set both the fields @code{value} and @code{proc} of @var{sym} to
+@var{val}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $unbound-object? @var{sym}
+Return true if the @func{$symbol-value} field of @var{sym} is set to the
+special ``unbound'' machine word value.
+@end deffn
+
+
+@deffn {Unsafe Operation} top-level-value @var{sym}
+Still to be documented.
+@end deffn
+
+
+@deffn {Unsafe Operation} $init-symbol-function! @var{sym} @var{proc}
+Still to be documented.
+@end deffn
+
+
+The following bindings are related to the symbol table collecting
+interned symbols.
+
+
+@defun $symbol-table-size
+Return the number of interned symbols.
+@end defun
+
+
+@defun $log-symbol-table-status
+Write to the current error port a description of the current symbol
+table status.  Example:
+
+@example
+vicare> (import (ikarus system $symbols))
+vicare> ($log-symbol-table-status)
+Vicare internal symbol table status:
+        number of interned symbols: 2962
+        number of hash table buckets: 4096
+
+vicare>
+@end example
+@end defun
+
+@c page
+@node syslib fixnums
+@section Low level fixnum operations
+
+
+@cindex @library{ikarus system $fx}, library
+@cindex Library @library{ikarus system $fx}
+
+
+The following bindings are exported by the @library{ikarus system $fx}
+library.  The arguments to these operations must be fixnums.
+@ref{objects fixnums} for details on the representation of fixnums.
+
+@c ------------------------------------------------------------
+
+@subsubheading Predicates
+
+@deffn {Unsafe Operation} $fxzero? @var{fx}
+Evaluate to true if @var{fx} is zero.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fxpositive? @var{fx}
+@deffnx {Unsafe Operation} $fxnegative? @var{fx}
+Evaluate to true if @var{fx} is strictly positive or strictly negative.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fxsign @var{fx}
+Return one of the fixnums @code{+1}, @code{-1}, @code{0} representing
+the sign of @var{fx}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fxeven? @var{fx}
+@deffnx {Unsafe Operation} $fxodd? @var{fx}
+Evaluate to true if @var{fx} is even or odd.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Comparison operations
+
+@deffn {Unsafe Operation} $fx= @vari{fx} @varii{fx}
+Evaluate to true if the arguments are equal.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fx< @vari{fx} @varii{fx}
+Evaluate to true if @vari{fx} is less than @varii{fx}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fx<= @vari{fx} @varii{fx}
+Evaluate to true if @vari{fx} is less than or equal to @varii{fx}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fx> @vari{fx} @varii{fx}
+Evaluate to true if @vari{fx} is greater than @varii{fx}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fx>= @vari{fx} @varii{fx}
+Evaluate to true if @vari{fx} is greater than or equal to @varii{fx}.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Arithmetic operations
+
+@deffn {Unsafe Operation} $fxadd1 @var{fx}
+Increment the operand by one and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fxsub1 @var{fx}
+Decrement the operand by one and return the result.  The result of this
+operation is a fixnum, but notice that if @var{fx} is
+@code{(least-fixnum)}: the result overflows the fixnum capacity and the
+return value is invalid.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fx+ @vari{fx} @varii{fx}
+Sum the operands and return the result.  The result of this operatio is
+a fixnum, but notice that it could overflow the fixnum capacity.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fx- @var{fx}
+@deffnx {Unsafe Operation} $fx- @vari{fx} @varii{fx}
+With one operand: return @var{fx} negated.  With two operands: subtract
+the operands and return the result.  The result of this operation is a
+fixnum, but notice that it could overflow the fixnum capacity and the
+return value would be invalid.
+
+Also with a single argument, knowing that @code{(- (least-fixnum))} is a
+bignum, if @var{fx} is @code{(least-fixnum)} the result overflows the
+fixnum capacity and the return value is invalid.
+
+With two arguments: if @vari{fx} is zero and @varii{fx} is
+@code{(least-fixnum)} the result overflows the fixnum capacity and the
+return value is invalid.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fx* @vari{fx} @varii{fx}
+Multiply the operands and return the result.  The result of this
+operation is a fixnum, but notice that if one operand is @code{-1} and
+the other is @code{(least-fixnum)}: the result overflows the fixnum
+capacity and the return value is invalid.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fxdiv @vari{fx} @varii{fx}
+@deffnx {Unsafe Operation} $fxdiv0 @vari{fx} @varii{fx}
+@deffnx {Unsafe Operation} $fxmod @vari{fx} @varii{fx}
+@deffnx {Unsafe Operation} $fxmod0 @vari{fx} @varii{fx}
+@deffnx {Unsafe Operation} $fxdiv-and-mod  @vari{fx} @varii{fx}
+@deffnx {Unsafe Operation} $fxdiv0-and-mod0 @vari{fx} @varii{fx}
+Perform the number theoretic division.
+
+@example
+(import (rnrs)
+  (ikarus system $fx))
+
+($fxmod +12 +12)        @result{} 0
+($fxmod +12 -12)        @result{} 0
+($fxmod -12 +12)        @result{} 0
+($fxmod -12 -12)        @result{} 0
+
+($fxmod +12 +3)         @result{} 0
+($fxmod +12 -3)         @result{} 0
+($fxmod -12 +3)         @result{} 0
+($fxmod -12 -3)         @result{} 0
+
+($fxmod +12 +4)         @result{} 0
+($fxmod +12 -4)         @result{} 0
+($fxmod -12 +4)         @result{} 0
+($fxmod -12 -4)         @result{} 0
+
+($fxmod +12 +5)         @result{} +2
+($fxmod +12 -5)         @result{} +2
+($fxmod -12 +5)         @result{} +3
+($fxmod -12 -5)         @result{} +3
+
+($fxmod +12 +7)         @result{} +5
+($fxmod +12 -7)         @result{} +5
+($fxmod -12 +7)         @result{} +2
+($fxmod -12 -7)         @result{} +2
+
+($fxmod +12 +24)        @result{} +12
+($fxmod +12 -24)        @result{} +12
+($fxmod -12 +24)        @result{} +12
+($fxmod -12 -24)        @result{} +12
+
+($fxmod +12 +20)        @result{} +12
+($fxmod +12 -20)        @result{} +12
+($fxmod -12 +20)        @result{} +8
+($fxmod -12 -20)        @result{} +8
+@end example
+@end deffn
+
+
+@deffn {Unsafe Operation} $fxquotient @vari{fx} @varii{fx}
+Compute the quotient between the operands and return the result.  The
+result of this operation is a fixnum, but notice that:
+
+@itemize
+@item
+When @varii{fx} is @code{0}: the result is undefined, most likely the
+process will abort.
+
+@item
+When @vari{fx} is @code{(least-fixnum)} and @varii{fx} is @code{-1}: the
+result will overflow the fixnum capacity, and the return value will be
+invalid (the result should be a bignum).
+@end itemize
+@end deffn
+
+
+@deffn {Unsafe Operation} $fxmodulo @vari{fx} @varii{fx}
+Compute the modulo between the operands and return the result.  The
+result of this operation can be a fixnum or bignum.
+
+@example
+(import (rnrs)
+  (ikarus system $fx))
+
+($fxmodulo +12 +12)     @result{} 0
+($fxmodulo +12 -12)     @result{} 0
+($fxmodulo -12 +12)     @result{} 0
+($fxmodulo -12 -12)     @result{} 0
+
+($fxmodulo +12 +3)      @result{} 0
+($fxmodulo +12 -3)      @result{} 0
+($fxmodulo -12 +3)      @result{} 0
+($fxmodulo -12 -3)      @result{} 0
+
+($fxmodulo +12 +4)      @result{} 0
+($fxmodulo +12 -4)      @result{} 0
+($fxmodulo -12 +4)      @result{} 0
+($fxmodulo -12 -4)      @result{} 0
+
+($fxmodulo +12 +5)      @result{} +2
+($fxmodulo +12 -5)      @result{} -3
+($fxmodulo -12 +5)      @result{} +3
+($fxmodulo -12 -5)      @result{} -2
+
+($fxmodulo +12 +7)      @result{} +5
+($fxmodulo +12 -7)      @result{} -2
+($fxmodulo -12 +7)      @result{} +2
+($fxmodulo -12 -7)      @result{} -5
+
+($fxmodulo +12 +24)     @result{} +12
+($fxmodulo +12 -24)     @result{} -12
+($fxmodulo -12 +24)     @result{} +12
+($fxmodulo -12 -24)     @result{} -12
+
+($fxmodulo +12 +20)     @result{} +12
+($fxmodulo +12 -20)     @result{}  -8
+($fxmodulo -12 +20)     @result{}  +8
+($fxmodulo -12 -20)     @result{} -12
+@end example
+@end deffn
+
+
+@deffn {Unsafe Operation} $fxabs @var{fx}
+Return the absolute value of @var{fx} as a fixnum.  When @var{fx} is
+@code{(least-fixnum)}: its absolute value would be a fixnum, in which
+case this operation raises an implementation restriction violation.
+
+To compute the general absolute value without overflow we must use
+@func{abs} or @func{$abs-fixnum}.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Bitwise logic operations
+
+@deffn {Unsafe Operation} $fxlognot @var{fx}
+Perform the bitwise NOT on the operand and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fxlogand @vari{fx} @varii{fx}
+Perform the bitwise AND on the operands and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fxlogor @vari{fx} @varii{fx}
+Perform the bitwise inclusive OR on the operands and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fxlogxor @vari{fx} @varii{fx}
+Perform the bitwise exclusive OR on the operands and return the result.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Other bitwise operations
+
+@deffn {Unsafe Operation} $fxsll @vari{fx} @varii{fx}
+Perform bitwise shift left of @vari{fx} by @varii{fx} positions and
+return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fxsra @vari{fx} @varii{fx}
+Perform bitwise shift right of @vari{fx} by @varii{fx} positions and
+return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fxcopy-bit @vari{fx} @varii{fx} @variii{fx}
+Unsafe version of @func{fxcopy-bit}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fxcopy-bit-field @vari{fx} @varii{fx} @variii{fx} @variv{fx}
+Unsafe version of @func{fxcopy-bit-field}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fxrotate-bit-field @vari{fx} @varii{fx} @variii{fx} @variv{fx}
+Unsafe version of @func{fxrotate-bit-field}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fxbit-field @vari{fx} @varii{fx} @variii{fx}
+Unsafe version of @func{fxbit-field}.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Miscellaneous operations
+
+@deffn {Unsafe Operation} $fxinthash @var{fx}
+Evaluate to a fixnum which can be used as hash value.
+
+@quotation
+@strong{NOTE}  This appears to be unused in the source.
+@end quotation
+@end deffn
+
+@c page
+@node syslib bignums
+@section Low level bignum operations
+
+
+@cindex @library{ikarus system $bignums}, library
+@cindex Library @library{ikarus system $bignums}
+
+
+The arguments @var{bn} to these operations must be bignums.  The
+following bindings are exported by the @library{ikarus system $bignums}
+library.  @ref{iklib numerics} for more functions acting on bignums.
+
+
+@deffn {Unsafe Operation} $bignum-positive? @var{bn}
+@deffnx {Unsafe Operation} $bignum-negative? @var{bn}
+Evaluate to true if the operand is positive or negative.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bignum-even? @var{bn}
+@deffnx {Unsafe Operation} $bignum-odd? @var{bn}
+Evaluate to true if the operand is even or odd.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bignum-byte-ref @var{bn} @var{fx}
+Return a fixnum representing the byte at index @var{fx} in the data of
+@var{bn}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bignum-size @var{bn}
+Return a fixnum representing the number of machine words in the data
+portion of a bignum memory block.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bignum->flonum @var{bn}
+Return a flonum object representing @var{bn} as inexact number.
+@end deffn
+
+@c page
+@node syslib flonums
+@section Low level flonum operations
+
+
+@cindex @library{ikarus system $flonums}, library
+@cindex Library @library{ikarus system $flonums}
+
+
+The arguments @var{fl} to these operations must be flonums, the
+arguments @var{fx} must be fixnums.  The following bindings are exported
+by the @library{ikarus system $flonums} library.  @ref{iklib numerics}
+for more functions acting on flonums.
+
+
+@deffn {Unsafe Operation} $make-flonum
+Allocate a new flonum memory block and return a reference to it.  Does
+not initialise the data area.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Binary representation inspection
+
+
+@deffn {Unsafe Operation} $flonum-u8-ref @var{fl} @var{fx}
+Return the octet at index @var{fx} in the data area of @var{fl}.
+
+Notice that the @var{fx} offset is positive, but it represents an offset
+from the end of the data area; on a 32-bit platform, the indexes of the
+bytes are:
+
+@example
+   1st word    2nd word    3rd word    4th word
+|-----------|-----------|-----------|-----------|
+                        |--|--|--|--|--|--|--|--| bytes
+                          7  6  5  4  3  2  1  0  offsets
+                        |.......................|
+                             IEEE 754 flonum
+@end example
+@end deffn
+
+
+@deffn {Unsafe Operation} $flonum-set! @var{fl} @var{fx-index} @var{fx-value}
+Store the byte or octet represented by @var{fx-value} at index
+@var{fx-index} in the data area of @var{fl}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $flonum-sbe @var{fl}
+Return a fixnum@dots{} Still undocumented, read the code look at the
+format of @ieee{} double precision flonums.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Arithmetic operations
+
+
+@deffn {Unsafe Operation} $fl+ @vari{fl} @varii{fl}
+@deffnx {Unsafe Operation} $fl* @vari{fl} @varii{fl}
+@deffnx {Unsafe Operation} $fl/ @vari{fl} @varii{fl}
+Perform arithmetic operations.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fl- @var{fl}
+@deffnx {Unsafe Operation} $fl- @vari{fl} @varii{fl}
+With one operand: return @var{fl} negated.  With two operands: subtract
+the operands and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fldiv @vari{fl} @varii{fl}
+@deffnx {Unsafe Operation} $flmod @vari{fl} @varii{fl}
+@deffnx {Unsafe Operation} $fldiv0 @vari{fl} @varii{fl}
+@deffnx {Unsafe Operation} $flmod0 @vari{fl} @varii{fl}
+@deffnx {Unsafe Operation} $fldiv-and-mod @vari{fl} @varii{fl}
+@deffnx {Unsafe Operation} $fldiv0-and-mod0 @vari{fl} @varii{fl}
+Implement the number--theoretic integer divisions.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Exactness and conversion
+
+
+@deffn {Unsafe Operation} $flonum->exact @var{fl}
+Rationalize the operand and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fixnum->flonum @var{fx}
+Convert the fixnum operand into a flonum and return a reference to the
+result.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Predicates
+
+
+@deffn {Unsafe Operation} $flzero? @var{fl}
+Return true if the operand is zero.  Notice that the return value will
+be true for both @code{+0.0} or @code{-0.0}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $flzero?/positive @var{fl}
+@deffnx {Unsafe Operation} $flzero?/negative @var{fl}
+Return true if the operand is @code{+0.0} or @code{-0.0}, respectively.
+@end deffn
+
+
+@deffn {Unsafe Operation} $flpositive? @var{fl}
+Return true if the operand is strictly positive.  This predicate fails
+when applied to @code{+0.0}; to check for positivity including
+@code{+0.0} we must use:
+
+@example
+(or ($flzero?/positive @var{fl}) ($fl> @var{fl} +0.0))
+@end example
+@end deffn
+
+
+@deffn {Unsafe Operation} $flnegative? @var{fl}
+Return true if the operand is strictly negative.  This predicate fails
+when applied to @code{-0.0}; to check for negativity including
+@code{-0.0} we must use:
+
+@example
+(or ($flzero?/negative @var{fl}) ($fl< @var{fl} -0.0))
+@end example
+@end deffn
+
+
+@deffn {Unsafe Operation} $fleven? @var{fl}
+Return true if the operand is even.
+@end deffn
+
+
+@deffn {Unsafe Operation} $flodd? @var{fl}
+Return true if the operand is odd.
+@end deffn
+
+
+@deffn {Unsafe Operation} $flonum-integer? @var{fl}
+Return true if the operand is integer.
+@end deffn
+
+
+@deffn {Unsafe Operation} $flonum-rational? @var{fl}
+Return true if the operand is rational.  All the flonums are rational
+with the exception of infinities and not--a--number.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Rounding
+
+
+@deffn {Unsafe Operation} $flround @var{fl}
+Return the closest integral flonum to the operand, rounding to even when
+@var{fl} represents a number halfway between two integers.
+@end deffn
+
+
+@deffn {Unsafe Operation} $flfloor @var{fl}
+Return the largest integral flonum not larger than the operand.
+@end deffn
+
+
+@deffn {Unsafe Operation} $flceiling @var{fl}
+Return the smallest integral flonum not larger than the operand.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fltruncate @var{fl}
+Return the integral flonum closest to the operand whose absolute value
+is not larger than the absolute value of the operand itself.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Parts
+
+
+@deffn {Unsafe Operation} $flnumerator @var{fl}
+@deffnx {Unsafe Operation} $fldenominator @var{fl}
+Return the numerator or denominator of the operand.
+@end deffn
+
+
+@deffn {Unsafe Operation} $flabs @var{fl}
+Return the absolute value of the operand.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Trigonometric operations
+
+
+@deffn {Unsafe Operation} $flsin @var{fl}
+@deffnx {Unsafe Operation} $flcos @var{fl}
+@deffnx {Unsafe Operation} $fltan @var{fl}
+Return the sine, cosine and tangent of the operand.
+@end deffn
+
+
+@deffn {Unsafe Operation} $flasin @var{fl}
+@deffnx {Unsafe Operation} $flacos @var{fl}
+@deffnx {Unsafe Operation} $flatan @var{fl}
+Return the arcsine, arccosine and arctangent of the operand.
+@end deffn
+
+
+@deffn {Unsafe Operation} $flatan2 @vari{fl} @varii{fl}
+Return an equivalent of:
+
+@example
+(angle (make-rectangular @varii{fl} @vari{fl}))
+@end example
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Hyperbolic functions
+
+
+@defun $flsinh @var{fl}
+@defunx $flcosh @var{fl}
+@defunx $fltanh @var{fl}
+Compute the hyperbolic functions.  Return flonum objects.
+@end defun
+
+
+@defun $flasinh @var{fl}
+@defunx $flacosh @var{fl}
+@defunx $flatanh @var{fl}
+Compute the inverse hyperbolic functions.  Return flonum objects.
+@end defun
+
+@c ------------------------------------------------------------
+
+@subsubheading Exponentials and logarithms
+
+
+@deffn {Unsafe Operation} $flexp @var{fl}
+Return the base @math{e} exponential of the operand.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fllog @var{fl}
+Return the natural logarithm of the operand.  For non--negative @var{fl}
+the return value is a numeric flonum; for negative @var{fl} the return
+value is not--a--number.  See also @func{$log-flonum} to compute the
+logarithm of negative flonums as a complex number.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fllog2 @vari{fl} @varii{fl}
+Return the base--@varii{fl} logarithme of @vari{fl}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $flexpm1 @var{fl}
+Return an equivalent of @math{exp(@var{fl}) - 1}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fllog1p @var{fl}
+Return an equivalent of @math{log(1 + @var{fl})}.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Power operations
+
+
+@deffn {Unsafe Operation} $flexpt @vari{fl} @varii{fl}
+Return @vari{fl} raised to the power of @varii{fl}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $flsqrt @var{fl}
+Return the square root of the operand.
+@end deffn
+
+
+@deffn {Unsafe Operation} $flsquare @var{fl}
+Return the square of @var{fl}: @var{fl} times @var{fl}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $flcube @var{fl}
+Return the cube of @var{fl}: @var{fl} times @var{fl} times @var{fl}.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Comparison operations
+
+
+@deffn {Unsafe Operation} $fl= @vari{fl} @varii{fl}
+@deffnx {Unsafe Operation} $fl< @vari{fl} @varii{fl}
+@deffnx {Unsafe Operation} $fl<= @vari{fl} @varii{fl}
+@deffnx {Unsafe Operation} $fl> @vari{fl} @varii{fl}
+@deffnx {Unsafe Operation} $fl>= @vari{fl} @varii{fl}
+Perform comparison operations
+@end deffn
+
+
+@deffn {Unsafe Operation} $flmax @vari{fl} @varii{fl}
+Return the maximum between the operands.
+@end deffn
+
+
+@deffn {Unsafe Operation} $flmin @vari{fl} @varii{fl}
+Return the minimum between the operands.
+@end deffn
+
+@c page
+@node syslib ratnums
+@section Low level ratnum operations
+
+
+@cindex @library{ikarus system $ratnums}, library
+@cindex Library @library{ikarus system $ratnums}
+
+
+The arguments @var{rat} to these operations must be ratnums, the
+arguments @var{num} and @var{den} must be references to either fixnums
+or bignums.  The following bindings are exported by the @library{ikarus
+system $ratnums} library.  @ref{iklib numerics} for more functions
+acting on ratnums.
+
+
+@deffn {Unsafe Operation} $make-ratnum @var{num} @var{den}
+Allocate a new ratnum memory block, store @var{num} as reference to the
+numerator and @var{den} as reference to the denominator; return a
+reference to the ratnum.
+
+The following conditions must be met, else the returned value will be
+invalid:
+
+@itemize
+@item
+@var{num} and @var{den} must be exact integers.
+
+@item
+@var{num} and @var{den} must be non--zero.
+
+@item
+@var{den} must be strictly positive.
+
+@item
+@var{num} and @var{den} must have greatest common divisor equal to
+@code{1} (that is: they cannot be simplified).
+@end itemize
+@end deffn
+
+
+@deffn {Unsafe Operation} $ratnum-n @var{rat}
+@deffnx {Unsafe Operation} $ratnum-num @var{rat}
+Return the reference to the numerator.
+@end deffn
+
+
+@deffn {Unsafe Operation} $ratnum-d @var{rat}
+@deffnx {Unsafe Operation} $ratnum-den @var{rat}
+Return the reference to the denominator.
+@end deffn
+
+
+@deffn {Unsafe Operation} $ratnum->flonum @var{rat}
+Return a flonum object representing @var{rat} as inexact number.
+@end deffn
+
+@c page
+@node syslib compnums
+@section Low level compnum operations
+
+
+@cindex @library{ikarus system $compnums}, library
+@cindex Library @library{ikarus system $compnums}
+
+
+The arguments @var{cn} to these operations must be compnums, the
+arguments @var{num} must be references to either fixnums, bignums or
+flonums.  The following bindings are exported by the @library{ikarus
+system $compnums} library.  @ref{iklib numerics} for more functions
+acting on compnums.
+
+
+@deffn {Unsafe Operation} $make-compnum @vari{num} @varii{num}
+Allocate a new compnum memory block, store @vari{num} as reference to
+the real part and @varii{num} as reference to the imaginary part.
+Return a reference to the compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $compnum-real @var{cn}
+Return the reference to the real part.
+@end deffn
+
+
+@deffn {Unsafe Operation} $compnum-imag @var{cn}
+Return the reference to the imaginary part.
+@end deffn
+
+
+@deffn {Unsafe Operation} $compnum->cflonum @var{cn}
+Return the inexact representation of a compnum as a cflonum.
+@end deffn
+
+@c page
+@node syslib cflonums
+@section Low level cflonum operations
+
+
+@cindex @library{ikarus system $compnums}, library
+@cindex Library @library{ikarus system $compnums}
+
+
+The arguments @var{cmp} to these operations must be cflonums, the
+arguments @var{fl} must be references to flonums.  The following
+bindings are exported by the @library{ikarus system $compnums} library.
+@ref{iklib numerics} for more functions acting on cflonums.
+
+
+@deffn {Unsafe Operation} $make-cflonum @vari{fl} @varii{fl}
+Allocate a new cflonum memory block, store @vari{fl} as reference to the
+real part and @varii{fl} as reference to the imaginary part.  Return a
+reference to the cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $cflonum-real @var{cmp}
+Return the reference to the real part.
+@end deffn
+
+
+@deffn {Unsafe Operation} $cflonum-imag @var{cmp}
+Return the reference to the imaginary part.
+@end deffn
+
+@c page
+@node syslib numerics
+@section Low level numerics operations
+
+
+The library @library{ikarus syslib $numerics} exports bindings for low
+level operations on numbers.
+
+@menu
+* syslib numerics neg::         Numbers negation.
+* syslib numerics inv::         Numbers inversion.
+* syslib numerics add::         Numbers addition.
+* syslib numerics sub::         Numbers subtraction.
+* syslib numerics mul::         Numbers multiplication.
+* syslib numerics div::         Numbers division.
+* syslib numerics square::      Squaring of numbers.
+* syslib numerics cube::        Cube of numbers.
+* syslib numerics gcd::         Greatest common divisor.
+* syslib numerics lcm::         Least common multiple.
+* syslib numerics quorem::      Quotient and remainder.
+* syslib numerics quotient::    Quotient between numbers.
+* syslib numerics remainder::   Remainder between numbers.
+* syslib numerics modulo::      Modulo between numbers.
+* syslib numerics max::         Maximum between numbers.
+* syslib numerics min::         Minimum between numbers.
+* syslib numerics abs::         Absolute value of real numbers.
+* syslib numerics sign::        Sign of real numbers.
+* syslib numerics expt::        Raising numbers to power.
+* syslib numerics sqrt::        Square root of numbers.
+* syslib numerics log::         Logarithms of numbers.
+* syslib numerics exp::         Exponentials of numbers.
+* syslib numerics sin::         Trigonometric sine.
+* syslib numerics cos::         Trigonometric cosine.
+* syslib numerics tan::         Trigonometric tangent.
+* syslib numerics asin::        Trigonometric arc sine.
+* syslib numerics acos::        Trigonometric arc cosine.
+* syslib numerics atan::        Trigonometric arc tangent.
+* syslib numerics sinh::        Hyperbolic sine.
+* syslib numerics cosh::        Hyperbolic cosine.
+* syslib numerics tanh::        Hyperbolic tangent.
+* syslib numerics asinh::       Hyperbolic arc sine.
+* syslib numerics acosh::       Hyperbolic arc cosine.
+* syslib numerics atanh::       Hyperbolic arc tangent.
+* syslib numerics conjugate::   Complex conjugate.
+* syslib numerics magnitude::   Magnitude of complex numbers.
+* syslib numerics angle::       Angle of complex numbers.
+* syslib numerics bitnot::      Bitwise logic not.
+* syslib numerics bitand::      Bitwise logic and.
+* syslib numerics bitior::      Bitwise logic inclusive or.
+* syslib numerics bitxor::      Bitwise logic exclusive or.
+@end menu
+
+@c page
+@node syslib numerics neg
+@subsection Negation negation
+
+
+@deffn {Unsafe Operation} $neg-number @var{num}
+Negate any number object and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $neg-fixnum @var{fx}
+Negate a fixnum; return a fixnum or a bignum, the latter when @var{fx}
+is @code{(least-fixnum)}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $neg-bignum @var{bn}
+Negate a bignum; return a bignum or a fixnum, the latter when @var{bn}
+is equal to @code{(- (least-fixnum))}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $neg-flonum @var{fl}
+Negate a flonum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $neg-ratnum @var{rt}
+Negate a ratnum and return the result as a ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $neg-compnum @var{cn}
+Negate a compnum and return the result as a compunm.
+@end deffn
+
+
+@deffn {Unsafe Operation} $neg-cflonum @var{cfl}
+Negate a cflonum and return the result as cflonum.
+@end deffn
+
+@c page
+@node syslib numerics inv
+@subsection Numbers inversion
+
+
+If the operand is zero: the following operations raise an exception.
+
+
+@deffn {Unsafe Operation} $inv-number @var{num}
+Compute the inverse of any number object and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $inv-fixnum @var{fx}
+Compute the inverse of a fixnum and return the result as a fixnum or
+ratnum.  A fixnum is returned if @var{fx} is @code{+1} or @code{-1}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $inv-bignum @var{bn}
+Compute the inverse of a bignum and return the result as a ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $inv-flonum @var{fl}
+Compute the inverse of a flonum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $inv-ratnum @var{rt}
+Compute the inverse of a ratnum and return the result as a fixnum,
+bignum or ratnum.  A fixnum or bignum is returned when the numerator of
+@var{rt} is @code{+1} or @code{-1}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $inv-compnum @var{cn}
+Compute the inverse of a compnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $inv-cflonum @var{cfl}
+Compute the inverse of a cflonum and return the result as a cflonum.
+@end deffn
+
+@c page
+@node syslib numerics add
+@subsection Numbers addition
+
+
+@deffn {Unsafe Operation} $add-number-number @vari{num} @varii{num}
+Add any couple of numbers and return the result.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Generic number as second operand
+
+
+@deffn {Unsafe Operation} $add-fixnum-number @var{fx} @var{num}
+Add a fixnum with a number and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-bignum-number @var{bn} @var{num}
+Add a bignum with a number and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-flonum-number @var{fl} @var{num}
+Add a flonum with a number and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-ratnum-number @var{rt} @var{num}
+Add a ratnum with a number and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-compnum-number @var{cn} @var{num}
+Add a compnum with a number and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-cflonum-number @var{cfl} @var{num}
+Add a cflonum with a number and return the result.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Generic number as first operand
+
+
+@deffn {Unsafe Operation} $add-number-fixnum @var{num} @var{fx}
+Add any number with a fixnum and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-number-bignum @var{num} @var{bn}
+Add any number with a bignum and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-number-flonum @var{num} @var{fl}
+Add any number with a flonum and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-number-ratnum @var{num} @var{rt}
+Add any number with a ratnum and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-number-compnum @var{num} @var{cn}
+Add any number with a compnum and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-number-cflonum @var{num} @var{cfl}
+Add any number with a cflonum and return the result.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Fixnum as first operand
+
+
+@deffn {Unsafe Operation} $add-fixnum-fixnum @vari{fx} @varii{fx}
+Add a fixnum with a fixnum and return the result as a fixnum or bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-fixnum-bignum @var{fx} @var{bn}
+Add a fixnum with a bignum and return the result as a fixnum or bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-fixnum-flonum @var{fx} @var{fl}
+Add a fixnum with a flonum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-fixnum-ratnum @var{fx} @var{rt}
+Add a fixnum with a ratnum and return the result as a ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-fixnum-compnum @var{fx} @var{cn}
+Add a fixnum with a compnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-fixnum-cflonum @var{fx} @var{cfl}
+Add a fixnum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Bignum as first operand
+
+
+@deffn {Unsafe Operation} $add-bignum-fixnum @var{bn} @var{fx}
+Add a bignum with a fixnum and return the result as a fixnum or bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-bignum-bignum @vari{bn} @varii{bn}
+Add a bignum with a bignum and return the result as a fixnum or bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-bignum-flonum @var{bn} @var{fl}
+Add a bignum with a flonum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-bignum-ratnum @var{bn} @var{rt}
+Add a bignum with a ratnum and return the result as a ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-bignum-compnum @var{bn} @var{cn}
+Add a bignum with a compnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-bignum-cflonum @var{bn} @var{cfl}
+Add a bignum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Flonum as first operand
+
+
+@deffn {Unsafe Operation} $add-flonum-fixnum @var{fl} @var{fx}
+Add a flonum with a fixnum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-flonum-bignum @var{fl} @var{bn}
+Add a flonum with a bignum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-flonum-flonum @vari{fl} @varii{fl}
+Add a flonum with a flonum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-flonum-ratnum @var{fl} @var{rt}
+Add a flonum with a ratnum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-flonum-compnum @var{fl} @var{cn}
+Add a flonum with a compnum and return the result as a compnum or
+cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-flonum-cflonum @var{fl} @var{cfl}
+Add a flonum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Ratnum as first operand
+
+
+@deffn {Unsafe Operation} $add-ratnum-fixnum @var{rt} @var{fx}
+Add a ratnum with a fixnum and return the result as a ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-ratnum-bignum @var{rt} @var{bn}
+Add a ratnum with a ratnum and return the result as a ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-ratnum-flonum @var{rt} @var{fl}
+Add a ratnum with a flonum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-ratnum-ratnum @vari{rt} @varii{rt}
+Add a ratnum with a ratnum and return the result as a ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-ratnum-compnum @var{rt} @var{cn}
+Add a ratnum with a compnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-ratnum-cflonum @var{rt} @var{cfl}
+Add a ratnum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Compnum as first operand
+
+
+@deffn {Unsafe Operation} $add-compnum-fixnum @var{cn} @var{fx}
+Add a compnum with a fixnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-compnum-bignum @var{cn} @var{bn}
+Add a compnum with a bignum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-compnum-ratnum @var{cn} @var{rt}
+Add a compnum with a ratnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-compnum-compnum @vari{cn} @varii{cn}
+Add a compnum with a compnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-compnum-flonum @var{cn} @var{fl}
+Add a compnum with a flonum and return the result as a compnum or
+cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-compnum-cflonum @var{cn} @var{cfl}
+Add a compnum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Cflonum as first operand
+
+
+@deffn {Unsafe Operation} $add-cflonum-fixnum @var{cfl} @var{fx}
+Add a cflonum with a fixnum and return the result as a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-cflonum-bignum @var{cfl} @var{bn}
+Add a cflonum with a bignum and return the result as a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-cflonum-ratnum @var{cfl} @var{rt}
+Add a cflonum with a ratnum and return the result as a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-cflonum-flonum @var{cfl} @var{fl}
+Add a cflonum with a flonum and return the result as a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-cflonum-compnum @var{cfl} @var{cn}
+Add a cflonum with a compnum and return the result as a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $add-cflonum-cflonum @vari{cfl} @varii{cfl}
+Add a cflonum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c page
+@node syslib numerics sub
+@subsection Numbers subtraction
+
+
+@deffn {Unsafe Operation} $sub-number-number @vari{num} @varii{num}
+Subtract any couple of numbers and return the result.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Generic number as second operand
+
+
+@deffn {Unsafe Operation} $sub-fixnum-number @var{fx} @var{num}
+Subtract a fixnum with a number and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-bignum-number @var{bn} @var{num}
+Subtract a bignum with a number and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-flonum-number @var{fl} @var{num}
+Subtract a flonum with a number and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-ratnum-number @var{rt} @var{num}
+Subtract a ratnum with a number and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-compnum-number @var{cn} @var{num}
+Subtract a compnum with a number and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-cflonum-number @var{cfl} @var{num}
+Subtract a cflonum with a number and return the result.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Generic number as first operand
+
+
+@deffn {Unsafe Operation} $sub-number-fixnum @var{num} @var{fx}
+Subtract any number with a fixnum and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-number-bignum @var{num} @var{bn}
+Subtract any number with a bignum and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-number-flonum @var{num} @var{fl}
+Subtract any number with a flonum and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-number-ratnum @var{num} @var{rt}
+Subtract any number with a ratnum and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-number-compnum @var{num} @var{cn}
+Subtract any number with a compnum and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-number-cflonum @var{num} @var{cfl}
+Subtract any number with a cflonum and return the result.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Fixnum as first operand
+
+
+@deffn {Unsafe Operation} $sub-fixnum-fixnum @vari{fx} @varii{fx}
+Subtract a fixnum with a fixnum and return the result as a fixnum or bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-fixnum-bignum @var{fx} @var{bn}
+Subtract a fixnum with a bignum and return the result as a fixnum or bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-fixnum-flonum @var{fx} @var{fl}
+Subtract a fixnum with a flonum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-fixnum-ratnum @var{fx} @var{rt}
+Subtract a fixnum with a ratnum and return the result as a ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-fixnum-compnum @var{fx} @var{cn}
+Subtract a fixnum with a compnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-fixnum-cflonum @var{fx} @var{cfl}
+Subtract a fixnum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Bignum as first operand
+
+
+@deffn {Unsafe Operation} $sub-bignum-fixnum @var{bn} @var{fx}
+Subtract a bignum with a fixnum and return the result as a fixnum or bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-bignum-bignum @vari{bn} @varii{bn}
+Subtract a bignum with a bignum and return the result as a fixnum or bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-bignum-flonum @var{bn} @var{fl}
+Subtract a bignum with a flonum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-bignum-ratnum @var{bn} @var{rt}
+Subtract a bignum with a ratnum and return the result as a ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-bignum-compnum @var{bn} @var{cn}
+Subtract a bignum with a compnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-bignum-cflonum @var{bn} @var{cfl}
+Subtract a bignum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Flonum as first operand
+
+
+@deffn {Unsafe Operation} $sub-flonum-fixnum @var{fl} @var{fx}
+Subtract a flonum with a fixnum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-flonum-bignum @var{fl} @var{bn}
+Subtract a flonum with a bignum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-flonum-flonum @vari{fl} @varii{fl}
+Subtract a flonum with a flonum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-flonum-ratnum @var{fl} @var{rt}
+Subtract a flonum with a ratnum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-flonum-compnum @var{fl} @var{cn}
+Subtract a flonum with a compnum and return the result as a compnum or
+cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-flonum-cflonum @var{fl} @var{cfl}
+Subtract a flonum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Ratnum as first operand
+
+
+@deffn {Unsafe Operation} $sub-ratnum-fixnum @var{rt} @var{fx}
+Subtract a ratnum with a fixnum and return the result as a ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-ratnum-bignum @var{rt} @var{bn}
+Subtract a ratnum with a ratnum and return the result as a ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-ratnum-flonum @var{rt} @var{fl}
+Subtract a ratnum with a flonum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-ratnum-ratnum @vari{rt} @varii{rt}
+Subtract a ratnum with a ratnum and return the result as a ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-ratnum-compnum @var{rt} @var{cn}
+Subtract a ratnum with a compnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-ratnum-cflonum @var{rt} @var{cfl}
+Subtract a ratnum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Compnum as first operand
+
+
+@deffn {Unsafe Operation} $sub-compnum-fixnum @var{cn} @var{fx}
+Subtract a compnum with a fixnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-compnum-bignum @var{cn} @var{bn}
+Subtract a compnum with a bignum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-compnum-ratnum @var{cn} @var{rt}
+Subtract a compnum with a ratnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-compnum-compnum @vari{cn} @varii{cn}
+Subtract a compnum with a compnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-compnum-flonum @var{cn} @var{fl}
+Subtract a compnum with a flonum and return the result as a compnum or
+cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-compnum-cflonum @var{cn} @var{cfl}
+Subtract a compnum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Cflonum as first operand
+
+
+@deffn {Unsafe Operation} $sub-cflonum-fixnum @var{cfl} @var{fx}
+Subtract a cflonum with a fixnum and return the result as a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-cflonum-bignum @var{cfl} @var{bn}
+Subtract a cflonum with a bignum and return the result as a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-cflonum-ratnum @var{cfl} @var{rt}
+Subtract a cflonum with a ratnum and return the result as a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-cflonum-flonum @var{cfl} @var{fl}
+Subtract a cflonum with a flonum and return the result as a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-cflonum-compnum @var{cfl} @var{cn}
+Subtract a cflonum with a compnum and return the result as a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sub-cflonum-cflonum @vari{cfl} @varii{cfl}
+Subtract a cflonum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c page
+@node syslib numerics mul
+@subsection Numbers multiplication
+
+
+@deffn {Unsafe Operation} $mul-number-number @vari{num} @varii{num}
+Multiply any couple of numbers and return the result.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Generic number as second operand
+
+
+@deffn {Unsafe Operation} $mul-fixnum-number @var{fx} @var{num}
+Multiply a fixnum with a number and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-bignum-number @var{bn} @var{num}
+Multiply a bignum with a number and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-flonum-number @var{fl} @var{num}
+Multiply a flonum with a number and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-ratnum-number @var{rt} @var{num}
+Multiply a ratnum with a number and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-compnum-number @var{cn} @var{num}
+Multiply a compnum with a number and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-cflonum-number @var{cfl} @var{num}
+Multiply a cflonum with a number and return the result.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Generic number as first operand
+
+
+@deffn {Unsafe Operation} $mul-number-fixnum @var{num} @var{fx}
+Multiply any number with a fixnum and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-number-bignum @var{num} @var{bn}
+Multiply any number with a bignum and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-number-flonum @var{num} @var{fl}
+Multiply any number with a flonum and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-number-ratnum @var{num} @var{rt}
+Multiply any number with a ratnum and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-number-compnum @var{num} @var{cn}
+Multiply any number with a compnum and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-number-cflonum @var{num} @var{cfl}
+Multiply any number with a cflonum and return the result.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Fixnum as first operand
+
+
+@deffn {Unsafe Operation} $mul-fixnum-fixnum @vari{fx} @varii{fx}
+Multiply a fixnum with a fixnum and return the result as a fixnum or bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-fixnum-bignum @var{fx} @var{bn}
+Multiply a fixnum with a bignum and return the result as a fixnum or bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-fixnum-flonum @var{fx} @var{fl}
+Multiply a fixnum with a flonum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-fixnum-ratnum @var{fx} @var{rt}
+Multiply a fixnum with a ratnum and return the result as a ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-fixnum-compnum @var{fx} @var{cn}
+Multiply a fixnum with a compnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-fixnum-cflonum @var{fx} @var{cfl}
+Multiply a fixnum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Bignum as first operand
+
+
+@deffn {Unsafe Operation} $mul-bignum-fixnum @var{bn} @var{fx}
+Multiply a bignum with a fixnum and return the result as a bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-bignum-bignum @vari{bn} @varii{bn}
+Multiply a bignum with a bignum and return the result as a bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-bignum-flonum @var{bn} @var{fl}
+Multiply a bignum with a flonum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-bignum-ratnum @var{bn} @var{rt}
+Multiply a bignum with a ratnum and return the result as a ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-bignum-compnum @var{bn} @var{cn}
+Multiply a bignum with a compnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-bignum-cflonum @var{bn} @var{cfl}
+Multiply a bignum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Flonum as first operand
+
+
+@deffn {Unsafe Operation} $mul-flonum-fixnum @var{fl} @var{fx}
+Multiply a flonum with a fixnum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-flonum-bignum @var{fl} @var{bn}
+Multiply a flonum with a bignum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-flonum-flonum @vari{fl} @varii{fl}
+Multiply a flonum with a flonum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-flonum-ratnum @var{fl} @var{rt}
+Multiply a flonum with a ratnum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-flonum-compnum @var{fl} @var{cn}
+Multiply a flonum with a compnum and return the result as cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-flonum-cflonum @var{fl} @var{cfl}
+Multiply a flonum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Ratnum as first operand
+
+
+@deffn {Unsafe Operation} $mul-ratnum-fixnum @var{rt} @var{fx}
+Multiply a ratnum with a fixnum and return the result as a ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-ratnum-bignum @var{rt} @var{bn}
+Multiply a ratnum with a ratnum and return the result as a ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-ratnum-flonum @var{rt} @var{fl}
+Multiply a ratnum with a flonum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-ratnum-ratnum @vari{rt} @varii{rt}
+Multiply a ratnum with a ratnum and return the result as a ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-ratnum-compnum @var{rt} @var{cn}
+Multiply a ratnum with a compnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-ratnum-cflonum @var{rt} @var{cfl}
+Multiply a ratnum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Compnum as first operand
+
+
+@deffn {Unsafe Operation} $mul-compnum-fixnum @var{cn} @var{fx}
+Multiply a compnum with a fixnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-compnum-bignum @var{cn} @var{bn}
+Multiply a compnum with a bignum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-compnum-ratnum @var{cn} @var{rt}
+Multiply a compnum with a ratnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-compnum-compnum @vari{cn} @varii{cn}
+Multiply a compnum with a compnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-compnum-flonum @var{cn} @var{fl}
+Multiply a compnum with a flonum and return the result as cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-compnum-cflonum @var{cn} @var{cfl}
+Multiply a compnum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Cflonum as first operand
+
+
+@deffn {Unsafe Operation} $mul-cflonum-fixnum @var{cfl} @var{fx}
+Multiply a cflonum with a fixnum and return the result as a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-cflonum-bignum @var{cfl} @var{bn}
+Multiply a cflonum with a bignum and return the result as a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-cflonum-ratnum @var{cfl} @var{rt}
+Multiply a cflonum with a ratnum and return the result as a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-cflonum-flonum @var{cfl} @var{fl}
+Multiply a cflonum with a flonum and return the result as a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-cflonum-compnum @var{cfl} @var{cn}
+Multiply a cflonum with a compnum and return the result as a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $mul-cflonum-cflonum @vari{cfl} @varii{cfl}
+Multiply a cflonum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c page
+@node syslib numerics div
+@subsection Numbers division
+
+
+@deffn {Unsafe Operation} $div-number-number @vari{num} @varii{num}
+Divide any couple of numbers and return the result.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Generic number as second operand
+
+
+@deffn {Unsafe Operation} $div-fixnum-number @var{fx} @var{num}
+Divide a fixnum with a number and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-bignum-number @var{bn} @var{num}
+Divide a bignum with a number and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-flonum-number @var{fl} @var{num}
+Divide a flonum with a number and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-ratnum-number @var{rt} @var{num}
+Divide a ratnum with a number and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-compnum-number @var{cn} @var{num}
+Divide a compnum with a number and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-cflonum-number @var{cfl} @var{num}
+Divide a cflonum with a number and return the result.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Generic number as first operand
+
+
+@deffn {Unsafe Operation} $div-number-fixnum @var{num} @var{fx}
+Divide any number with a fixnum and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-number-bignum @var{num} @var{bn}
+Divide any number with a bignum and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-number-flonum @var{num} @var{fl}
+Divide any number with a flonum and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-number-ratnum @var{num} @var{rt}
+Divide any number with a ratnum and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-number-compnum @var{num} @var{cn}
+Divide any number with a compnum and return the result.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-number-cflonum @var{num} @var{cfl}
+Divide any number with a cflonum and return the result.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Fixnum as first operand
+
+
+@deffn {Unsafe Operation} $div-fixnum-fixnum @vari{fx} @varii{fx}
+Divide a fixnum with a fixnum and return the result as a fixnum or
+ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-fixnum-bignum @var{fx} @var{bn}
+Divide a fixnum with a bignum and return the result as a ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-fixnum-flonum @var{fx} @var{fl}
+Divide a fixnum with a flonum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-fixnum-ratnum @var{fx} @var{rt}
+Divide a fixnum with a ratnum and return the result as fixnum, bignum or
+ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-fixnum-compnum @var{fx} @var{cn}
+Divide a fixnum with a compnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-fixnum-cflonum @var{fx} @var{cfl}
+Divide a fixnum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Bignum as first operand
+
+
+@deffn {Unsafe Operation} $div-bignum-fixnum @var{bn} @var{fx}
+Divide a bignum with a fixnum and return the result as a fixnum, bignum
+or ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-bignum-bignum @vari{bn} @varii{bn}
+Divide a bignum with a bignum and return the result as a fixnum, bignum
+or ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-bignum-flonum @var{bn} @var{fl}
+Divide a bignum with a flonum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-bignum-ratnum @var{bn} @var{rt}
+Divide a bignum with a ratnum and return the result as a fixnum, bignum
+or ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-bignum-compnum @var{bn} @var{cn}
+Divide a bignum with a compnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-bignum-cflonum @var{bn} @var{cfl}
+Divide a bignum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Flonum as first operand
+
+
+@deffn {Unsafe Operation} $div-flonum-fixnum @var{fl} @var{fx}
+Divide a flonum with a fixnum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-flonum-bignum @var{fl} @var{bn}
+Divide a flonum with a bignum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-flonum-flonum @vari{fl} @varii{fl}
+Divide a flonum with a flonum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-flonum-ratnum @var{fl} @var{rt}
+Divide a flonum with a ratnum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-flonum-compnum @var{fl} @var{cn}
+Divide a flonum with a compnum and return the result as a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-flonum-cflonum @var{fl} @var{cfl}
+Divide a flonum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Ratnum as first operand
+
+
+@deffn {Unsafe Operation} $div-ratnum-fixnum @var{rt} @var{fx}
+Divide a ratnum with a fixnum and return the result as a fixnum, bignum
+or ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-ratnum-bignum @var{rt} @var{bn}
+Divide a ratnum with a ratnum and return the result as a fixnum, bignum
+or ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-ratnum-flonum @var{rt} @var{fl}
+Divide a ratnum with a flonum and return the result as a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-ratnum-ratnum @vari{rt} @varii{rt}
+Divide a ratnum with a ratnum and return the result as a fixnum, bignum
+or ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-ratnum-compnum @var{rt} @var{cn}
+Divide a ratnum with a compnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-ratnum-cflonum @var{rt} @var{cfl}
+Divide a ratnum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Compnum as first operand
+
+
+@deffn {Unsafe Operation} $div-compnum-fixnum @var{cn} @var{fx}
+Divide a compnum with a fixnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-compnum-bignum @var{cn} @var{bn}
+Divide a compnum with a bignum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-compnum-ratnum @var{cn} @var{rt}
+Divide a compnum with a ratnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-compnum-compnum @vari{cn} @varii{cn}
+Divide a compnum with a compnum and return the result as a compnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-compnum-flonum @var{cn} @var{fl}
+Divide a compnum with a flonum and return the result as a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-compnum-cflonum @var{cn} @var{cfl}
+Divide a compnum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Cflonum as first operand
+
+
+@deffn {Unsafe Operation} $div-cflonum-fixnum @var{cfl} @var{fx}
+Divide a cflonum with a fixnum and return the result as a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-cflonum-bignum @var{cfl} @var{bn}
+Divide a cflonum with a bignum and return the result as a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-cflonum-ratnum @var{cfl} @var{rt}
+Divide a cflonum with a ratnum and return the result as a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-cflonum-flonum @var{cfl} @var{fl}
+Divide a cflonum with a flonum and return the result as a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-cflonum-compnum @var{cfl} @var{cn}
+Divide a cflonum with a compnum and return the result as a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $div-cflonum-cflonum @vari{cfl} @varii{cfl}
+Divide a cflonum with a cflonum and return the result as a cflonum.
+@end deffn
+
+@c page
+@node syslib numerics square
+@subsection Numbers squaring
+
+
+To compute the square of any number just use @func{square}; to compute
+the square of a flonum use @func{flsquare} or @func{$flsquare}.
+
+
+@deffn {Unsafe Operation} $square-fixnum @var{fx}
+Compute the square of a fixnum and return the result as fixnum or
+bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $square-bignum @var{bn}
+Compute the square of a bignum and return the result as bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $square-ratnum @var{rt}
+Compute the square of a ratnum and return the result as ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $square-compnum @var{cn}
+Compute the square of a compnum and return the result as compnum or
+cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $square-cflonum @var{cfl}
+Compute the square of a cflonum and return the result as cflonum.
+@end deffn
+
+@c page
+@node syslib numerics cube
+@subsection Cube of numbers
+
+
+To compute the cube of any number just use @func{cube}; to compute the
+cube of a flonum use @func{flcube} or @func{$flcube}.
+
+
+@deffn {Unsafe Operation} $cube-fixnum @var{fx}
+Compute the cube of a fixnum and return the result as fixnum or
+bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $cube-bignum @var{bn}
+Compute the cube of a bignum and return the result as bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $cube-ratnum @var{rt}
+Compute the cube of a ratnum and return the result as ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $cube-compnum @var{cn}
+Compute the cube of a compnum and return the result as compnum or
+cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $cube-cflonum @var{cfl}
+Compute the cube of a cflonum and return the result as cflonum.
+@end deffn
+
+@c page
+@node syslib numerics gcd
+@subsection Greatest common divisor
+
+
+@deffn {Unsafe Operation} $gcd-number-number @vari{x} @varii{x}
+Return the greatest common divisor between any couple of exact or
+inexact integers; return a fixnum, bignum or flonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Exact or inexact integer as second argument
+
+
+@deffn {Unsafe Operation} $gcd-fixnum-number @var{fx} @var{x}
+Return the greatest common divisor between a fixnum and any exact or
+inexact integer; return a fixnum, bignum or flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $gcd-bignum-number @var{bn} @var{x}
+Return the greatest common divisor between a bignum and any exact or
+inexact integer; return a fixnum, bignum or flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $gcd-flonum-number @var{fl} @var{x}
+Return the greatest common divisor between a flonum and any exact or
+inexact integer; return a fixnum, bignum or flonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Exact or inexact integer as first argument
+
+
+@deffn {Unsafe Operation} $gcd-number-fixnum @var{x} @var{fx}
+Return the greatest common divisor between any exact or inexact integer
+and a fixnum; return a fixnum, bignum or flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $gcd-number-bignum @var{x} @var{bn}
+Return the greatest common divisor between any exact or inexact integer
+and a bignum; return a fixnum, bignum or flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $gcd-number-flonum @var{x} @var{fl}
+Return the greatest common divisor between any exact or inexact integer
+and a flonum; return a fixnum, bignum or flonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Fixnum as first argument
+
+
+@deffn {Unsafe Operation} $gcd-fixnum-fixnum @vari{fx} @varii{fx}
+Return the greatest common divisor between a fixnum and a fixnum; return
+a fixnum or bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $gcd-fixnum-bignum @var{fx} @var{bn}
+Return the greatest common divisor between a fixnum and a bignum; return
+a fixnum or bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $gcd-fixnum-flonum @var{fx} @var{fl}
+Return the greatest common divisor between a fixnum and a flonum; return
+a flonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Bignum as first argument
+
+
+@deffn {Unsafe Operation} $gcd-bignum-fixnum @var{bn} @var{fx}
+Return the greatest common divisor between a bignum and a fixnum; return
+a fixnum or bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $gcd-bignum-bignum @vari{bn} @varii{bn}
+Return the greatest common divisor between a bignum and a bignum; return
+a bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $gcd-bignum-flonum @var{bn} @var{fl}
+Return the greatest common divisor between a bignum and a flonum; return
+a flonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Flonum as first argument
+
+
+@deffn {Unsafe Operation} $gcd-flonum-fixnum @var{fl} @var{fx}
+Return the greatest common divisor between a flonum and a fixnum; return
+a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $gcd-flonum-bignum @var{fl} @var{bn}
+Return the greatest common divisor between a flonum and a bignum; return
+a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $gcd-flonum-flonum @vari{fl} @varii{fl}
+Return the greatest common divisor between a flonum and a flonum; return
+a flonum.
+@end deffn
+
+@c page
+@node syslib numerics lcm
+@subsection Least common multiple
+
+
+@deffn {Unsafe Operation} $lcm-number-number @vari{x} @varii{x}
+Return the least common multiple between any couple of exact and inexact
+integers; return a fixnum, bignum or flonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Exact or inexact integer as second argument
+
+
+@deffn {Unsafe Operation} $lcm-fixnum-number @var{fx} @var{x}
+Return the least common multiple between a fixnum and any exact or
+inexact integer; return a fixnum, bignum or flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $lcm-bignum-number @var{bn} @var{x}
+Return the least common multiple between a bignum and any exact or
+inexact integer; return a fixnum, bignum or flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $lcm-flonum-number @var{fl} @var{x}
+Return the least common multiple between a flonum and any exact or
+inexact integer; return a fixnum, bignum or flonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Exact or inexact integer as first argument
+
+
+@deffn {Unsafe Operation} $lcm-number-fixnum @var{x} @var{fx}
+Return the least common multiple between any exact or inexact integer
+and a fixnum; return a fixnum, bignum or flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $lcm-number-bignum @var{x} @var{bn}
+Return the least common multiple between any exact or inexact integer
+and a bignum; return a fixnum, bignum or flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $lcm-number-flonum @var{x} @var{fl}
+Return the least common multiple between any exact or inexact integer
+and a flonum; return a fixnum, bignum or flonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Fixnum as first argument
+
+
+@deffn {Unsafe Operation} $lcm-fixnum-fixnum @vari{fx} @varii{fx}
+Return the least common multiple between a fixnum and a fixnum; return a
+fixnum or bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $lcm-fixnum-bignum @var{fx} @var{bn}
+Return the least common multiple between a fixnum and a bignum; return a
+fixnum or bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $lcm-fixnum-flonum @var{fx} @var{fl}
+Return the least common multiple between a fixnum and a flonum; return a
+flonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Bignum as first argument
+
+
+@deffn {Unsafe Operation} $lcm-bignum-fixnum @var{bn} @var{fx}
+Return the least common multiple between a bignum and a fixnum; return a
+fixnum or bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $lcm-bignum-bignum @vari{bn} @varii{bn}
+Return the least common multiple between a bignum and a bignum; return a
+bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $lcm-bignum-flonum @var{bn} @var{fl}
+Return the least common multiple between a bignum and a flonum; return a
+flonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Flonum as first argument
+
+
+@deffn {Unsafe Operation} $lcm-flonum-fixnum @var{fl} @var{fx}
+Return the least common multiple between a flonum and a fixnum; return a
+flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $lcm-flonum-bignum @var{fl} @var{bn}
+Return the least common multiple between a flonum and a bignum; return a
+flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $lcm-flonum-flonum @vari{fl} @varii{fl}
+Return the least common multiple between a flonum and a flonum; return a
+flonum.
+@end deffn
+
+@c page
+@node syslib numerics quorem
+@subsection Quotient and remainder
+
+
+These functions perform the integer division between exact and inexact
+numbers and return two values: the quotient and the remainder.  For all
+the functions: the second argument must be non--zero.
+
+Note that considering:
+
+@example
+(quotient+remainder X Y)
+@end example
+
+@noindent
+according to @rnrs{6}:
+
+@example
+(define (sign n)
+  (cond ((negative? n) -1)
+        ((positive? n) 1)
+        (else 0)))
+
+(define (quotient n1 n2)
+  (* (sign n1) (sign n2) (div (abs n1) (abs n2))))
+
+(define (remainder n1 n2)
+  (* (sign n1) (mod (abs n1) (abs n2))))
+
+(define (modulo n1 n2)
+  (* (sign n2) (mod (* (sign n2) n1) (abs n2))))
+@end example
+
+@noindent
+so we have:
+
+@example
+sign(quotient)  = sign(X) * sign(Y)
+sign(remainder) = sign(X)
+sign(modulo)    = sign(Y)
+@end example
+
+@c ------------------------------------------------------------
+
+@subsubheading Any number as first argument
+
+
+@deffn {Unsafe Operation} $quotient+remainder-number-fixnum @var{num} @var{fx}
+Perform the integer division between any exact or inexact integer and a
+fixnum.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+
+@deffn {Unsafe Operation} $quotient+remainder-number-bignum @var{num} @var{bn}
+Perform the integer division between any exact or inexact integer and a
+bignum.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+
+@deffn {Unsafe Operation} $quotient+remainder-number-flonum @var{num} @var{fl}
+Perform the integer division between any exact or inexact integer and a
+flonum.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Any number as second argument
+
+
+@deffn {Unsafe Operation} $quotient+remainder-fixnum-number @var{fx} @var{num}
+Perform the integer division between a fixnum and any exact or inexact
+integer.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+
+@deffn {Unsafe Operation} $quotient+remainder-bignum-number @var{bn} @var{num}
+Perform the integer division between a bignum and any exact or inexact
+integer.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+
+@deffn {Unsafe Operation} $quotient+remainder-flonum-number @var{fl} @var{num}
+Perform the integer division between a flonum and any exact or inexact
+integer.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Fixnum as first argument
+
+
+@deffn {Unsafe Operation} $quotient+remainder-fixnum-fixnum @vari{fx} @varii{fx}
+Perform the integer division between a fixnum and a fixnum; return a
+fixnum or bignum as quotient, return a fixnum as remainder.
+@end deffn
+
+
+@deffn {Unsafe Operation} $quotient+remainder-fixnum-bignum @var{fx} @var{bn}
+Perform the integer division between a fixnum and a bignum; return
+fixnums.
+@end deffn
+
+
+@deffn {Unsafe Operation} $quotient+remainder-fixnum-flonum @var{fx} @var{fl}
+Perform the integer division between a fixnum and a flonum; return
+flonums.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Bignum as first argument
+
+
+@deffn {Unsafe Operation} $quotient+remainder-bignum-fixnum @var{bn} @var{fx}
+Perform the integer division between a bignum and a fixnum; return
+fixnums.
+@end deffn
+
+
+@deffn {Unsafe Operation} $quotient+remainder-bignum-bignum @vari{bn} @varii{bn}
+Perform the integer division between a bignum and a bignum; return
+fixnums or bignums.
+@end deffn
+
+
+@deffn {Unsafe Operation} $quotient+remainder-bignum-flonum @var{bn} @var{fl}
+Perform the integer division between a bignum and a flonum; return
+flonums.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Flonum as first argument
+
+
+@deffn {Unsafe Operation} $quotient+remainder-flonum-fixnum @var{fl} @var{fx}
+Perform the integer division between a flonum and a fixnum; return
+flonums.
+@end deffn
+
+
+@deffn {Unsafe Operation} $quotient+remainder-flonum-bignum @var{fl} @var{bn}
+Perform the integer division between a flonum and a bignum; return
+flonums.
+@end deffn
+
+
+@deffn {Unsafe Operation} $quotient+remainder-flonum-flonum @vari{fl} @varii{fl}
+Perform the integer division between a flonum and a flonum; return
+flonums.
+@end deffn
+
+@c page
+@node syslib numerics quotient
+@subsection Quotient between numbers
+
+
+These functions perform the integer division between exact and inexact
+numbers and return the quotient.  For all the functions: the second
+argument must be non--zero.  @ref{syslib numerics quorem} for more
+details on the operations.
+
+@c ------------------------------------------------------------
+
+@subsubheading Any number as first argument
+
+
+@deffn {Unsafe Operation} $quotient-number-fixnum @var{num} @var{fx}
+Perform the integer division between any exact or inexact integer and a
+fixnum.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+
+@deffn {Unsafe Operation} $quotient-number-bignum @var{num} @var{bn}
+Perform the integer division between any exact or inexact integer and a
+bignum.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+
+@deffn {Unsafe Operation} $quotient-number-flonum @var{num} @var{fl}
+Perform the integer division between any exact or inexact integer and a
+flonum.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Any number as second argument
+
+
+@deffn {Unsafe Operation} $quotient-fixnum-number @var{fx} @var{num}
+Perform the integer division between a fixnum and any exact or inexact
+integer.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+
+@deffn {Unsafe Operation} $quotient-bignum-number @var{bn} @var{num}
+Perform the integer division between a bignum and any exact or inexact
+integer.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+
+@deffn {Unsafe Operation} $quotient-flonum-number @var{fl} @var{num}
+Perform the integer division between a flonum and any exact or inexact
+integer.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Fixnum as first argument
+
+
+@deffn {Unsafe Operation} $quotient-fixnum-fixnum @vari{fx} @varii{fx}
+Perform the integer division between a fixnum and a fixnum; return a
+fixnum or bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $quotient-fixnum-bignum @var{fx} @var{bn}
+Perform the integer division between a fixnum and a bignum; return
+fixnums.
+@end deffn
+
+
+@deffn {Unsafe Operation} $quotient-fixnum-flonum @var{fx} @var{fl}
+Perform the integer division between a fixnum and a flonum; return
+flonums.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Bignum as first argument
+
+
+@deffn {Unsafe Operation} $quotient-bignum-fixnum @var{bn} @var{fx}
+Perform the integer division between a bignum and a fixnum; return
+fixnums.
+@end deffn
+
+
+@deffn {Unsafe Operation} $quotient-bignum-bignum @vari{bn} @varii{bn}
+Perform the integer division between a bignum and a bignum; return
+fixnums or bignums.
+@end deffn
+
+
+@deffn {Unsafe Operation} $quotient-bignum-flonum @var{bn} @var{fl}
+Perform the integer division between a bignum and a flonum; return
+flonums.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Flonum as first argument
+
+
+@deffn {Unsafe Operation} $quotient-flonum-fixnum @var{fl} @var{fx}
+Perform the integer division between a flonum and a fixnum; return
+flonums.
+@end deffn
+
+
+@deffn {Unsafe Operation} $quotient-flonum-bignum @var{fl} @var{bn}
+Perform the integer division between a flonum and a bignum; return
+flonums.
+@end deffn
+
+
+@deffn {Unsafe Operation} $quotient-flonum-flonum @vari{fl} @varii{fl}
+Perform the integer division between a flonum and a flonum; return
+flonums.
+@end deffn
+
+@c page
+@node syslib numerics remainder
+@subsection Remainder between numbers
+
+
+These functions perform the integer division between exact and inexact
+numbers and return the remainder.  For all the functions: the second
+argument must be non--zero.  @ref{syslib numerics quorem} for more
+details on the operations.
+
+@c ------------------------------------------------------------
+
+@subsubheading Any number as first argument
+
+
+@deffn {Unsafe Operation} $remainder-number-fixnum @var{num} @var{fx}
+Perform the integer division between any exact or inexact integer and a
+fixnum.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+
+@deffn {Unsafe Operation} $remainder-number-bignum @var{num} @var{bn}
+Perform the integer division between any exact or inexact integer and a
+bignum.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+
+@deffn {Unsafe Operation} $remainder-number-flonum @var{num} @var{fl}
+Perform the integer division between any exact or inexact integer and a
+flonum.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Any number as second argument
+
+
+@deffn {Unsafe Operation} $remainder-fixnum-number @var{fx} @var{num}
+Perform the integer division between a fixnum and any exact or inexact
+integer.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+
+@deffn {Unsafe Operation} $remainder-bignum-number @var{bn} @var{num}
+Perform the integer division between a bignum and any exact or inexact
+integer.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+
+@deffn {Unsafe Operation} $remainder-flonum-number @var{fl} @var{num}
+Perform the integer division between a flonum and any exact or inexact
+integer.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Fixnum as first argument
+
+
+@deffn {Unsafe Operation} $remainder-fixnum-fixnum @vari{fx} @varii{fx}
+Perform the integer division between a fixnum and a fixnum; return
+fixnums.
+@end deffn
+
+
+@deffn {Unsafe Operation} $remainder-fixnum-bignum @var{fx} @var{bn}
+Perform the integer division between a fixnum and a bignum; return
+fixnums.
+@end deffn
+
+
+@deffn {Unsafe Operation} $remainder-fixnum-flonum @var{fx} @var{fl}
+Perform the integer division between a fixnum and a flonum; return
+flonums.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Bignum as first argument
+
+
+@deffn {Unsafe Operation} $remainder-bignum-fixnum @var{bn} @var{fx}
+Perform the integer division between a bignum and a fixnum; return
+fixnums.
+@end deffn
+
+
+@deffn {Unsafe Operation} $remainder-bignum-bignum @vari{bn} @varii{bn}
+Perform the integer division between a bignum and a bignum; return
+fixnums or bignums.
+@end deffn
+
+
+@deffn {Unsafe Operation} $remainder-bignum-flonum @var{bn} @var{fl}
+Perform the integer division between a bignum and a flonum; return
+flonums.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Flonum as first argument
+
+
+@deffn {Unsafe Operation} $remainder-flonum-fixnum @var{fl} @var{fx}
+Perform the integer division between a flonum and a fixnum; return
+flonums.
+@end deffn
+
+
+@deffn {Unsafe Operation} $remainder-flonum-bignum @var{fl} @var{bn}
+Perform the integer division between a flonum and a bignum; return
+flonums.
+@end deffn
+
+
+@deffn {Unsafe Operation} $remainder-flonum-flonum @vari{fl} @varii{fl}
+Perform the integer division between a flonum and a flonum; return
+flonums.
+@end deffn
+
+@c page
+@node syslib numerics modulo
+@subsection Modulo between numbers
+
+
+These functions perform the integer division between exact and inexact
+numbers and return the modulo.  For all the functions: the second
+argument must be non--zero.  @ref{syslib numerics quorem} for more
+details on the operations.
+
+@c ------------------------------------------------------------
+
+@subsubheading Any number as first argument
+
+
+@deffn {Unsafe Operation} $modulo-number-fixnum @var{num} @var{fx}
+Perform the integer division between any exact or inexact integer and a
+fixnum.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+
+@deffn {Unsafe Operation} $modulo-number-bignum @var{num} @var{bn}
+Perform the integer division between any exact or inexact integer and a
+bignum.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+
+@deffn {Unsafe Operation} $modulo-number-flonum @var{num} @var{fl}
+Perform the integer division between any exact or inexact integer and a
+flonum.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Any number as second argument
+
+
+@deffn {Unsafe Operation} $modulo-fixnum-number @var{fx} @var{num}
+Perform the integer division between a fixnum and any exact or inexact
+integer.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+
+@deffn {Unsafe Operation} $modulo-bignum-number @var{bn} @var{num}
+Perform the integer division between a bignum and any exact or inexact
+integer.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+
+@deffn {Unsafe Operation} $modulo-flonum-number @var{fl} @var{num}
+Perform the integer division between a flonum and any exact or inexact
+integer.  If @var{num} is not an integer: an error is raised.  Return
+exact or inexact integers.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Fixnum as first argument
+
+
+@deffn {Unsafe Operation} $modulo-fixnum-fixnum @vari{fx} @varii{fx}
+Perform the integer division between a fixnum and a fixnum; return
+fixnums.
+@end deffn
+
+
+@deffn {Unsafe Operation} $modulo-fixnum-bignum @var{fx} @var{bn}
+Perform the integer division between a fixnum and a bignum; return
+fixnums.
+@end deffn
+
+
+@deffn {Unsafe Operation} $modulo-fixnum-flonum @var{fx} @var{fl}
+Perform the integer division between a fixnum and a flonum; return
+flonums.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Bignum as first argument
+
+
+@deffn {Unsafe Operation} $modulo-bignum-fixnum @var{bn} @var{fx}
+Perform the integer division between a bignum and a fixnum; return
+fixnums.
+@end deffn
+
+
+@deffn {Unsafe Operation} $modulo-bignum-bignum @vari{bn} @varii{bn}
+Perform the integer division between a bignum and a bignum; return
+fixnums or bignums.
+@end deffn
+
+
+@deffn {Unsafe Operation} $modulo-bignum-flonum @var{bn} @var{fl}
+Perform the integer division between a bignum and a flonum; return
+flonums.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Flonum as first argument
+
+
+@deffn {Unsafe Operation} $modulo-flonum-fixnum @var{fl} @var{fx}
+Perform the integer division between a flonum and a fixnum; return
+flonums.
+@end deffn
+
+
+@deffn {Unsafe Operation} $modulo-flonum-bignum @var{fl} @var{bn}
+Perform the integer division between a flonum and a bignum; return
+flonums.
+@end deffn
+
+
+@deffn {Unsafe Operation} $modulo-flonum-flonum @vari{fl} @varii{fl}
+Perform the integer division between a flonum and a flonum; return
+flonums.
+@end deffn
+
+@c page
+@node syslib numerics max
+@subsection Maximum between numbers
+
+
+Notice that if one of the operands is @code{+nan.0} the result is
+@code{+nan.0}.
+
+
+@subsubheading Any number as first argument
+
+
+@deffn {Unsafe Operation} $max-number-fixnum @var{num} @var{fx}
+Return the maximum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $max-number-bignum @var{num} @var{bn}
+Return the maximum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $max-number-ratnum @var{num} @var{rt}
+Return the maximum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $max-number-flonum @var{num} @var{fl}
+Return the maximum between the arguments.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Any number as second argument
+
+
+@deffn {Unsafe Operation} $max-fixnum-number @var{fx} @var{num}
+Return the maximum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $max-bignum-number @var{bn} @var{num}
+Return the maximum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $max-flonum-number @var{fl} @var{num}
+Return the maximum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $max-ratnum-number @var{rt} @var{num}
+Return the maximum between the arguments.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Fixnum as first argument
+
+
+@deffn {Unsafe Operation} $max-fixnum-fixnum @vari{fx} @varii{fx}
+Return the maximum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $max-fixnum-bignum @var{fx} @var{bn}
+Return the maximum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $max-fixnum-flonum @var{fx} @var{fl}
+Return the maximum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $max-fixnum-ratnum @var{fx} @var{rt}
+Return the maximum between the arguments.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Bignum as first argument
+
+
+@deffn {Unsafe Operation} $max-bignum-fixnum @var{bn} @var{fx}
+Return the maximum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $max-bignum-bignum @vari{bn} @varii{bn}
+Return the maximum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $max-bignum-ratnum @var{bn} @var{rt}
+Return the maximum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $max-bignum-flonum @var{bn} @var{fl}
+Return the maximum between the arguments.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Flonum as first argument
+
+
+@deffn {Unsafe Operation} $max-flonum-fixnum @var{fl} @var{fx}
+Return the maximum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $max-flonum-bignum @var{fl} @var{bn}
+Return the maximum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $max-flonum-ratnum @var{fl} @var{rt}
+Return the maximum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $max-flonum-flonum @vari{fl} @varii{fl}
+Return the maximum between the arguments.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Ratnum as first argument
+
+
+@deffn {Unsafe Operation} $max-ratnum-fixnum @var{rt} @var{fx}
+Return the maximum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $max-ratnum-bignum @var{rt} @var{bn}
+Return the maximum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $max-ratnum-ratnum @vari{rt} @varii{rt}
+Return the maximum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $max-ratnum-flonum @var{rt} @var{fl}
+Return the maximum between the arguments.
+@end deffn
+
+@c page
+@node syslib numerics min
+@subsection Minimum between numbers
+
+
+Notice that if one of the operands is @code{+nan.0} the result is
+@code{+nan.0}.
+
+
+@subsubheading Any number as first argument
+
+
+@deffn {Unsafe Operation} $min-number-fixnum @var{num} @var{fx}
+Return the minimum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $min-number-bignum @var{num} @var{bn}
+Return the minimum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $min-number-ratnum @var{num} @var{rt}
+Return the minimum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $min-number-flonum @var{num} @var{fl}
+Return the minimum between the arguments.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Any number as second argument
+
+
+@deffn {Unsafe Operation} $min-fixnum-number @var{fx} @var{num}
+Return the minimum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $min-bignum-number @var{bn} @var{num}
+Return the minimum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $min-flonum-number @var{fl} @var{num}
+Return the minimum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $min-ratnum-number @var{rt} @var{num}
+Return the minimum between the arguments.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Fixnum as first argument
+
+
+@deffn {Unsafe Operation} $min-fixnum-fixnum @vari{fx} @varii{fx}
+Return the minimum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $min-fixnum-bignum @var{fx} @var{bn}
+Return the minimum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $min-fixnum-flonum @var{fx} @var{fl}
+Return the minimum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $min-fixnum-ratnum @var{fx} @var{rt}
+Return the minimum between the arguments.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Bignum as first argument
+
+
+@deffn {Unsafe Operation} $min-bignum-fixnum @var{bn} @var{fx}
+Return the minimum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $min-bignum-bignum @vari{bn} @varii{bn}
+Return the minimum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $min-bignum-ratnum @var{bn} @var{rt}
+Return the minimum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $min-bignum-flonum @var{bn} @var{fl}
+Return the minimum between the arguments.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Flonum as first argument
+
+
+@deffn {Unsafe Operation} $min-flonum-fixnum @var{fl} @var{fx}
+Return the minimum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $min-flonum-bignum @var{fl} @var{bn}
+Return the minimum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $min-flonum-ratnum @var{fl} @var{rt}
+Return the minimum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $min-flonum-flonum @vari{fl} @varii{fl}
+Return the minimum between the arguments.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Ratnum as first argument
+
+
+@deffn {Unsafe Operation} $min-ratnum-fixnum @var{rt} @var{fx}
+Return the minimum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $min-ratnum-bignum @var{rt} @var{bn}
+Return the minimum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $min-ratnum-ratnum @vari{rt} @varii{rt}
+Return the minimum between the arguments.
+@end deffn
+
+
+@deffn {Unsafe Operation} $min-ratnum-flonum @var{rt} @var{fl}
+Return the minimum between the arguments.
+@end deffn
+
+@c page
+@node syslib numerics abs
+@subsection Absolute value of real numbers
+
+
+@deffn {Unsafe Operation} $abs-fixnum @var{fx}
+Compute the absolute value of a fixnum; return a fixnum or bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $abs-bignum @var{bn}
+Compute the absolute value of a bignum; return a fixnum or bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $abs-flonum @var{fl}
+Compute the absolute value of a flonum; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $abs-ratnum
+Compute the absolute value of a ratnum; return a ratnum.
+@end deffn
+
+@c page
+@node syslib numerics sign
+@subsection Sign of real numbers
+
+
+@deffn {Unsafe Operation} $sign-fixnum @var{fx}
+Return a fixnum representing the sign of @var{fx}: @code{+1} for
+positive, @code{-1} for negative, @code{0} for zero.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sign-bignum @var{bn}
+Return a fixnum representing the sign of @var{bn}: @code{+1} for
+positive, @code{-1} for negative.  Bignums do not represent zero.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sign-flonum @var{fl}
+Return a flonum representing the sign of @var{fx}: @code{+1.0} for
+positive, including @code{+0.0} and @code{+inf.0}; @code{-1.0} for
+negative, including @code{-0.0} and @code{-inf.0}; @code{+nan.0} for
+not--a--number.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sign-ratnum @var{rt}
+Return a fixnum representing the sign of the numerator of @var{rt}:
+@code{+1} for positive, @code{-1} for negative.  Ratnums do not
+represent zero.
+@end deffn
+
+@c page
+@node syslib numerics expt
+@subsection Raising numbers to power
+
+
+@menu
+* syslib numerics expt any::            Any number as first argument.
+* syslib numerics expt zero::           Exact zero exponent.
+* syslib numerics expt posi::           Positive fixnum exponent.
+* syslib numerics expt nega::           Negative fixnum exponent.
+* syslib numerics expt fixnums::        Fixnum as first argument.
+* syslib numerics expt bignums::        Bignum as first argument.
+* syslib numerics expt ratnums::        Ratnum as first argument.
+* syslib numerics expt flonums::        Flonum as first argument.
+* syslib numerics expt compnums::       Compnum as first argument.
+* syslib numerics expt cflonums::       Cflonum as first argument.
+@end menu
+
+@c page
+@node syslib numerics expt any
+@subsubsection Any number as first argument
+
+
+@deffn {Unsafe Operation} $expt-number-fixnum @var{num} @var{fx}
+Compute @var{num} raised to the power @var{fx}; return an unspecified
+number object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-number-bignum @var{num} @var{bn}
+Compute @var{num} raised to the power @var{bn}; return an unspecified
+number object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-number-flonum @var{num} @var{fl}
+Compute @var{num} raised to the power @var{fl}; return an unspecified
+inexact number object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-number-ratnum @var{num} @var{rt}
+Compute @var{num} raised to the power @var{rt}; return an unspecified
+number object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-number-compnum @var{num} @var{cn}
+Compute @var{num} raised to the power @var{cn}; return an unspecified
+number object, but most likely a complex number.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-number-cflonum @var{num} @var{cfl}
+Compute @var{num} raised to the power @var{cfl}; return an unspecified
+inexact complex number object.
+@end deffn
+
+@c page
+@node syslib numerics expt zero
+@subsubsection Exact zero exponent
+
+
+@deffn {Unsafe Operation} $expt-number-zero-fixnum @var{num}
+Compute @var{num} raised to the power of exact zero; return an
+unspecified number object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-fixnum-zero-fixnum @var{fx}
+Compute @var{fx} raised to the power of exact zero; return a fixnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-flonum-zero-fixnum @var{fl}
+Compute @var{fl} raised to the power of exact zero; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-compnum-zero-fixnum @var{cn}
+Compute @var{cn} raised to the power of exact zero; return an
+unspecified number object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-cflonum-zero-fixnum @var{cfl}
+Compute @var{cfl} raised to the power of exact zero; return a cflonum.
+@end deffn
+
+@c page
+@node syslib numerics expt posi
+@subsubsection Positive fixnum exponent
+
+
+@deffn {Unsafe Operation} $expt-number-positive-fixnum @var{num} @var{fx}
+Compute @var{num} raised to the power of positive @var{fx}; return an
+unspecified number object.  @var{fx} must be a positive fixnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-fixnum-positive-fixnum @vari{fx} @varii{fx}
+Compute @vari{fx} raised to the power of positive @varii{fx}; return an
+exact number object.  @varii{fx} must be a positive fixnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-bignum-positive-fixnum @var{bn} @var{fx}
+Compute @var{bn} raised to the power of positive @var{fx}; return an
+exact number object.  @var{fx} must be a positive fixnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-ratnum-positive-fixnum @var{rt} @var{fx}
+Compute @var{rt} raised to the power of positive @var{fx}; return an
+exact number object.  @var{fx} must be a positive fixnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-flonum-positive-fixnum @var{fl} @var{fx}
+Compute @var{fl} raised to the power of positive @var{fx}; return an
+inexact number object.  @var{fx} must be a positive fixnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-compnum-positive-fixnum @var{cn} @var{fx}
+Compute @var{cn} raised to the power of positive @var{fx}; return a
+cflonum.  @var{fx} must be a positive fixnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-cflonum-positive-fixnum @var{cfl} @var{fx}
+Compute @var{cfl} raised to the power of positive @var{fx}; return a
+cflonum.  @var{fx} must be a positive fixnum.
+@end deffn
+
+@c page
+@node syslib numerics expt nega
+@subsubsection Negative fixnum exponent
+
+
+@deffn {Unsafe Operation} $expt-number-negative-fixnum @var{num} @var{fx}
+Compute @var{num} raised to the power of negative @var{fx}; return an
+unspecified number object.  @var{fx} must be a negative fixnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-fixnum-negative-fixnum @vari{fx} @varii{fx}
+Compute @vari{fx} raised to the power of negative @varii{fx}; return an
+exact number object.  @varii{fx} must be a negative fixnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-bignum-negative-fixnum @var{bn} @var{fx}
+Compute @var{bn} raised to the power of negative @var{fx}; return an
+exact number object.  @var{fx} must be a negative fixnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-ratnum-negative-fixnum @var{rt} @var{fx}
+Compute @var{rt} raised to the power of negative @var{fx}; return an
+exact number object.  @var{fx} must be a negative fixnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-flonum-negative-fixnum @var{fl} @var{fx}
+Compute @var{fl} raised to the power of negative @var{fx}; return an
+inexact number object.  @var{fx} must be a negative fixnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-compnum-negative-fixnum @var{cn} @var{fx}
+Compute @var{cn} raised to the power of negative @var{fx}; return a
+cflonum.  @var{fx} must be a negative fixnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-cflonum-negative-fixnum @var{cfl} @var{fx}
+Compute @var{cfl} raised to the power of negative @var{fx}; return a
+cflonum.  @var{fx} must be a negative fixnum.
+@end deffn
+
+@c page
+@node syslib numerics expt fixnums
+@subsubsection Fixnum as first argument
+
+
+@deffn {Unsafe Operation} $expt-fixnum-fixnum @vari{fx} @varii{fx}
+Compute @vari{fx} raised to the power @varii{fx}; return an exact number
+object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-fixnum-bignum @var{fx} @var{bn}
+Compute @var{fx} raised to the power @var{bn}; return an exact number
+object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-fixnum-ratnum @var{fx} @var{rt}
+Compute @var{fx} raised to the power @var{rt}; return an exact number
+object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-fixnum-flonum @var{fx} @var{fl}
+Compute @var{fx} raised to the power @var{fl}; return an inexact number
+object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-fixnum-compnum @var{fx} @var{cn}
+Compute @var{fx} raised to the power @var{cn}; return a complex number
+object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-fixnum-cflonum @var{fx} @var{cfl}
+Compute @var{fx} raised to the power @var{cfl}; return an inexact
+complex number object.
+@end deffn
+
+@c page
+@node syslib numerics expt bignums
+@subsubsection Bignum as first argument
+
+
+@deffn {Unsafe Operation} $expt-bignum-fixnum @var{bn} @var{fx}
+Compute @var{bn} raised to the power of @var{fx}; return an exact number
+object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-bignum-bignum @vari{bn} @varii{bn}
+Raise an implementation restriction violation.
+@ignore
+Compute @vari{bn} raised to the power @varii{bn}; return an exact number
+object.
+@end ignore
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-bignum-ratnum @var{bn} @var{rt}
+Compute @var{bn} raised to the power @var{rt}; return an inexact number
+object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-bignum-flonum @var{bn} @var{fl}
+Compute @var{bn} raised to the power @var{fl}; return an inexact number
+object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-bignum-compnum @var{bn} @var{cn}
+Compute @var{bn} raised to the power @var{cn}; return an inexact complex
+number object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-bignum-cflonum @var{bn} @var{cfl}
+Compute @var{bn} raised to the power @var{cfl}; return an inexact
+complex number object.
+@end deffn
+
+@c page
+@node syslib numerics expt ratnums
+@subsubsection Ratnum as first argument
+
+
+@deffn {Unsafe Operation} $expt-ratnum-fixnum @var{rt} @var{fx}
+Compute @var{rt} raised to the power of @var{fx}; return an exact number
+object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-ratnum-bignum @var{rt} @var{bn}
+Compute @var{rt} raised to the power @var{bn}; return an inexact number
+object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-ratnum-ratnum @vari{rt} @varii{rt}
+Compute @vari{rt} raised to the power @varii{rt}; return an inexact
+number object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-ratnum-flonum @var{rt} @var{fl}
+Compute @var{rt} raised to the power @var{fl}; return an inexact number
+object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-ratnum-compnum @var{rt} @var{cn}
+Compute @var{rt} raised to the power @var{cn}; return an inexact complex
+number object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-ratnum-cflonum @var{rt} @var{cfl}
+Compute @var{rt} raised to the power @var{cfl}; return an inexact
+complex number object.
+@end deffn
+
+@c page
+@node syslib numerics expt flonums
+@subsubsection Flonum as first argument
+
+
+@deffn {Unsafe Operation} $expt-flonum-fixnum @var{fl} @var{fx}
+Compute @var{fl} raised to the power of @var{fx}; return an inexact
+number object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-flonum-bignum @var{fl} @var{bn}
+Compute @var{fl} raised to the power @var{bn}; return an inexact number
+object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-flonum-ratnum @var{fl} @var{rt}
+Compute @var{fl} raised to the power @var{rt}; return an inexact number
+object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-flonum-flonum @vari{fl} @varii{fl}
+Compute @vari{fl} raised to the power @varii{fl}; return an inexact
+number object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-flonum-compnum @var{fl} @var{cn}
+Compute @var{fl} raised to the power @var{cn}; return an inexact complex
+number object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-flonum-cflonum @var{fl} @var{cfl}
+Compute @var{fl} raised to the power @var{cfl}; return an inexact
+complex number object.
+@end deffn
+
+@c page
+@node syslib numerics expt compnums
+@subsubsection Compnum as first argument
+
+
+@deffn {Unsafe Operation} $expt-compnum-fixnum @var{cn} @var{fx}
+Compute @var{cn} raised to the power of @var{fx}; return a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-compnum-bignum @var{cn} @var{bn}
+Compute @var{cn} raised to the power @var{bn}; return a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-compnum-ratnum @var{cn} @var{rt}
+Compute @var{cn} raised to the power @var{rt}; return a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-compnum-flonum @var{cn} @var{fl}
+Compute @var{cn} raised to the power @var{fl}; return a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-compnum-compnum @vari{cn} @varii{cn}
+Compute @vari{cn} raised to the power @varii{cn}; return a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-compnum-cflonum @var{cn} @var{cfl}
+Compute @var{cn} raised to the power @var{cfl}; return a cflonum.
+@end deffn
+
+@c page
+@node syslib numerics expt cflonums
+@subsubsection Cflonum as first argument
+
+
+@deffn {Unsafe Operation} $expt-cflonum-fixnum @var{cfl} @var{fx}
+Compute @var{cfl} raised to the power of @var{fx}; return a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-cflonum-bignum @var{cfl} @var{bn}
+Compute @var{cfl} raised to the power @var{bn}; return a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-cflonum-ratnum @var{cfl} @var{rt}
+Compute @var{cfl} raised to the power @var{rt}; return a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-cflonum-flonum @var{cfl} @var{fl}
+Compute @var{cfl} raised to the power @var{fl}; return a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-cflonum-compnum @var{cfl} @var{cn}
+Compute @var{cfl} raised to the power @var{cfl}; return a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $expt-cflonum-cflonum @vari{cfl} @varii{cfl}
+Compute @vari{cfl} raised to the power @varii{cfl}; return a cflonum.
+@end deffn
+
+@c page
+@node syslib numerics sqrt
+@subsection Square root of numbers
+
+
+@deffn {Unsafe Operation} $sqrt-fixnum @var{fx}
+Compute the principal square root of @var{fx}; return an unspecified
+number object.
+
+@example
+($sqrt-fixnum 0)       @result{} 0
+
+($sqrt-fixnum +1)      @result{} +1
+($sqrt-fixnum -1)      @result{} +1i
+
+($sqrt-fixnum +4)      @result{} +2
+($sqrt-fixnum -4)      @result{} +2i
+
+($sqrt-fixnum +5)      @result{} 2.23606797749979
+($sqrt-fixnum -5)      @result{} 0.0+2.23606797749979i
+@end example
+@end deffn
+
+
+@deffn {Unsafe Operation} $sqrt-bignum @var{bn}
+Compute the principal square root of @var{bn}; return an unspecified
+number object.
+
+@example
+(define SMALLEST-POSITIVE-BIGNUM (-    (least-fixnum)))
+(define SMALLEST-NEGATIVE-BIGNUM (+ -1 (least-fixnum)))
+
+(define BN1 (+ +1  SMALLEST-POSITIVE-BIGNUM))
+(define BN2 (+ +10 SMALLEST-POSITIVE-BIGNUM))
+(define BN3 (+ -1  SMALLEST-NEGATIVE-BIGNUM))
+(define BN4 (+ -10 SMALLEST-NEGATIVE-BIGNUM))
+
+;; on a 32-bit host
+($sqrt-bignum BN1)      @result{} 23170.475027499975
+($sqrt-bignum BN2)      @result{} 23170.47522171265
+($sqrt-bignum BN3)      @result{} 0.0+23170.475049079163i
+($sqrt-bignum BN4)      @result{} 0.0+23170.47524329184i
+@end example
+@end deffn
+
+
+@deffn {Unsafe Operation} $sqrt-ratnum @var{rt}
+Compute the principal square root of @var{rt}; return an unspecified
+number object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sqrt-flonum @var{fl}
+Compute the principal square root of @var{fl}; return a flonum, compnum
+or cflonum.
+
+@example
+($sqrt-flonum +0.0)     @result{} +0.0
+($sqrt-flonum -0.0)     @result{} +0.0i
+
+($sqrt-flonum +4.0)     @result{} +2.0
+($sqrt-flonum -4.0)     @result{} +2.0i
+
+($sqrt-flonum +1.0)     @result{} +1.0
+($sqrt-flonum -1.0)     @result{} +1.0i
+
+($sqrt-flonum +5.0)     @result{} 2.23606797749979
+($sqrt-flonum -5.0)     @result{} 0.0+2.23606797749979i
+
+($sqrt-flonum +inf.0)   @result{} +inf.0
+($sqrt-flonum -inf.0)   @result{} +inf.0i
+
+($sqrt-flonum +nan.0)   @result{} +nan.0
+@end example
+@end deffn
+
+
+@deffn {Unsafe Operation} $sqrt-compnum @var{cn}
+Compute the principal square root of @var{cn}; return an unspecified
+number object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sqrt-cflonum @var{cfl}
+Compute the principal square root of @var{cfl}; return a cflonum.
+@end deffn
+
+@c ------------------------------------------------------------
+
+
+@deffn {Unsafe Operation} $exact-integer-sqrt-fixnum @var{fx}
+Return two non--negative exact integer objects being the root and the
+residual of @var{fx}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $exact-integer-sqrt-bignum @var{bn}
+Return two non--negative exact integer objects being the root and the
+residual of @var{bn}.
+@end deffn
+
+@c page
+@node syslib numerics log
+@subsection Logarithms of numbers
+
+
+@deffn {Unsafe Operation} $log-fixnum @var{fx}
+Compute the natural logarithm of @var{fx}; return a fixnum, flonum or
+cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $log-bignum @var{bn}
+Compute the natural logarithm of @var{fl}; return an inexact number
+object.  cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $log-flonum @var{fl}
+Compute the natural logarithm of @var{fl}; return a flonum or cflonum.
+This function computes the result also when @var{fl} is a negative
+flonum, whose logarithm is a complex number; this makes it different
+from @func{$fllog}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $log-ratnum @var{rt}
+Compute the natural logarithm of @var{rt}; return an inexact number
+object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $log-compnum @var{cn}
+Compute the natural logarithm of @var{cn}; return an inexact number
+object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $log-cflonum @var{cfl}
+Compute the natural logarithm of @var{cfl}; return a cflonum.
+@end deffn
+
+@c page
+@node syslib numerics exp
+@subsection Exponentials of numbers
+
+
+@deffn {Unsafe Operation} $exp-fixnum @var{fx}
+Compute the base @math{e} exponential of @var{fx}; return a fixnum or
+flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $exp-bignum @var{bn}
+Compute the base @math{e} exponential of @var{bn}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $exp-ratnum @var{rt}
+Compute the base @math{e} exponential of @var{rt}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $exp-flonum @var{fl}
+Compute the base @math{e} exponential of @var{fl}; return a flonum.
+This is just an alias for @func{$flexp}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $exp-compnum @var{cn}
+Compute the base @math{e} exponential of @var{cn}; return a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $exp-cflonum @var{cfl}
+Compute the base @math{e} exponential of @var{cfl}; return a cflonum.
+@end deffn
+
+@c page
+@node syslib numerics sin
+@subsection Trigonometric sine
+
+
+@deffn {Unsafe Operation} $sin-fixnum @var{fx}
+Compute the trigonometric sine of @var{fx}; return a fixnum or flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sin-bignum @var{bn}
+Compute the trigonometric sine of @var{bn}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sin-ratnum @var{rt}
+Compute the trigonometric sine of @var{rt}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sin-flonum @var{fl}
+Compute the trigonometric sine of @var{fl}; return a flonum.  This is an
+alias for @func{$flsin}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sin-cflonum @var{cfl}
+Compute the trigonometric sine of @var{cfl}; return a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sin-compnum @var{cn}
+Compute the trigonometric sine of @var{cn}; return a cflonum.
+@end deffn
+
+@c page
+@node syslib numerics cos
+@subsection Trigonometric cosine
+
+
+@deffn {Unsafe Operation} $cos-fixnum @var{fx}
+Compute the trigonometric cosine of @var{fx}; return a fixnum or flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $cos-bignum @var{bn}
+Compute the trigonometric cosine of @var{bn}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $cos-ratnum @var{rt}
+Compute the trigonometric cosine of @var{rt}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $cos-flonum @var{fl}
+Compute the trigonometric cosine of @var{fl}; return a flonum.  This is
+an alias for @func{$flcos}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $cos-cflonum @var{cfl}
+Compute the trigonometric cosine of @var{cfl}; return a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $cos-compnum @var{cn}
+Compute the trigonometric cosine of @var{cn}; return a cflonum.
+@end deffn
+
+@c page
+@node syslib numerics tan
+@subsection Trigonometric tangent
+
+
+@deffn {Unsafe Operation} $tan-fixnum @var{fx}
+Compute the trigonometric tangent of @var{fx}; return a fixnum or
+flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $tan-bignum @var{bn}
+Compute the trigonometric tangent of @var{bn}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $tan-ratnum @var{rt}
+Compute the trigonometric tangent of @var{rt}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $tan-flonum @var{fl}
+Compute the trigonometric tangent of @var{fl}; return a flonum.  This is
+an alias for @func{$fltan}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $tan-cflonum @var{cfl}
+Compute the trigonometric tangent of @var{cfl}; return a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $tan-compnum @var{cn}
+Compute the trigonometric tangent of @var{cn}; return a cflonum.
+@end deffn
+
+@c page
+@node syslib numerics asin
+@subsection Trigonometric arc sine
+
+
+@deffn {Unsafe Operation} $asin-fixnum @var{fx}
+Compute the trigonometric arc sine of @var{fx}; return a flonum or
+cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $asin-bignum @var{bn}
+Compute the trigonometric arc sine of @var{bn}; return a flonum or
+cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $asin-ratnum @var{rt}
+Compute the trigonometric arc sine of @var{rt}; return a flonum or
+cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $asin-flonum @var{fl}
+Compute the trigonometric arc sine of @var{fl}; return a flonum or
+cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $asin-cflonum @var{cfl}
+Compute the trigonometric arc sine of @var{fl}; return a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $asin-compnum @var{cn}
+Compute the trigonometric arc sine of @var{fl}; return a number object.
+@end deffn
+
+@c page
+@node syslib numerics acos
+@subsection Trigonometric arc cosine
+
+
+@deffn {Unsafe Operation} $acos-fixnum @var{fx}
+Compute the trigonometric arc cosine of @var{fx}; return a flonum or
+compnum or cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $acos-bignum @var{bn}
+Compute the trigonometric arc cosine of @var{bn}; return a flonum or
+compnum or cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $acos-ratnum @var{rt}
+Compute the trigonometric arc cosine of @var{rt}; return a flonum or
+compnum or cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $acos-flonum @var{fl}
+Compute the trigonometric arc cosine of @var{fl}; return a flonum or
+compnum or cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $acos-cflonum @var{cfl}
+Compute the trigonometric arc cosine of @var{fl}; return a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $acos-compnum @var{cn}
+Compute the trigonometric arc cosine of @var{fl}; return a number
+object.
+@end deffn
+
+@c page
+@node syslib numerics atan
+@subsection Trigonometric arc tangent
+
+
+@deffn {Unsafe Operation} $atan2-real-real @var{imp} @var{rep}
+Compute the principal value of the trigonometric arc tangent of flonum
+@var{imp} over flonum @var{rep} using the signs of the arguments to
+determine the quadrant of the result:
+
+@example
+\alpha = \atan (@var{imp}/@var{rep})
+@end example
+
+@noindent
+in other words compute the angle @math{\alpha} such that:
+
+@example
+               \sin(\alpha)   @var{imp}
+\tan(\alpha) = ------------ = ---
+               \cos(\alpha)   @var{rep}
+@end example
+
+@noindent
+in yet other words compute the angle of the complex number having the
+flonum @var{rep} as real part and the flonum @var{imp} as imaginary
+part:
+
+@example
+(angle (make-rectangular @var{rep} @var{imp}))
+@end example
+
+@noindent
+return a flonum.  This operation is implemented using the @posix{}
+function @cfunc{atan2}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $atan-fixnum @var{fx}
+Compute the trigonometric arc tangent of @var{fx}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $atan-bignum @var{bn}
+Compute the trigonometric arc tangent of @var{bn}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $atan-ratnum @var{rt}
+Compute the trigonometric arc tangent of @var{rt}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $atan-flonum @var{fl}
+Compute the trigonometric arc tangent of @var{fl}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $atan-cflonum @var{cfl}
+Compute the trigonometric arc tangent of @var{fl}; return a cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $atan-compnum @var{cn}
+Compute the trigonometric arc tangent of @var{fl}; return a number
+object.
+@end deffn
+
+@c page
+@node syslib numerics sinh
+@subsection Hyperbolic sine
+
+
+@deffn {Unsafe Operation} $sinh-fixnum @var{fx}
+Compute the hyperbolic sine of @var{fx}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sinh-bignum @var{bn}
+Compute the hyperbolic sine of @var{bn}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sinh-ratnum @var{rt}
+Compute the hyperbolic sine of @var{rt}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sinh-flonum @var{fl}
+Compute the hyperbolic sine of @var{fl}; return a flonum.  This is an
+alias for @func{$flsinh}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sinh-compnum @var{cn}
+Compute the hyperbolic sine of @var{cn}; return a number object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $sinh-cflonum @var{cfl}
+Compute the hyperbolic sine of @var{cfl}; return a cflonum.
+@end deffn
+
+@c page
+@node syslib numerics cosh
+@subsection Hyperbolic cosine
+
+
+@deffn {Unsafe Operation} $cosh-fixnum @var{fx}
+Compute the hyperbolic cosine of @var{fx}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $cosh-bignum @var{bn}
+Compute the hyperbolic cosine of @var{bn}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $cosh-ratnum @var{rt}
+Compute the hyperbolic cosine of @var{rt}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $cosh-flonum @var{fl}
+Compute the hyperbolic cosine of @var{fl}; return a flonum.  This is an
+alias for @func{$flcosh}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $cosh-compnum @var{cn}
+Compute the hyperbolic cosine of @var{cn}; return a number object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $cosh-cflonum @var{cfl}
+Compute the hyperbolic cosine of @var{cfl}; return a cflonum.
+@end deffn
+
+@c page
+@node syslib numerics tanh
+@subsection Hyperbolic tangent
+
+
+@deffn {Unsafe Operation} $tanh-fixnum @var{fx}
+Compute the hyperbolic tangent of @var{fx}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $tanh-bignum @var{bn}
+Compute the hyperbolic tangent of @var{bn}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $tanh-ratnum @var{rt}
+Compute the hyperbolic tangent of @var{rt}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $tanh-flonum @var{fl}
+Compute the hyperbolic tangent of @var{fl}; return a flonum.  This is an
+alias for @func{$fltanh}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $tanh-compnum @var{cn}
+Compute the hyperbolic tangent of @var{cn}; return a number object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $tanh-cflonum @var{cfl}
+Compute the hyperbolic tangent of @var{cfl}; return a cflonum.
+@end deffn
+
+@c page
+@node syslib numerics asinh
+@subsection Hyperbolic arc sine
+
+
+@deffn {Unsafe Operation} $asinh-fixnum @var{fx}
+Compute the inverse hyperbolic sine of @var{fx}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $asinh-bignum @var{bn}
+Compute the inverse hyperbolic sine of @var{bn}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $asinh-ratnum @var{rt}
+Compute the inverse hyperbolic sine of @var{rt}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $asinh-flonum @var{fl}
+Compute the inverse hyperbolic sine of @var{fl}; return a flonum.  This
+is an alias for @func{$flsinh}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $asinh-compnum @var{cn}
+Compute the inverse hyperbolic sine of @var{cn}; return a number object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $asinh-cflonum @var{cfl}
+Compute the inverse hyperbolic sine of @var{cfl}; return a cflonum.
+@end deffn
+
+@c page
+@node syslib numerics acosh
+@subsection Hyperbolic arc cosine
+
+
+@deffn {Unsafe Operation} $acosh-fixnum @var{fx}
+Compute the inverse hyperbolic cosine of @var{fx}; return a flonum,
+compnum or cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $acosh-bignum @var{bn}
+Compute the inverse hyperbolic cosine of @var{bn}; return a flonum,
+compnum or cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $acosh-ratnum @var{rt}
+Compute the inverse hyperbolic cosine of @var{rt}; return a flonum,
+compnum or cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $acosh-flonum @var{fl}
+Compute the inverse hyperbolic cosine of @var{fl}; return a flonum,
+compnum or cflonum.  This is different from @func{$flacosh} whose return
+value is a flonum begin @code{+nan.0} when the operand is out of the
+domain for real numbers.
+@end deffn
+
+
+@deffn {Unsafe Operation} $acosh-compnum @var{cn}
+Compute the inverse hyperbolic cosine of @var{cn}; return a number
+object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $acosh-cflonum @var{cfl}
+Compute the inverse hyperbolic cosine of @var{cfl}; return a cflonum.
+@end deffn
+
+@c page
+@node syslib numerics atanh
+@subsection Hyperbolic arc tangent
+
+
+@deffn {Unsafe Operation} $atanh-fixnum @var{fx}
+Compute the inverse hyperbolic tangent of @var{fx}; return a flonum or
+cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $atanh-bignum @var{bn}
+Compute the inverse hyperbolic tangent of @var{bn}; return a flonum or
+cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $atanh-ratnum @var{rt}
+Compute the inverse hyperbolic tangent of @var{rt}; return a flonum or
+cflonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $atanh-flonum @var{fl}
+Compute the inverse hyperbolic tangent of @var{fl}; return a flonum or
+cflonum.  This is different from @func{$flatanh} whose return value is a
+flonum begin @code{+nan.0} when the operand is out of the domain for
+real numbers.
+@end deffn
+
+
+@deffn {Unsafe Operation} $atanh-compnum @var{cn}
+Compute the inverse hyperbolic tangent of @var{cn}; return a number
+object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $atanh-cflonum @var{cfl}
+Compute the inverse hyperbolic tangent of @var{cfl}; return a cflonum.
+@end deffn
+
+
+@c page
+@node syslib numerics conjugate
+@subsection Complex conjugate
+
+
+@deffn {Unsafe Operation} $complex-conjugate-compnum @var{cn}
+Return a number object representing the complex conjugate of @var{cn}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $complex-conjugate-cflonum @var{cfl}
+Return a cflonum representing the complex conjugate of @var{cfl}.
+@end deffn
+
+@c page
+@node syslib numerics magnitude
+@subsection Magnitude of complex numbers
+
+
+@deffn {Unsafe Operation} $magnitude-fixnum @var{fx}
+Compute the magnitude of @var{fx}; return a fixnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $magnitude-bignum @var{bn}
+Compute the magnitude of @var{bn}; return a bignum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $magnitude-ratnum @var{rt}
+Compute the magnitude of @var{rt}; return a ratnum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $magnitude-flonum @var{fl}
+Compute the magnitude of @var{fl}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $magnitude-compnum @var{cn}
+Compute the magnitude of @var{cn}; return a number object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $magnitude-cflonum @var{cfl}
+Compute the magnitude of @var{cfl}; return a flonum.
+@end deffn
+
+@c page
+@node syslib numerics angle
+@subsection Angle of complex numbers
+
+
+@deffn {Unsafe Operation} $angle-fixnum @var{fx}
+Compute the angle of @var{fx}; return a fixnum or flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $angle-bignum @var{bn}
+Compute the angle of @var{bn}; return a fixnum or flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $angle-ratnum @var{rt}
+Compute the angle of @var{rt}; return a fixnum or flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $angle-flonum @var{fl}
+Compute the angle of @var{fl}; return a flonum.
+@end deffn
+
+
+@deffn {Unsafe Operation} $angle-compnum @var{cn}
+Compute the angle of @var{cn}; return a number object.
+@end deffn
+
+
+@deffn {Unsafe Operation} $angle-cflonum @var{cfl}
+Compute the angle of @var{cfl}; return a flonum.
+@end deffn
+
+@c page
+@node syslib numerics bitnot
+@subsection Bitwise logic not
+
+
+@deffn {Unsafe Operation} $bitwise-not-fixnum @var{fx}
+Apply the bitwise NOT operation to @var{fx}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bitwise-not-bignum @var{bn}
+Apply the bitwise NOT operation to @var{bn}.
+@end deffn
+
+@c page
+@node syslib numerics bitand
+@subsection Bitwise logic and
+
+
+@deffn {Unsafe Operation} $bitwise-and-fixnum-number @var{fx} @var{num}
+Apply the bitwise AND operation to the fixnum @var{fx} and the exact
+integer object @var{num}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bitwise-and-bignum-number @var{bn} @var{num}
+Apply the bitwise AND operation to the bignum @var{bn} and the exact
+integer @var{num}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bitwise-and-fixnum-fixnum @vari{fx} @varii{fx}
+Apply the bitwise AND operation to the fixnum @vari{fx} and the fixnum
+@varii{fx}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bitwise-and-fixnum-bignum @var{fx} @var{bn}
+Apply the bitwise AND operation to the fixnum @var{fx} and the bignum
+@var{bn}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bitwise-and-bignum-fixnum @var{bn} @var{fx}
+Apply the bitwise AND operation to the bignum @var{bn} and the fixnum
+@var{fx}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bitwise-and-bignum-bignum @vari{bn} @varii{bn}
+Apply the bitwise AND operation to the bignum @vari{bn} and the bignum
+@varii{bn}.
+@end deffn
+
+@c page
+@node syslib numerics bitior
+@subsection Bitwise logic inclusive or
+
+
+@deffn {Unsafe Operation} $bitwise-ior-fixnum-number @var{fx} @var{num}
+Apply the bitwise inclusive OR operation to the fixnum @var{fx} and the
+exact integer object @var{num}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bitwise-ior-bignum-number @var{bn} @var{num}
+Apply the bitwise inclusive OR operation to the bignum @var{bn} and the
+exact integer @var{num}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bitwise-ior-fixnum-fixnum @vari{fx} @varii{fx}
+Apply the bitwise inclusive OR operation to the fixnum @vari{fx} and the
+fixnum @varii{fx}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bitwise-ior-fixnum-bignum @var{fx} @var{bn}
+Apply the bitwise inclusive OR operation to the fixnum @var{fx} and the
+bignum @var{bn}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bitwise-ior-bignum-fixnum @var{bn} @var{fx}
+Apply the bitwise inclusive OR operation to the bignum @var{bn} and the
+fixnum @var{fx}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bitwise-ior-bignum-bignum @vari{bn} @varii{bn}
+Apply the bitwise inclusive OR operation to the bignum @vari{bn} and the
+bignum @varii{bn}.
+@end deffn
+
+@c page
+@node syslib numerics bitxor
+@subsection Bitwise logic exclusive or
+
+
+@deffn {Unsafe Operation} $bitwise-xor-fixnum-number @var{fx} @var{num}
+Apply the bitwise exclusive OR operation to the fixnum @var{fx} and the
+exact integer object @var{num}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bitwise-xor-bignum-number @var{bn} @var{num}
+Apply the bitwise exclusive OR operation to the bignum @var{bn} and the
+exact integer @var{num}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bitwise-xor-fixnum-fixnum @vari{fx} @varii{fx}
+Apply the bitwise exclusive OR operation to the fixnum @vari{fx} and the
+fixnum @varii{fx}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bitwise-xor-fixnum-bignum @var{fx} @var{bn}
+Apply the bitwise exclusive OR operation to the fixnum @var{fx} and the
+bignum @var{bn}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bitwise-xor-bignum-fixnum @var{bn} @var{fx}
+Apply the bitwise exclusive OR operation to the bignum @var{bn} and the
+fixnum @var{fx}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bitwise-xor-bignum-bignum @vari{bn} @varii{bn}
+Apply the bitwise exclusive OR operation to the bignum @vari{bn} and the
+bignum @varii{bn}.
+@end deffn
+
+@c page
+@node syslib chars
+@section Low level character operations
+
+
+@cindex @library{ikarus system $chars}, library
+@cindex Library @library{ikarus system $chars}
+
+
+The arguments @var{ch} to these operations must be characters, the
+arguments @var{fx} must be fixnums in the range @code{[0, #x10FFFF]} but
+not in the range @code{[#xD800, #xDFFF]}.  The following bindings are
+exported by the @library{ikarus system $chars} library.
+
+
+@deffn {Unsafe Operation} $char= @vari{ch} @varii{ch}
+Evaluate to true if the operands are equal.
+@end deffn
+
+
+@deffn {Unsafe Operation} $char< @vari{ch} @varii{ch}
+Evaluate to true if the @vari{ch} is less than @varii{ch}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $char<= @vari{ch} @varii{ch}
+Evaluate to true if the @vari{ch} is less than or equal to @varii{ch}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $char> @vari{ch} @varii{ch}
+Evaluate to true if the @vari{ch} is greater than @varii{ch}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $char>= @vari{ch} @varii{ch}
+Evaluate to true if the @vari{ch} is greater than or equal to
+@varii{ch}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $fixnum->char @var{fx}
+Return a new character value whose code point equals @var{fx}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $char->fixnum @var{ch}
+Return a fixnum representing the code point of the operand.
+@end deffn
+
+@c page
+@node syslib pairs
+@section Low level pair operations
+
+
+@cindex @library{ikarus system $pairs}, library
+@cindex Library @library{ikarus system $pairs}
+
+
+The arguments @var{P} to these operations must be pairs.  The following
+bindings are exported by the @library{ikarus system $pairs} library.
+@ref{objects pairs} for details of pair representation.
+
+
+@deffn {Unsafe Operation} $car @var{P}
+Return the car of the operand.
+@end deffn
+
+
+@deffn {Unsafe Operation} $cdr @var{P}
+Return the cdr of the operand.
+@end deffn
+
+
+@deffn {Unsafe Operation} $set-car! @var{P} @var{value}
+Store @var{value} in the car location of @var{P}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $set-cdr! @var{P} @var{value}
+Store @var{value} in the cdr location of @var{P}.
+@end deffn
+
+@c page
+@node syslib structs
+@section Low level structure operations
+
+
+@cindex @library{ikarus system $structs}, library
+@cindex Library @library{ikarus system $structs}
+
+
+The arguments @var{stru} to these operations must be references to data
+structures, the arguments @var{rtd} must be references to structure type
+descriptors, the arguments @var{fx} must be fixnums of appropriate
+value.  The following bindings are exported by the @library{ikarus
+system $structs} library.
+
+
+@deffn {Unsafe Operation} base-rtd
+Return a reference to the type descriptor used as type for all the type
+descriptors.
+@end deffn
+
+
+@deffn {Unsafe Operation} $struct? @var{obj}
+Evaluate to true if @var{obj} is the reference to a structure.
+@end deffn
+
+
+@deffn {Unsafe Operation} $struct/rtd? @var{stru} @var{rtd}
+Evaluate to true if @var{stru} is a structure of type @var{rtd}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $make-struct @var{rtd} @var{fx}
+Allocate a new data structure of type @var{rtd} capable of holding
+@var{fx} words and return a reference to it.
+
+@quotation
+@strong{NOTE} This operation does @strong{not} initialise the field
+words, leaving them holding whatever is on the heap.  We must be careful
+not to trigger a garbage collection before those fields are initialised
+with valid values, else the behaviour is undefined.
+@end quotation
+@end deffn
+
+
+@deffn {Unsafe Operation} $struct-rtd @var{stru}
+Return a reference to the type descriptor of @var{stru}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $struct-ref @var{stru} @var{fx}
+Return the value in the field at index @var{fx} of @var{stru}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $struct-set! @var{stru} @var{fx} @var{value}
+Store @var{value} in the field at index @var{fx} of @var{stru}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $struct @var{rtd} @var{value} ...
+Allocate a new data structure of type @var{rtd} capable of holding as
+many words as given @var{value} arguments and initialise the fields with
+such values.  Return a reference to the structure.
+@end deffn
+
+@c page
+@node syslib vectors
+@section Low level vector operations
+
+
+@cindex @library{ikarus system $vectors}, library
+@cindex Library @library{ikarus system $vectors}
+
+
+The arguments @var{vec} to these operations must be fixnums, the
+arguments @var{fx} must be fixnums.  The following bindings are exported
+by the @library{ikarus system $vectors} library.
+
+
+@deffn {Unsafe Operation} $make-vector @var{fx}
+Allocate and return a new vector value of @var{fx} elements.
+
+@quotation
+@strong{NOTE} This operation does not initialise the data area, leaving
+the items set to whatever is on the Scheme heap; this is bad for garbage
+collection if the newly built vector is moved before the items are
+initialised to correct Scheme values.  We should use the
+@func{$make-clean-vector} operations from @library{vicare
+unsafe-operations}.
+@end quotation
+@end deffn
+
+
+@deffn {Unsafe Operation} $vector-length @var{vec}
+Evaluate to a fixnum representing the numbe of values in @var{vec}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $vector-ref @var{vec} @var{fx}
+Return the value at index @var{fx} in @var{vec}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $vector-set! @var{vec} @var{fx} @var{value}
+Store @var{value} at index @var{fx} in @var{vec}.
+@end deffn
+
+@c page
+@node syslib bytevectors
+@section Low level bytevector operations
+
+
+@cindex @library{ikarus system $bytevectors}, library
+@cindex Library @library{ikarus system $bytevectors}
+
+
+The arguments @var{bv} to these operations must be references to
+bytevectors, the arguments @var{fx} must be fixnums in the appropriate
+range, the arguments @var{fl} must be flonums.  The following bindings
+are exported by the @library{ikarus system $bytevectors} library.
+
+
+@deffn {Unsafe Operation} $make-bytevector @var{fx}
+Allocate a new bytevector capable of holding @var{fx} bytes and return a
+reference to it.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bytevector-length @var{bv}
+Return a fixnum representing the number of bytes in the operand.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bytevector-u8-ref @var{bv} @var{fx}
+Return a fixnum representing the octet at offset @var{fx} in @var{bv}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bytevector-s8-ref @var{bv} @var{fx}
+Return a fixnum representing the byte at offset @var{fx} in @var{bv}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bytevector-set! @var{bv} @var{fx-index} @var{fx-value}
+Store the octet or byte @var{fx-value} at index @var{fx-index} of
+@var{bv}.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Double--precision @ieee{} flonums
+
+
+@deffn {Unsafe Operation} $bytevector-ieee-double-native-ref @var{bv} @var{fx}
+Return a flonum representing the value at index @var{fx} of @var{bv}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bytevector-ieee-double-native-set! @var{bv} @var{fx} @var{fl}
+Store @var{fl} at index @var{fx} of @var{bv}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bytevector-ieee-double-nonnative-ref @var{bv} @var{fx}
+Return a flonum representing the value at index @var{fx} of @var{bv}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bytevector-ieee-double-nonnative-set! @var{bv} @var{fx} @var{fl}
+Store @var{fl} at index @var{fx} of @var{bv}.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Single--precision @ieee{} flonums
+
+
+@deffn {Unsafe Operation} $bytevector-ieee-single-native-ref @var{bv} @var{fx}
+Return a flonum representing the value at index @var{fx} of @var{bv}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bytevector-ieee-single-native-set! @var{bv} @var{fx} @var{fl}
+Store @var{fl} at index @var{fx} of @var{bv}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bytevector-ieee-single-nonnative-ref @var{bv} @var{fx}
+Return a flonum representing the value at index @var{fx} of @var{bv}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $bytevector-ieee-single-nonnative-set! @var{bv} @var{fx} @var{fl}
+Store @var{fl} at index @var{fx} of @var{bv}.
+@end deffn
+
+@c page
+@node syslib strings
+@section Low level string operations
+
+
+@cindex @library{ikarus system $strings}, library
+@cindex Library @library{ikarus system $strings}
+
+
+The arguments @var{str} to these operations must be references to
+strings, the arguments @var{fx} must be fixnums in the appropriate
+range, the arguments @var{ch} must be characters.  The following
+bindings are exported by the @library{ikarus system $strings} library.
+
+
+@deffn {Unsafe Operation} $make-string @var{fx}
+Allocate a new string capable of holding @var{fx} characters and return
+a reference to it.
+@end deffn
+
+
+@deffn {Unsafe Operation} $string-length @var{str}
+Return a fixnum representing the length of the operand.
+@end deffn
+
+
+@deffn {Unsafe Operation} $string-ref @var{str} @var{fx}
+Return the character at offset @var{fx} in @var{str}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $string-set! @var{str} @var{fx} @var{ch}
+Store @var{ch} at index @var{fx} of @var{str}.
+@end deffn
+
+@c page
+@node syslib ports
+@section Low level port structures
+
+
+@cindex @library{ikarus system $io}, library
+@cindex Library @library{ikarus system $io}
+
+
+The following bindings are exported by the @library{ikarus system $io}
+library.
+
+
+@defun port? @var{obj}
+Return true if @var{obj} is the reference to a port structure; return
+false otherwise.
+@end defun
+
+
+@deffn {Unsafe Operation} $make-port @var{attrs} @var{idx} @var{sz} @var{buf} @var{tr} @var{id} @var{read} @var{write} @var{getp} @var{setp} @var{cl} @var{cookie}
+Allocate a new port structure, initialise its fields with the arguments,
+return a reference to it.
+@end deffn
+
+
+@deffn {Unsafe Operation} $port-index @var{port}
+@deffnx {Unsafe Operation} $port-size @var{port}
+@deffnx {Unsafe Operation} $port-buffer @var{port}
+@deffnx {Unsafe Operation} $port-transcoder @var{port}
+@deffnx {Unsafe Operation} $port-id @var{port}
+@deffnx {Unsafe Operation} $port-read! @var{port}
+@deffnx {Unsafe Operation} $port-write! @var{port}
+@deffnx {Unsafe Operation} $port-get-position @var{port}
+@deffnx {Unsafe Operation} $port-set-position! @var{port}
+@deffnx {Unsafe Operation} $port-close @var{port}
+@deffnx {Unsafe Operation} $port-cookie @var{port}
+Accessors for the fields of a port structure.
+@end deffn
+
+
+@deffn {Unsafe Operation} $port-attrs @var{port}
+Given a port value: return a fixnum representing the port attributes.
+@end deffn
+
+
+@deffn {Safe Operation} $port-tag @var{port}
+Extract from a port reference a fixnum representing the port attributes;
+if the argument is not a port reference the return value is zero.
+@end deffn
+
+
+@deffn {Unsafe Operation} $set-port-index! @var{port} @var{new-index}
+Mutator for the buffer index field.
+@end deffn
+
+
+@deffn {Unsafe Operation} $set-port-size! @var{port} @var{new-used-size}
+Mutator for the buffer used size field.
+@end deffn
+
+
+@deffn {Unsafe Operation} $set-port-attrs! @var{port} @var{new-attrs}
+Mutator for the port attributes.
+@end deffn
+
+@c page
+@node syslib transcoders
+@section Low level transcoder operations
+
+
+@cindex @library{ikarus system $transcoders}, library
+@cindex Library @library{ikarus system $transcoders}
+
+
+The arguments @var{tran} to these operations must be transcoders, the
+arguments @var{fx} must be fixnums in the appropriate range.  The
+following bindings are exported by the @library{ikarus system
+$transcoders} library.
+
+
+@deffn {Unsafe Operation} $data->transcoder @var{fx}
+Encode @var{fx} as payload bits of a transcoder word and return the
+resulting transcoder.
+@end deffn
+
+
+@deffn {Unsafe Operation} $transcoder->data @var{tran}
+Extract the payload bits from a transcoder and return them as fixnum.
+@end deffn
+
+@c page
+@node syslib pointers
+@section Low level pointer operations
+
+
+@cindex @library{ikarus system $pointers}, library
+@cindex Library @library{ikarus system $pointers}
+
+
+In the following definitions the @var{ptr} arguments must be pointer
+objects.  The following bindings are exported by the @library{ikarus
+system $pointers} library.
+
+
+@deffn {Primitive Operation} $pointer? @var{obj}
+Return @true{} if @var{obj} is a reference to a pointer memory block,
+else return @false{}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $pointer= @vari{ptr} @varii{ptr}
+Return @true{} if @vari{ptr} and @varii{ptr} are equal, else return
+@false{}.
+@end deffn
+
+@c page
+@node syslib codes
+@section Low level code objects operations
+
+
+@cindex @library{ikarus system $codes}, library
+@cindex Library @library{ikarus system $codes}
+
+
+In the following definitions: the @var{code} arguments must be code
+objects.  The following bindings are exported by the @library{ikarus
+system $codes} library.
+
+
+@defun code? @var{obj}
+Return @true{} if @var{obj} is a code object.
+@end defun
+
+
+@deffn {Primitive Operation} $code-freevars @var{code}
+Return a fixnum representing the number of free variables referenced by
+@var{code}.
+@end deffn
+
+
+@deffn {Primitive Operation} $code-reloc-vector @var{code}
+Return the relocation vector of @var{code}.  The relocation vector is a
+Scheme vector, @ref{objects codes reloc}.
+@end deffn
+
+
+@deffn {Primitive Operation} $code-size @var{code}
+Return a fixnum representing the number of bytes used in the data area
+of @var{code}.
+@end deffn
+
+
+@deffn {Primitive Operation} $code-annotation @var{code}
+Return an object used as annotation for @var{code}.  The default value
+for the annotation is @false{}.
+@end deffn
+
+
+@deffn {Primitive Operation} $code->closure @var{code}
+Return a closure object wrapping @var{code}.
+@end deffn
+
+
+@deffn {Primitive Operation} $code-ref @var{code} @var{index}
+Return the byte at @var{index} in the data area of @var{code}.
+@end deffn
+
+
+@deffn {Primitive Operation} $code-set! @var{code} @var{index} @var{octet}
+Store @var{octet} at @var{index} in the data area of @var{code}.  Both
+@var{index} and @var{octet} must be fixnums; @var{octet} must be in the
+range @math{[0, 255]}.
+@end deffn
+
+
+@deffn {Primitive Operation} $set-code-annotation @var{code} @var{obj}
+Store @var{obj} in the annotation field of @var{code}.
+@end deffn
+
+@c page
+@node syslib closures
+@section Low level closures operations
+
+
+@cindex @library{ikarus system $codes}, library
+@cindex Library @library{ikarus system $codes}
+
+
+In the following definitions the @var{closure} arguments must be closure
+objects.  The following bindings are exported by the @library{ikarus
+system $codes} library.
+
+
+@deffn {Primitive Operation} $closure-code @var{closure}
+Return the code object wrapped by the @var{closure}.
+@end deffn
+
+
+@deffn {Primitive Operation} $cpref @var{closure} @var{idx}
+Evaluate to the contents of the word at index @var{idx} (a non--negative
+fixnum) in the array of free variables in the @var{closure} memory
+block.
+
+To know at run time how many free variables are associated to
+@var{closure} we have to inspect the associated code object.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Annotating closure objects
+
+
+Annotated procedures exists for debugging purposes, they allow the
+association of an arbitrary annotation object to a function.
+
+@example
+(import (rnrs)
+  (ikarus system $codes))
+
+(define (the-proc)
+  123)
+
+(define the-annotated
+  ($make-annotated-procedure 456 the-proc))
+
+(the-annotated)                         @result{} 123
+($annotated-procedure-annotation)       @result{} 456
+@end example
+
+
+@defun $make-annotated-procedure @var{annotation} @var{clo}
+Build and return a new closure object wrapping the closure object
+@var{clo} and just adding an @var{annotation} object to it.  When such
+annotated closure is applied: it applies @var{clo} to the arguments.
+
+@var{annotation} can be any Scheme object.
+@end defun
+
+
+@defun $annotated-procedure-annotation @var{clo}
+Given a closure object @var{clo} being an annotated procedure created by
+@func{$make-annotated-procedure}: return the annotation object.
+@end defun
+
+@c page
+@node syslib compiler
+@section Interface to compiler passes
+
+
+@cindex @library{ikarus system $compiler}, library
+@cindex Library @library{ikarus system $compiler}
+
+
+@value{PRJNAME} is a compiler for the Scheme language; internally it
+implements a multitude of passes, each of which performing a
+transformation from Scheme code to executable binary code.  The library
+@library{ikarus system $compiler} exports one binding for each compiler
+pass, allowing inspection of the performed transformations.
+
+The sequence in which the passes are performed @strong{cannot} be
+changed; they must be performed in the specified order.  The passes
+functions are to be considered unsafe: if the input is invalid, the
+behaviour is undefined.
+
+This section contains some documentation for each pass; however, it is
+almost impossible to truly understand what a pass does without reading
+the source code, where additional documentation is present in the form
+of comments.
+
+@menu
+* syslib compiler unparse::       Unparsing intermediate
+                                  representations.
+
+Compiler passes
+
+* syslib compiler full::          The full transformation.
+* syslib compiler recordize::     Scheme code to nested structs.
+* syslib compiler direct calls::  Optimisation for direct calls.
+* syslib compiler letrec::        Optimisation of @code{letrec} forms.
+* syslib compiler optimisation::  Source optimisation.
+* syslib compiler assignments::   Rewriting references and assignments.
+* syslib compiler tags::          Tagging known properties.
+* syslib compiler vars::          Introducing storage locations.
+* syslib compiler bindings::      Sanitizing bindings.
+* syslib compiler direct jumps::  Optimisation for direct jumps.
+* syslib compiler global::        Inserting global assignments.
+* syslib compiler closures::      Closures conversion.
+* syslib compiler lift::          Closures optimization and codes
+                                  lifting.
+* syslib compiler cogen::         Full assembly code generation.
+* syslib compiler assember::      Binary code generation.
+
+Code generation passes
+
+* syslib compiler primcall::      Introducing primitive calls.
+* syslib compiler fix::           Removing fixes.
+* syslib compiler engine::        Inserting engine checks.
+* syslib compiler stack::         Inserting stack overflow checks.
+* syslib compiler primop::        Expanding primitive operations.
+* syslib compiler order::         Imposing calling convention and
+                                  evaluation order.
+* syslib compiler frame::         Assigning frame sizes.
+* syslib compiler color::         Colorising by Chaitin.
+* syslib compiler flatten::       Flattening codes.
+@end menu
+
+@c page
+@node syslib compiler unparse
+@subsection Unparsing intermediate representations
+
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $unparse-recordized-code @var{input}
+Given as argument a struct instance representing recordized code: build
+and return a symbolic expression that can be printed in human readable
+form.
+
+@var{input} can be any structure that is produced by the compiler
+passes.
+@end defun
+
+
+@defun $unparse-recordized-code/pretty @var{input}
+Unparse the struct instance @var{input} (representing recordized code in
+the core language already processed by the compiler) into a human
+readable symbolic expression to be used when printing to some port for
+miscellaneous debugging purposes.
+
+This function attempts to unparse recordized code and reconstruct a
+Scheme-like symbolic expression; the returned sexp does @strong{not}
+exactly represent the input.
+@end defun
+
+@c page
+@node syslib compiler full
+@subsection The full transformation
+
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $compile-core-expr->code @var{input}
+@end defun
+
+
+@c page
+@node syslib compiler recordize
+@subsection Scheme code to nested structs
+
+
+@defun $recordize @var{input}
+@end defun
+
+
+@c page
+@node syslib compiler direct calls
+@subsection Optimisation for direct calls
+
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $optimize-direct-calls @var{input}
+@end defun
+
+
+@deffn Parameter open-mvcalls
+When set to true: an attempt is made to expand inline calls to
+@func{call-with-values} by inserting local bindings.  Defaults to
+@false{}.
+@end deffn
+
+@c page
+@node syslib compiler letrec
+@subsection Optimisation of @code{letrec} forms
+
+
+For an introduction to processing @func{letrec} and @func{letrec*}
+syntaxes, and specifically to understand the code, we @strong{must} read
+the following paper:
+
+@quotation
+Oscar Waddell, Dipanwita Sarkar, R. Kent Dybvig.  ``Fixing Letrec: A
+Faithful Yet Efficient Implementation of Scheme's Recursive Binding
+Construct''.
+@end quotation
+
+@noindent
+then we can move to the following paper, which describes the SCC
+transformation used by default:
+
+@quotation
+Abdulaziz Ghuloum, R. Kent Dybvig.  ``Fixing Letrec (reloaded)''.
+Workshop on Scheme and Functional Programming '09.
+@end quotation
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $optimize-letrec @var{input}
+Perform transformations to convert the recordized representation of
+@func{libary-letrec*}, @func{LETREC} and @func{letrec*} forms into low
+level binding constructs and assignments.  The result is such that the
+order of bindings in a single binding construct can be changed at will.
+@end defun
+
+
+@deffn Parameter $check-for-illegal-letrec
+If set to true: @func{$optimize-letrec} will perform an
+additional recordized code pass to check for illegal binding references
+in the right--hand sides of @func{letrec}, @func{letrec*} and
+@func{library-letrec*} syntaxes, raising a syntax violation error if one
+is found.  This is the default.
+
+If set to false: the validating pass is not performed, faithfully hoping
+for no problems in code.
+@end deffn
+
+
+@deffn Parameter $current-letrec-pass
+Select the transformations performed by
+@func{$optimize-letrec}; possible values are the symbols:
+
+@table @code
+@item basic
+The transformations are equivalent to:
+
+@example
+(letrec* ((?var ?init) ...) . ?body)
+@expansion{} (let ((?var (void)) ...)
+      (set! ?var ?init) ... . ?body)
+
+(library-letrec* ((?var ?loc ?init) ...) . ?body)
+@expansion{} (let ((?var (void)) ...)
+      (set! ?var ?init) ... . ?body)
+
+(letrec ((?var ?init) ...) . ?body)
+@expansion{} (let ((?var (void)) ...)
+      (let ((?tmp ?init) ...)
+        (set! ?var ?tmp) ... . ?body))
+@end example
+
+@item waddell
+Perform a transformation similar (but no equal) to the one described in
+the ``Fixing Letrec'' paper by Waddell et al.
+
+@item scc
+This is the default.
+@end table
+@end deffn
+
+
+@c page
+@node syslib compiler optimisation
+@subsection Source optimisation
+
+
+For an introduction to the source code see the thesis:
+
+@quotation
+Oscar Waddell.  ``Extending the Scope of Syntactic Abstraction''.  PhD.
+Thesis.  Indiana University Computer Science Department.  August 1999.
+@end quotation
+
+@noindent
+and the paper:
+
+@quotation
+Oscar Waddell, R. Kent Dybvig.  ``Fast and Effective Procedure
+Inlining''.  Indiana University.  Computer Science Department.
+Technical Report No. 484.
+@end quotation
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $source-optimize @var{input}
+Perform source code optimizations on the recordized @var{input} code and
+return the resulting recordized code.
+@end defun
+
+
+@deffn Parameter $source-optimizer-passes-count
+Specify how many passes to perform with the source optimizer; it must be
+a positive fixnum.  Defaults to 1.
+
+It makes sense to perform zero, one or two passes; it is unlikely that
+more passes can do significant improvement.
+@end deffn
+
+
+The following bindings are exported by the library @library{vicare}.
+
+
+@deffn Parameter $optimize-level
+The optimization level; accepted values are the fixnums @code{0},
+@code{1}, @code{2}.  Defaults to @code{0}.
+
+@quotation
+@strong{NOTE} When building the boot image this parameter is set to
+@code{2}.
+@end quotation
+@end deffn
+
+
+@deffn Parameter $cp0-effort-limit
+An effort counter that is decremented every time an optimization is
+performed by the source optimizer.  It is set every time the optimizer
+enters specific subexpressions of the input.
+@end deffn
+
+
+@deffn Parameter $cp0-size-limit
+A code size counter (estimated) that is decremented every time an
+optimization is performed by the source optimizer.  It is set every time
+the optimizer enters specific subexpressions of the input.
+@end deffn
+
+@c page
+@node syslib compiler assignments
+@subsection Rewriting references and assignments
+
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $rewrite-references-and-assignments @var{input}
+@end defun
+
+
+@c page
+@node syslib compiler tags
+@subsection Tagging known properties
+
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $introduce-tags @var{input}
+@end defun
+
+
+@deffn Parameter $perform-tag-analysis
+When true the pass @func{$introduce-tags} is performed, else it is
+skipped.  Defaults to @true{}.
+@end deffn
+
+@c page
+@node syslib compiler vars
+@subsection Introducing storage locations
+
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $introduce-vars @var{input}
+@end defun
+
+
+@c page
+@node syslib compiler bindings
+@subsection Sanitizing bindings
+
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $sanitize-bindings @var{input}
+@end defun
+
+
+@c page
+@node syslib compiler direct jumps
+@subsection Optimisation for direct jumps
+
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $optimize-for-direct-jumps @var{input}
+@end defun
+
+
+@c page
+@node syslib compiler global
+@subsection Inserting global assignments
+
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $insert-global-assignments @var{input}
+@end defun
+
+
+@c page
+@node syslib compiler closures
+@subsection Closure conversion
+
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $convert-closures @var{input}
+@end defun
+
+
+@deffn Parameter $optimize-cp
+To be documented.
+@end deffn
+
+@c page
+@node syslib compiler lift
+@subsection Cloaures optimization and codes lifting
+
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $optimize-closures/lift-codes @var{input}
+@end defun
+
+
+@c page
+@node syslib compiler cogen
+@subsection Full assembly code generation
+
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $alt-cogen @var{input}
+@end defun
+
+
+@c page
+@node syslib compiler assember
+@subsection Binary code generation
+
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $assemble-sources @var{input}
+@end defun
+
+@c page
+@node syslib compiler primcall
+@subsection Introducing primitive calls
+
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $introduce-primcalls @var{input}
+@end defun
+
+@c page
+@node syslib compiler fix
+@subsection Removing fixes
+
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $eliminate-fix @var{input}
+@end defun
+
+@c page
+@node syslib compiler engine
+@subsection Inserting engine checks
+
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $insert-engine-checks @var{input}
+@end defun
+
+@c page
+@node syslib compiler stack
+@subsection Inserting stack overflow checks
+
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $insert-stack-overflow-check @var{input}
+@end defun
+
+@c page
+@node syslib compiler primop
+@subsection Expanding primitive operations
+
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $specify-representation @var{input}
+@end defun
+
+@c page
+@node syslib compiler order
+@subsection Imposing calling convention and evaluation order
+
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $impose-calling-convention/evaluation-order @var{input}
+@end defun
+
+@c page
+@node syslib compiler frame
+@subsection Assigning frame sizes
+
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $assign-frame-sizes @var{input}
+@end defun
+
+@c page
+@node syslib compiler color
+@subsection Colorising by Chaitin
+
+
+For an introduction to register allocation see:
+
+@center @url{http://en.wikipedia.org/wiki/Register_allocation}
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $color-by-chaitin @var{input}
+@end defun
+
+@c page
+@node syslib compiler flatten
+@subsection Flattening codes
+
+
+The following bindings are exported by the library @library{ikarus
+system $compiler}.
+
+
+@defun $flatten-codes @var{input}
+@end defun
+
+@c end of file

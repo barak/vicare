@@ -10,6 +10,7 @@
 ;;;	original Ikarus distribution.
 ;;;
 ;;;Copyright (C) 2006-2010 Abdulaziz Ghuloum <aghuloum@cs.indiana.edu>
+;;;Modified by Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
 ;;;it under the terms of the  GNU General Public License as published by
@@ -26,7 +27,8 @@
 ;;;
 
 #!ikarus
-(import (ikarus))
+(import (ikarus)
+  (vicare checks))
 
 (define (run-tests)
   (test-/)
@@ -39,7 +41,7 @@
 
 (define (test-div-and-mod)
   (define (test x1 x2)
-    (let-values ([(d m) (div-and-mod x1 x2)])
+    (let-values (((d m) (div-and-mod x1 x2)))
       (when #f	;this produces A LOT of output
 	(printf "(div-and-mod ~s ~s) = ~s ~s\n" x1 x2 d m))
       (assert (= d (div x1 x2)))
@@ -86,7 +88,7 @@
 
 (define (test-div0-and-mod0)
   (define (test x1 x2)
-    (let-values ([(d m) (div0-and-mod0 x1 x2)])
+    (let-values (((d m) (div0-and-mod0 x1 x2)))
       (when #f	;this produces A LOT of output
 	(printf "(div0-and-mod0 ~s ~s) = ~s ~s\n" x1 x2 d m))
       (assert (= d (div0 x1 x2)))
@@ -148,8 +150,8 @@
   (test (greatest-fixnum) (greatest-fixnum)))
 
 (set-port-buffer-mode! (current-output-port) (buffer-mode none))
-(display "*** testing div and mod\n\n" (current-error-port))
+(check-display "*** testing div and mod\n\n")
 (run-tests)
-(display "; *** done\n" (current-error-port))
+(check-display "; *** done\n")
 
 ;;; end of file

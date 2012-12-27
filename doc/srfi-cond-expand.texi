@@ -1,0 +1,561 @@
+@node srfi cond-expand
+@section @ansrfi{0} feature based conditional expansion construct
+
+
+The library @library{srfi :0} is by Marc Feeley as reference
+implementation for @ansrfi{0}; see:
+
+@center @url{http://srfi.schemers.org/srfi-0/srfi-0.html}
+
+@noindent
+for more details.
+
+@menu
+* srfi cond-expand license::    Original document license.
+* srfi cond-expand abstract::   Abstract.
+* srfi cond-expand rationale::  Rationale.
+* srfi cond-expand spec::       Specifications.
+* srfi cond-expand vicare::     Features supported by @value{PRJNAME}.
+@end menu
+
+@c page
+@node srfi cond-expand license
+@subsection Original document license
+
+
+Copyright @copyright{} Marc Feeley 1999.  All Rights Reserved.
+
+This document and translations of it may be copied and furnished to
+others, and derivative works that comment on or otherwise explain it or
+assist in its implementation may be prepared, copied, published and
+distributed, in whole or in part, without restriction of any kind,
+provided that the above copyright notice and this paragraph are included
+on all such copies and derivative works.  However, this document itself
+may not be modified in any way, such as by removing the copyright notice
+or references to the Scheme Request For Implementation process or
+editors, except as needed for the purpose of developing SRFIs in which
+case the procedures for copyrights defined in the SRFI process must be
+followed, or as required to translate it into languages other than
+English.
+
+The limited permissions granted above are perpetual and will not be
+revoked by the authors or their successors or assigns.
+
+This document and the information contained herein is provided on an
+``AS IS'' basis and THE AUTHOR AND THE SRFI EDITORS DISCLAIM ALL
+WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY
+WARRANTY THAT THE USE OF THE INFORMATION HEREIN WILL NOT INFRINGE ANY
+RIGHTS OR ANY IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A
+PARTICULAR PURPOSE.
+
+@c page
+@node srfi cond-expand abstract
+@subsection Abstract
+
+
+It is desirable that programs which depend on additions to standard
+Scheme name those additions.  @srfi{}s provide the specifications of
+these additions (``features''), and @ansrfi{0} provides the means to
+actually check that these features are present in the Scheme system by
+means of the @func{cond-expand} construct.  It is anticipated that there
+will be two main classes of features:
+
+@itemize
+@item
+sets of value and syntax bindings;
+
+@item
+reader syntax extensions;
+@end itemize
+
+@noindent
+``reader syntax'' refers to aspects of the syntax described by the
+grammars in the Scheme reports.
+
+The former class of features will probably include most @srfi{}s,
+exemplified by the list library specified in @ansrfi{1}.  The latter class
+includes Unicode source code support and different kinds of parentheses.
+
+Control over the presence of individual features will vary over
+different Scheme systems.  A given feature may be absent or provided by
+default in some Scheme systems and in others some mechanism (such as an
+@func{import} clause in the code or a program configuration file, a
+command line option, a dependency declaration in a module definition,
+etc.) will be required for the feature to be present in the system.
+
+Moreover, in some systems a given feature may be in effect throughout
+the entire program if it is in effect anywhere at all.  Other systems
+may have more precise mechanisms to control the scope of a feature (this
+might be the case for example when a module system is supported).  In
+general it is thus possible that a feature is in effect in some parts of
+the program and not in others.  This allows conflicting @srfi{}s to be
+present in a given program as long as their scope do not intersect.
+
+@ansrfi{0} does not prescribe a particular mechanism for controlling the
+presence of a feature as it is our opinion that this should be the role
+of a module system.  We expect that future module system @srfi{}s will
+need to extend the semantics of @ansrfi{0} for their purposes, for
+example by defining feature scoping rules or by generalizing the feature
+testing construct.
+
+@c page
+@node srfi cond-expand rationale
+@subsection Rationale
+
+
+Most Scheme systems extend the language with some additional features
+(such as the ability to manipulate Unicode characters and strings, to do
+binary I/O, or to handle asynchronous interrupts).  Such features may be
+provided in a variety of ways including new procedures, new program
+syntax, and extended behavior of standard procedures and special--forms.
+
+A particular functionality may exist in several or even most Scheme
+systems but its @api{} may be different (use of a procedure or
+special--form, name, number of parameters, etc).  To write code that
+will run on several Scheme systems, it is useful to have a common
+construct to enable or disable sections of code based on the existence
+or absence of a feature in the Scheme system being used.  For example,
+the construct could be used to check if a particular binary I/O
+procedure is present, and if not, load a portable library which
+implements that procedure.
+
+Features are identified by feature identifiers.  In order for the
+semantics of this construct to be well--defined, the feature identifier
+must of course refer to a feature which has a well--defined meaning.
+There is thus a need for a registry, independent of this @srfi{}, to
+keep track of the formal specification associated with each valid
+feature--identifier.  The @srfi{} registry is used for this purpose.
+It is expected that features will eventually be assigned meaningful
+names (aliases) by the @srfi{} editors to make reading and writing code
+less tedious than when using @code{srfi-N} feature identifiers.
+
+Another issue is the binding time of this construct (i.e.  the moment
+when it operates).  It is important that the binding time be early so
+that a compiler can discard the sections of code that are not needed,
+and perform better static analyses.  Expressing this construct through a
+procedure returning a boolean, such as:
+
+@example
+(feature-implemented? 'srfi-5)
+@end example
+
+@noindent
+would not achieve this goal, as its binding time is too late
+(i.e. program run--time).  A read--time construct, such as Common Lisp's
+@code{#+} read-macro, is very early but would require non--trivial
+changes to the reader of existing Scheme systems and the syntax is not
+particularly human friendly.  Instead, a macro--expansion--time
+construct is used.
+
+The construct is restricted to the top level of a program in order to
+simplify its implementation and to force a more disciplined use of the
+construct (to facilitate reading and understanding programs) and to
+avoid (some) misunderstandings related to the scope of features.  These
+restrictions can of course be lifted by some Scheme systems or by other
+@srfi{}s (in particular module system @srfi{}s).
+
+@c page
+@node srfi cond-expand spec
+@subsection Specifications
+
+
+@findex cond-expand
+
+
+Syntax:
+
+@example
+<command or definition>
+    --> <command>
+      | <definition>
+      | <syntax definition>
+      | (begin <command or definition>+)
+      | <conditional expansion form>
+<conditional expansion form>
+    --> (cond-expand <cond-expand clause>+)
+      | (cond-expand <cond-expand clause>*
+                     (else <command or definition>*))
+<cond-expand clause>
+    --> (<feature requirement> <command or definition>*)
+<feature requirement>
+    --> <feature identifier>
+      | (and <feature requirement>*)
+      | (or <feature requirement>*)
+      | (not <feature requirement>)
+<feature identifier>
+    --> a symbol which is the name or alias of a SRFI
+@end example
+
+The @func{cond-expand} form tests for the existence of features at
+macro--expansion time.  It either expands into the body of one of its
+clauses or signals an error during syntactic processing.
+@func{cond-expand} expands into the body of the first clause whose
+feature requirement is currently satisfied (the else clause, if present,
+is selected if none of the previous clauses is selected).
+
+A feature requirement has an obvious interpretation as a logical
+formula, where the @code{<feature identifier>} variables have meaning
+TRUE if the feature corresponding to the feature identifier, as
+specified in the @srfi{} registry, is in effect at the location of the
+@func{cond-expand} form, and FALSE otherwise.  A feature requirement is
+satisfied if its formula is true under this interpretation.
+
+Examples:
+
+@example
+(cond-expand
+  ((and srfi-1 srfi-10)
+   (write 1))
+  ((or srfi-1 srfi-10)
+   (write 2))
+  (else))
+
+(cond-expand
+  (command-line
+   (define (program-name) (car (argv)))))
+@end example
+
+The second example assumes that @func{command-line} is an alias for some
+feature which gives access to command line arguments.  Note that an
+error will be signaled at macro--expansion time if this feature is not
+present.
+
+@c page
+@node srfi cond-expand vicare
+@subsection Features supported by @value{PRJNAME}
+
+
+The following symbolic expressions are recognised by @func{cond-expand}
+as @value{PRJNAME} available features:
+
+@table @code
+@item (srfi :0)
+@itemx (srfi :0 cond-expand)
+@itemx srfi-0
+@itemx srfi-0-cond-expand
+@ansrfi{0} is available.
+
+@item (srfi :1)
+@itemx (srfi :1 lists)
+@itemx srfi-1
+@itemx srfi-1-lists
+@ansrfi{1} is available.
+
+@item (srfi :2)
+@itemx (srfi :2 and-let*)
+@itemx srfi-2
+@itemx srfi-2-and-let*
+@ansrfi{2} is available.
+
+@c @item (srfi :5)
+@c @itemx (srfi :5 let)
+@c @itemx srfi-5
+@c @itemx srfi-5-let
+@c @ansrfi{5} is available.
+
+@item (srfi :6)
+@itemx (srfi :6 basic-string-ports)
+@itemx srfi-6
+@itemx srfi-6-basic-string-ports
+@ansrfi{6} is available.
+
+@item (srfi :8)
+@itemx (srfi :8 receive)
+@itemx srfi-8
+@itemx srfi-8-receive
+@ansrfi{8} is available.
+
+@item (srfi :9)
+@itemx (srfi :9 records)
+@itemx srfi-9
+@itemx srfi-9-records
+@ansrfi{9} is available.
+
+@item (srfi :11)
+@itemx (srfi :11 let-values)
+@itemx srfi-11
+@itemx srfi-11-let-values
+@ansrfi{11} is available.
+
+@item (srfi :13)
+@itemx (srfi :13 strings)
+@itemx srfi-13
+@itemx srfi-13-strings
+@ansrfi{13} is available.
+
+@item (srfi :14)
+@itemx (srfi :14 char-sets)
+@itemx srfi-14
+@itemx srfi-14-char-sets
+@ansrfi{14} is available.
+
+@item (srfi :16)
+@itemx (srfi :16 case-lambda)
+@itemx srfi-16
+@itemx srfi-16-case-lambda
+@ansrfi{16} is available.
+
+@c @item (srfi :17)
+@c @itemx (srfi :17 generalized-set!)
+@c @itemx srfi-17
+@c @itemx srfi-17-generalized-set!
+@c @ansrfi{17} is available.
+
+@c @item (srfi :18)
+@c @itemx (srfi :18 multithreading)
+@c @itemx srfi-18
+@c @itemx srfi-18-multithreading
+@c @ansrfi{18} is available.
+
+@item (srfi :19)
+@itemx (srfi :19 time)
+@itemx srfi-19
+@itemx srfi-19-time
+@ansrfi{19} is available.
+
+@c @item (srfi :21)
+@c @itemx (srfi :21 real-time-multithreading)
+@c @itemx srfi-21
+@c @itemx srfi-21-real-time-multithreading
+@c @ansrfi{21} is available.
+
+@item (srfi :23)
+@itemx (srfi :23 error)
+@itemx srfi-23
+@itemx srfi-23-error
+@ansrfi{23} is available.
+
+@item (srfi :25)
+@itemx (srfi :25 multi-dimensional-arrays)
+@itemx srfi-25
+@itemx srfi-25-multi-dimensional-arrays
+@ansrfi{25} is available.
+
+@item (srfi :26)
+@itemx (srfi :26 cut)
+@itemx srfi-26
+@itemx srfi-26-cut
+@ansrfi{26} is available.
+
+@item (srfi :27)
+@itemx (srfi :27 random-bits)
+@itemx srfi-27
+@itemx srfi-27-random-bits
+@ansrfi{27} is available.
+
+@c @item (srfi :28)
+@c @itemx (srfi :28 basic-format-strings)
+@c @itemx srfi-28
+@c @itemx srfi-28-basic-format-strings
+@c @ansrfi{28} is available.
+
+@c @item (srfi :29)
+@c @itemx (srfi :29 localization)
+@c @itemx srfi-29
+@c @itemx srfi-29-localization
+@ansrfi{29} is available.
+
+@item (srfi :31)
+@itemx (srfi :31 rec)
+@itemx srfi-31
+@itemx srfi-31-rec
+@ansrfi{31} is available.
+
+@item (srfi :37)
+@itemx (srfi :37 args-fold)
+@itemx srfi-37
+@itemx srfi-37-args-fold
+@ansrfi{37} is available.
+
+@item (srfi :38)
+@itemx (srfi :38 with-shared-structure)
+@itemx srfi-38
+@itemx srfi-38-with-shared-structure
+@ansrfi{38} is available.
+
+@item (srfi :39)
+@itemx (srfi :39 parameters)
+@itemx srfi-39
+@itemx srfi-39-parameters
+@ansrfi{39} is available.
+
+@item (srfi :41)
+@itemx (srfi :41 streams)
+@itemx srfi-41
+@itemx srfi-41-streams
+@ansrfi{41} is available.
+
+@item (srfi :42)
+@itemx (srfi :42 eager-comprehensions)
+@itemx srfi-42
+@itemx srfi-42-eager-comprehensions
+@ansrfi{42} is available.
+
+@item (srfi :43)
+@itemx (srfi :43 vectors)
+@itemx srfi-43
+@itemx srfi-43-vectors
+@ansrfi{43} is available.
+
+@c @item (srfi :44)
+@c @itemx (srfi :44 collections)
+@c @itemx srfi-44
+@c @itemx srfi-44-collections
+@c @ansrfi{44} is available.
+
+@item (srfi :45)
+@itemx (srfi :45 lazy)
+@itemx srfi-45
+@itemx srfi-45-lazy
+@ansrfi{45} is available.
+
+@c @item (srfi :46)
+@c @itemx (srfi :46 syntax-rules)
+@c @itemx srfi-46
+@c @itemx srfi-46-syntax-rules
+@c @ansrfi{46} is available.
+
+@c @item (srfi :47)
+@c @itemx (srfi :47 arrays)
+@c @itemx srfi-47
+@c @itemx srfi-47-arrays
+@c @ansrfi{47} is available.
+
+@item (srfi :48)
+@itemx (srfi :48 intermediate-format-strings)
+@itemx srfi-48
+@itemx srfi-48-intermediate-format-strings
+@ansrfi{48} is available.
+
+@c @item (srfi :51)
+@c @itemx (srfi :51 rest-values)
+@c @itemx srfi-51
+@c @itemx srfi-51-rest-values
+@c @ansrfi{51} is available.
+
+@c @item (srfi :54)
+@c @itemx (srfi :54 cat)
+@c @itemx srfi-54
+@c @itemx srfi-54-cat
+@c @ansrfi{54} is available.
+
+@c @item (srfi :57)
+@c @itemx (srfi :57 records)
+@c @itemx srfi-57
+@c @itemx srfi-57-records
+@c @ansrfi{57} is available.
+
+@c @item (srfi :59)
+@c @itemx (srfi :59 vicinities)
+@c @itemx srfi-59
+@c @itemx srfi-59-vicinities
+@c @ansrfi{59} is available.
+
+@c @item (srfi :60)
+@c @itemx (srfi :60 integer-bits)
+@c @itemx srfi-60
+@c @itemx srfi-60-integer-bits
+@c @ansrfi{60} is available.
+
+@item (srfi :61)
+@itemx (srfi :61 cond)
+@itemx srfi-61
+@itemx srfi-61-cond
+@ansrfi{61} is available.
+
+@c @item (srfi :63)
+@c @itemx (srfi :63 arrays)
+@c @itemx srfi-63
+@c @itemx srfi-63-arrays
+@c @ansrfi{63} is available.
+
+@item (srfi :64)
+@itemx (srfi :64 testing)
+@itemx srfi-64
+@itemx srfi-64-testing
+@ansrfi{64} is available.
+
+@c @item (srfi :66)
+@c @itemx (srfi :66 octet-vectors)
+@c @itemx srfi-66
+@c @itemx srfi-66-octet-vectors
+@c @ansrfi{66} is available.
+
+@item (srfi :67)
+@itemx (srfi :67 compare-procedures)
+@itemx srfi-67
+@itemx srfi-67-compare-procedures
+@ansrfi{67} is available.
+
+@item (srfi :69)
+@itemx (srfi :69 basic-hash-tables)
+@itemx srfi-69
+@itemx srfi-69-basic-hash-tables
+@ansrfi{69} is available.
+
+@c @item (srfi :71)
+@c @itemx (srfi :71 let)
+@c @itemx srfi-71
+@c @itemx srfi-71-let
+@c @ansrfi{71} is available.
+
+@c @item (srfi :74)
+@c @itemx (srfi :74 blobs)
+@c @itemx srfi-74
+@c @itemx srfi-74-blobs
+@c @ansrfi{74} is available.
+
+@item (srfi :78)
+@itemx (srfi :78 lightweight-testing)
+@itemx srfi-78
+@itemx srfi-78-lightweight-testing
+@ansrfi{78} is available.
+
+@c @item (srfi :86)
+@c @itemx (srfi :86 mu-and-nu)
+@c @itemx srfi-86
+@c @itemx srfi-86-mu-and-nu
+@c @ansrfi{86} is available.
+
+@c @item (srfi :87)
+@c @itemx (srfi :87 case)
+@c @itemx srfi-87
+@c @itemx srfi-87-case
+@c @ansrfi{87} is available.
+
+@c @item (srfi :95)
+@c @itemx (srfi :95 sorting-and-merging)
+@c @itemx srfi-95
+@c @itemx srfi-95-sorting-and-merging
+@c @ansrfi{95} is available.
+
+@item (srfi :98)
+@itemx (srfi :98 os-environment-variables)
+@itemx srfi-98
+@itemx srfi-98-os-environment-variables
+@ansrfi{98} is available.
+
+@item (srfi :99)
+@itemx (srfi :99 records)
+@itemx srfi-99
+@itemx srfi-99-records
+@ansrfi{99} is available.
+
+@item vicare
+The Scheme implementation is @value{PRJNAME}.
+
+@item posix
+The program is running under a @posix{} system.
+
+@itemx linux
+@itemx solaris
+@itemx darwin
+@itemx bsd
+@itemx freebsd
+@itemx openbsd
+@itemx cygwin
+@itemx gnu
+The program is running under the named @acronym{OS}.
+@end table
+
+@c end of file
