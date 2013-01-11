@@ -4,6 +4,7 @@ Priority: extra
 Maintainer: Barak A. Pearlmutter <bap@debian.org>
 Build-Depends: debhelper (>= 9),
 	       dh-autoreconf,
+	       libreadline-dev,
 	       libgmp3-dev,
 	       libffi-dev
 Standards-Version: 3.9.4
