@@ -715,6 +715,22 @@ than zero.
 @deffn {Validation Clause} index-for-string @var{str} @var{idx}
 Succeed if @var{idx} is a fixnum usable as index (not out of range) for
 @var{str}, which is expected to be an already validated string.
+@var{idx} must satisfy the constraints:
+
+@example
+0 <= @var{idx} < (string-length @var{str})
+@end example
+@end deffn
+
+
+@deffn {Validation Clause} one-off-index-for-string @var{str} @var{idx}
+Succeed if @var{idx} is a fixnum usable as index for @var{str}, which is
+expected to be an already validated string, or it is equal to the string
+length.  @var{idx} must satisfy the constraints:
+
+@example
+0 <= @var{idx} <= (string-length @var{str})
+@end example
 @end deffn
 
 
@@ -745,7 +761,7 @@ Assuming that @var{str} is an already validated string: succeed if both
 @var{start} and @var{past} are fixnums satisfying the constraints:
 
 @example
-0 <= @var{start} < (string-length @var{str})
+0 <= @var{start} <= (string-length @var{str})
 @var{start} <= @var{past} <= (string-length @var{str})
 @end example
 
@@ -816,7 +832,7 @@ Assuming that @var{vec} is an already validated vector: succeed if both
 @var{start} and @var{past} are fixnums satisfying the constraints:
 
 @example
-0 <= @var{start} < (vector-length @var{vec})
+0 <= @var{start} <= (vector-length @var{vec})
 @var{start} <= @var{past} <= (vector-length @var{vec})
 @end example
 
@@ -888,7 +904,7 @@ Assuming that @var{bv} is an already validated bytevector: succeed if
 both @var{start} and @var{past} are fixnums satisfying the constraints:
 
 @example
-0 <= @var{start} < (bytevector-length @var{bv})
+0 <= @var{start} <= (bytevector-length @var{bv})
 @var{start} <= @var{past} <= (bytevector-length @var{bv})
 @end example
 
