@@ -29,6 +29,7 @@ config.sub
 config.cache
 configure
 depcomp
+test-driver
 doc/mdate-sh
 doc/stamp-vti
 doc/texinfo.tex
