@@ -24,6 +24,21 @@ It exports the same bindings of @library{ikarus}.
 @item vicare language-extensions
 It exports all the bindings exported by @library{vicare} that are
 @strong{not} exported by @library{rnrs (6)}.
+
+@item vicare platform constants
+Exports one syntax identifier binding for each platform constant that
+makes sense to access from Scheme.
+
+@item vicare platform utilities
+Defines helper functions to deal with platform specific issues;
+@ref{platform} for details.
+
+@item vicare platform features
+@cindex Library @library{vicare platform features}
+@cindex @library{vicare platform features}, library
+Exports an identifier syntax for every @code{HAVE_} symbol defined by
+the configuration script @command{configure}; such syntaxes expand to a
+boolean value: @true{} if the feature is available, @false{} otherwise.
 @end table
 
 @menu
@@ -35,6 +50,7 @@ It exports all the bindings exported by @library{vicare} that are
 * iklib environment::           Environments.
 * iklib cafe::                  Cafe.
 * iklib structs::               Structures and type descriptors.
+* iklib records::               Extensions to @rnrs{6} records.
 * iklib keywords::              Keyword objects.
 * iklib lists::                 Additional list functions.
 * iklib bytevectors::           Additional bytevector functions.
@@ -391,6 +407,14 @@ Convert the Scheme string @var{data} to a bytevector using the function
 @item utf16n
 Convert the Scheme string @var{data} to a bytevector using the function
 @func{string->utf16n}.
+
+@item hex
+Convert the Scheme string @var{data} to a bytevector using the function
+@func{string-hex->bytevector}.
+
+@item base64
+Convert the Scheme string @var{data} to a bytevector using the function
+@func{string-base64->bytevector}.
 @end table
 @end deffn
 
@@ -1236,18 +1260,18 @@ When this function is used as value for the parameter
 
 @itemize
 @item
-The function is called whenever a data structure is registered in for
+The function is called whenever a data structure is registered for
 destruction with @var{action} set to the symbol @code{registration} and
 @var{exception} set to @false{}.
 
 @item
-The function is called just before the structucture is finalised with
+The function is called just before the structure is finalised with
 @var{action} set to the symbol @code{before-destruction} and
 @var{exception} set to @false{}.
 
 @item
-The function is called right after the structucture has been finalised
-with @var{action} set to the symbol @code{after-destruction} and
+The function is called right after the structure has been finalised with
+@var{action} set to the symbol @code{after-destruction} and
 @var{exception} set to @false{}.
 
 @item
@@ -1379,6 +1403,165 @@ same @rtd{} and equal field values according to @func{eqv?}.
 
 @defun struct-reset @var{stru}
 Reset to void all the fields of a structure.
+@end defun
+
+@c page
+@node iklib records
+@section Extensions to @rnrs{6} records
+
+
+@menu
+* iklib records final::         Automatic finalisation of records.
+* iklib records misc::          Miscellaneous functions.
+@end menu
+
+@c page
+@node iklib records final
+@subsection Automatic finalisation of records
+
+
+It is possible to automatically apply a destructor function whenever an
+@rnrs{6} record reclaimed by the garbage collector.
+
+@example
+#!r6rs
+(import (vicare))
+
+(define-record-type <alpha>
+  (fields a b c))
+
+(record-destructor-set! (record-type-descriptor <alpha>)
+                        (lambda (S)
+                          (pretty-print (list 'finalising S)
+                                        (current-error-port))))
+
+(pretty-print (make-<alpha> 1 2 3) (current-error-port))
+@print{} #[r6rs-record: <alpha> a=1 b=2 c=3]
+
+(collect)
+@print{} (finalising #[r6rs-record: <alpha> a=1 b=2 c=3])
+@end example
+
+The following bindings are exported by the library @library{vicare}.
+
+
+@defun record-destructor-set! @var{rtd} @var{destructor}
+Select the procedure @var{destructor} as destructor for @rnrs{6} record
+instances of type @var{rtd}; return unspecified values.  The destructor
+accepts a single argument being the record instance to finalise; the
+destructor can return unspecified values.
+
+After a destructor is registered in @var{rtd}: new instances of this
+record type are registered, upon creation, into an internal guardian,
+@ref{iklib guardians} for details; whenever such structures are garbage
+collected: the guardian applies @var{destructor} to them.
+
+Exceptions raised by @var{destructor} are catched with @func{guard} and
+discarded: destructor functions should take care of exceptions by
+themselves.
+@end defun
+
+
+@defun record-destructor @var{rtd}
+Return the current destructor for @var{rtd}: @false{} or a function.
+@end defun
+
+
+@deffn Parameter record-guardian-logger
+Select record instance destruction logging mode for debugging purposes.
+When a record is finalised by the garbage collector, using the
+destructor registered in the @rtd{}:
+
+@itemize
+@item
+If this parameter is set to @false{}: no additional actions are
+performed.
+
+@item
+If this parameter is set to @true{}: the function
+@func{record-guardian-log} is used to log the operations to the textual
+output port returned by @code{current-error-port}.
+
+@item
+If this parameter is set to a procedure: such procedure is used to log
+the operations in a user selected way.
+@end itemize
+
+See the documentation of @func{record-guardian-log} for the calling
+protocol of the logger functions.
+@end deffn
+
+
+@defun record-guardian-log @var{record} @var{exception} @var{action}
+Built in logger function to be used to log record instance finalisation
+operations by the garbage collector.  @var{record} is the structure to
+be finalised; @var{exception} is @false{} or an object raised by the
+structure destructor; @var{action} is one of the symbols:
+@code{before-destruction}, @code{after-destruction}, @code{exception}.
+
+When this function is used as value for the parameter
+@func{record-guardian-logger}:
+
+@itemize
+@item
+The function is called whenever a record is registered for destruction
+with @var{action} set to the symbol @code{registration} and
+@var{exception} set to @false{}.
+
+@item
+The function is called just before the record is finalised with
+@var{action} set to the symbol @code{before-destruction} and
+@var{exception} set to @false{}.
+
+@item
+The function is called right after the record has been finalised with
+@var{action} set to the symbol @code{after-destruction} and
+@var{exception} set to @false{}.
+
+@item
+If an exception is raised by the destructor: such exception is catched
+and this function is called with @var{action} set to @code{exception}
+and @var{exception} set to the raised object.
+@end itemize
+
+The current implementation is the following:
+
+@smallexample
+(define (record-guardian-log S E action)
+  (case action
+    ((registration)
+     (fprintf (current-error-port)
+       "*** Vicare debug: record guardian: registered record:\n\
+        ***\t~s\n" S))
+    ((before-destruction)
+     (fprintf (current-error-port)
+       "*** Vicare debug: record guardian: before destruction:\n\
+        ***\t~s\n" S))
+    ((after-destruction)
+     (fprintf (current-error-port)
+       "*** Vicare debug: record guardian: after destruction:\n\
+        ***\t~s\n" S))
+    ((exception)
+     (fprintf (current-error-port)
+       "*** Vicare debug: record guardian: exception:\n\
+        ***\t~s\n\
+        ***\t~s\n" S E))
+    (else
+     (assertion-violation 'record-guardian-log
+       "invalid action in record destruction process" S action))))
+@end smallexample
+@end defun
+
+@c page
+@node iklib records misc
+@subsection Miscellaneous functions
+
+
+The following bindings are exported by the library @library{vicare}.
+
+
+@defun record-reset @var{record}
+Reset to void all the fields of a record, whatever its type.
 @end defun
 
 @c page
@@ -1659,6 +1842,29 @@ which the flonums are stored in little, big or native endianness, real
 part first.
 @end defun
 
+
+@defun hex->bytevector @var{bytevector}
+@defunx bytevector->hex @var{bytevector}
+Convert to and from a Scheme bytevector containing octets and a Scheme
+bytevector containing the @ascii{} hexadecimal representation of the
+octets.
+
+The input hex bytevector contains the uppercase or lowercase hexadecimal
+representation of the octets.  The output hex bytevector contains the
+uppercase hexadecimal representation of octets.
+
+If an error occurs in the conversion: the return value is @false{}.
+@end defun
+
+
+@defun base64->bytevector @var{bytevector}
+@defunx bytevector->base64 @var{bytevector}
+Convert to and from a Scheme bytevector containing octets and a Scheme
+bytevector containing the @ascii{} Base64 representation of the octets.
+
+If an error occurs in the conversion: the return value is @false{}.
+@end defun
+
 @c page
 @node iklib bytevectors generic
 @subsection Generic bytevectors operations
@@ -1710,6 +1916,30 @@ Convert to and from a Scheme string and a Scheme bytevector holding the
 Convert to and from a Scheme string and a Scheme bytevector holding the
 @utf{}-16 encoding of the characters under little, big or native
 endianness respectively.
+@end defun
+
+
+@defun string-hex->bytevector @var{string}
+@defunx bytevector->string-hex @var{bytevector}
+Convert to and from a Scheme string and a Scheme bytevector.
+
+The input string contains the uppercase or lowercase hexadecimal
+representation of the octets.  The output string contains the uppercase
+hexadecimal representation of octets.
+
+If an error occurs in the conversion: the return value is @false{}.
+@end defun
+
+
+@defun string-base64->bytevector @var{string}
+@defunx bytevector->string-base64 @var{bytevector}
+Convert to and from a Scheme string and a Scheme bytevector.
+
+The input string contains the @ascii{} Base64 representation of the
+octets.  The output string contains the @ascii{} Base64 representation
+of octets.
+
+If an error occurs in the conversion: the return value is @false{}.
 @end defun
 
 
@@ -4768,6 +4998,12 @@ Return true if @var{obj} is a pointer object and it represents @cnull{}.
 @end defun
 
 
+@defun set-pointer-null! @var{pointer}
+Mutate the pointer object @var{pointer} to represent the @cnull{}
+pointer.
+@end defun
+
+
 @defun pointer-diff @vari{ptr} @varii{ptr}
 Return an exact integer representing the difference between the two
 pointer objects @vari{ptr} and @varii{ptr}.  The returned value is such
@@ -6306,6 +6542,14 @@ string representing its value; else return false.
 The Scheme level representation of environment variables names and
 values is a string, but internally it is a bytevector; strings are
 internally converted to bytevectors using @func{string->utf8}.
+@end defun
+
+
+@defun environ
+Interface to the global C variable @code{environ}, @glibcref{Environment
+Access, unsetenv}.  Retrieve the full environment.  Return a list of
+strings representing the contents of the @code{environ} array; if the
+environment is empty (no environment variables set) return nil.
 @end defun
 
 

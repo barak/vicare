@@ -1,5 +1,5 @@
 ;;;Ikarus Scheme -- A compiler for R6RS Scheme.
-;;;Copyright (C) 2011, 2012  Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (C) 2011, 2012, 2013  Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;Copyright (C) 2006,2007,2008  Abdulaziz Ghuloum
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
@@ -46,6 +46,10 @@
     (only (vicare.foreign-libraries)
 	  register-filename-foreign-library
 	  autoload-filename-foreign-library)
+    ;;FIXME  To be  removed at  the  next boot  image rotation.   (Marco
+    ;;Maggi; Sun Mar 10, 2013)
+    (only (ikarus strings)
+	  string-base64->bytevector)
     (vicare syntactic-extensions)
     (prefix (vicare words) words.)
     (prefix (vicare unsafe-operations)
@@ -103,7 +107,9 @@
   (eq? (port-mode port) 'vicare))
 
 (define-inline (source-code-port? port)
-  (and (input-port? port) (textual-port? port)))
+  (and (or (input-port? port)
+	   (input/output-port? port))
+       (textual-port? port)))
 
 ;;; --------------------------------------------------------------------
 
@@ -3148,7 +3154,8 @@
 	       (((encoding encoding^ locs1 kont1)
 		 (finalise-tokenisation port locs kont token pos)))
 	     (unless (and (symbol? encoding)
-			  (memq encoding '(ascii latin1 utf8 utf16be utf16le utf16n)))
+			  (memq encoding '(ascii latin1 utf8 utf16be utf16le utf16n
+						 hex base64)))
 	       (die/ann encoding^ 'vicare-reader
 			"expected encoding symbol for this bytevector type" encoding))
 	     (let-values (((token pos) (start-tokenising/pos port)))
@@ -3178,6 +3185,8 @@
 					    ((utf16be)	(string->utf16be	string))
 					    ((utf16le)	(string->utf16le	string))
 					    ((utf16n)	(string->utf16n		string))
+					    ((hex)	(string-hex->bytevector	string))
+					    ((base64)	(string-base64->bytevector string))
 					    (else
 					     (%error "invalid bytevector encoding" encoding)))))
 				   (values v v locs kont)))

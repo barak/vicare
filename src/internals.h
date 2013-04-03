@@ -9,7 +9,7 @@
 	definitions  in this  file are  duplicated in  "vicare.h", which
 	defines the public API.
 
-  Copyright (C) 2012 Marco Maggi <marco.maggi-ipsu@poste.it>
+  Copyright (C) 2012, 2013 Marco Maggi <marco.maggi-ipsu@poste.it>
   Copyright (C) 2006-2008  Abdulaziz Ghuloum
 
   This program is  free software: you can redistribute	it and/or modify
@@ -564,6 +564,8 @@ ik_decl void	ik_fprint		(FILE*, ikptr x);
 
 #define most_positive_fixnum	(((ik_ulong)-1) >> (fx_shift+1))
 #define most_negative_fixnum	(most_positive_fixnum+1)
+#define IK_GREATEST_FIXNUM	most_positive_fixnum
+#define IK_LEAST_FIXNUM		(-most_negative_fixnum)
 
 #define IK_FIX(X)	((ikptr)(((long)(X)) << fx_shift))
 #define IK_UNFIX(X)	(((long)(X)) >> fx_shift)
@@ -1286,6 +1288,26 @@ ik_decl void  ik_leave_c_function (ikpcb* pcb, ikptr system_continuation);
 #define   IK_VOIDP_FROM_BYTEVECTOR_OR_POINTER_OR_MBLOCK_OR_FALSE(OBJ) \
   ((IK_FALSE == (OBJ))? NULL : IK_VOIDP_FROM_BYTEVECTOR_OR_POINTER_OR_MBLOCK(OBJ))
 
+/* ------------------------------------------------------------------ */
+
+/* generalised C buffer */
+#define IK_GENERALISED_C_BUFFER(OBJ)	\
+  IK_VOIDP_FROM_BYTEVECTOR_OR_POINTER_OR_MBLOCK(OBJ)
+
+/* generalised C buffer or false */
+#define IK_GENERALISED_C_BUFFER_OR_FALSE(OBJ)	\
+  IK_VOIDP_FROM_BYTEVECTOR_OR_POINTER_OR_MBLOCK_OR_FALSE(OBJ)
+
+/* ------------------------------------------------------------------ */
+
+/* generalised sticky C buffer */
+#define IK_GENERALISED_C_STICKY_BUFFER(OBJ)	\
+  IK_VOIDP_FROM_POINTER_OR_MBLOCK(OBJ)
+
+/* generalised sticky C buffer or false */
+#define IK_GENERALISED_C_STICKY_BUFFER_OR_FALSE(OBJ)	\
+  IK_VOIDP_FROM_POINTER_OR_MBLOCK_OR_FALSE(OBJ)
+
 
 /** --------------------------------------------------------------------
  ** Special macros extracting "char *" pointers from objects.
@@ -1337,6 +1359,16 @@ ik_decl void  ik_leave_c_function (ikpcb* pcb, ikptr system_continuation);
 #define IK_CHARP_FROM_BYTEVECTOR_OR_POINTER_OR_MBLOCK_OR_FALSE(OBJ) \
   ((IK_FALSE == (OBJ))? NULL : IK_CHARP_FROM_BYTEVECTOR_OR_POINTER_OR_MBLOCK(OBJ))
 
+/* ------------------------------------------------------------------ */
+
+/* generalised C string */
+#define IK_GENERALISED_C_STRING(OBJ)	\
+  IK_CHARP_FROM_BYTEVECTOR_OR_POINTER_OR_MBLOCK(OBJ)
+
+/* generalised C string or false */
+#define IK_GENERALISED_C_STRING_OR_FALSE(OBJ)	\
+  IK_CHARP_FROM_BYTEVECTOR_OR_POINTER_OR_MBLOCK_OR_FALSE(OBJ)
+
 
 /** --------------------------------------------------------------------
  ** Other objects stuff.
@@ -1345,6 +1377,8 @@ ik_decl void  ik_leave_c_function (ikpcb* pcb, ikptr system_continuation);
 ikptr	ik_normalize_bignum	(long limbs, int sign, ikptr r);
 
 #define max_digits_per_limb	((wordsize==4)?10:20)
+
+ik_decl size_t ik_generalised_c_buffer_len (ikptr s_buffer, ikptr s_buffer_len);
 
 
 /** --------------------------------------------------------------------

@@ -252,7 +252,7 @@
   ;;structure with DISPLAY,  a function to be optionally  applied to the
   ;;field values to print them.
   ;;
-  (define who set-rtd-printer!)
+  (define who 'set-rtd-printer!)
   (with-arguments-validation (who)
       ((rtd	rtd)
        (printer	printer))
@@ -263,7 +263,7 @@
   ;;type  RTD.   The destructor  accepts  a  single argument  being  the
   ;;structure instance.
   ;;
-  (define who set-rtd-destructor!)
+  (define who 'set-rtd-destructor!)
   (with-arguments-validation (who)
       ((rtd		rtd)
        (destructor	destructor))
@@ -296,6 +296,8 @@
       (let* ((n (rtd-length rtd))
 	     (r ($make-struct rtd n)))
 	(if (%set-fields r args 0 n)
+	    ;;Notice that  the expander also  has this operation  in its
+	    ;;implementation of DEFINE-STRUCT.
 	    (if (rtd-destructor rtd)
 		($struct-guardian r)
 	      r)

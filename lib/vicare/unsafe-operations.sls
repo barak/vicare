@@ -260,7 +260,8 @@
     (rename ($make-string	make-string)
 	    ($string-length	string-length)
 	    ($string-ref	string-ref)
-	    ($string-set!	string-set!))
+	    ($string-set!	string-set!)
+	    ($string=		string=))
 
     (rename ($string-copy!			string-copy!)
 	    ($string-copy!/count		string-copy!/count)
@@ -268,6 +269,11 @@
 	    ($string-self-copy-backwards!	string-self-copy-backwards!)
 	    ($string-fill!			string-fill!)
 	    ($substring				substring))
+
+;;; --------------------------------------------------------------------
+
+    (rename ($pointer?				pointer?)
+	    ($pointer=				pointer=))
 
 ;;; --------------------------------------------------------------------
 
@@ -305,6 +311,7 @@
     (ikarus system $chars)
     (ikarus system $strings)
     (ikarus system $codes)
+    (ikarus system $pointers)
     (for (prefix (only (vicare installation-configuration)
 		       platform-endianness)
 		 config.)

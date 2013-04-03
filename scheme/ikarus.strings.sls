@@ -17,39 +17,51 @@
 
 (library (ikarus strings)
   (export
-    make-string		string
-    substring		string-length
-    string-ref		string-set!
-    string->list	list->string
-    string-append	string-for-each
-    string-copy		string-copy!
+    make-string			string
+    substring			string-length
+    string-ref			string-set!
+    string->list		list->string
+    string-append		string-for-each
+    string-copy			string-copy!
     string-fill!
     string=?
-    string<?		string<=?
-    string>?		string>=?
+    string<?			string<=?
+    string>?			string>=?
     uuid
 
     ;; Vicare specific
-    string->latin1	latin1->string
-    string->ascii	ascii->string)
+    string->latin1		latin1->string
+    string->ascii		ascii->string
+    string-hex->bytevector	bytevector->string-hex
+    bytevector->hex		hex->bytevector
+    string-base64->bytevector	bytevector->string-base64
+    bytevector->base64		base64->bytevector
+
+    ;; unsafe operations
+    $string=)
   (import (except (ikarus)
-		  make-string		string
-		  substring		string-length
-		  string-ref		string-set!
-		  string->list		list->string
-		  string-append		string-for-each
-		  string-copy		string-copy!
+		  make-string			string
+		  substring			string-length
+		  string-ref			string-set!
+		  string->list			list->string
+		  string-append			string-for-each
+		  string-copy			string-copy!
 		  string-fill!
 		  string=?
-		  string<?		string<=?
-		  string>?		string>=?
+		  string<?			string<=?
+		  string>?			string>=?
 		  uuid
 
 		  ;; Vicare specific
-		  string->latin1	latin1->string
-		  string->ascii		ascii->string)
+		  string->latin1		latin1->string
+		  string->ascii			ascii->string
+		  bytevector->hex		hex->bytevector
+		  string-hex->bytevector	bytevector->string-hex
+		  string-base64->bytevector	bytevector->string-base64
+		  bytevector->base64		base64->bytevector)
     (vicare syntactic-extensions)
-    (prefix (vicare unsafe-operations)
+    (prefix (except (vicare unsafe-operations)
+		    string=)
 	    $))
 
 
@@ -337,28 +349,30 @@
     (with-arguments-validation (who)
 	((string  str1)
 	 (string  str2))
-      (let ((len ($string-length str1)))
-	(and ($fx= len ($string-length str2))
-	     (%unsafe.two-strings=? str1 str2 0 len)))))
+      (or (eq? str1 str2)
+	  (let ((len ($string-length str1)))
+	    (and ($fx= len ($string-length str2))
+		 (%unsafe.two-strings=? str1 str2 0 len))))))
    ((str1 str2 . strs)
     (define who 'string=?)
     (with-arguments-validation (who)
 	((string  str1)
 	 (string  str2))
-      (let ((str1.len ($string-length str1)))
-	(and ($fx= str1.len ($string-length str2))
-	     (%unsafe.two-strings=? str1 str2 0 str1.len)
-	     (let next-string ((str1 str1)
-			       (strs strs)
-			       (len  str1.len))
-	       (or (null? strs)
-		   (let ((strN ($car strs)))
-		     (with-arguments-validation (who)
-			 ((string strN))
-		       (if ($fx= len ($string-length strN))
-			   (and (next-string str1 ($cdr strs) len)
-				(%unsafe.two-strings=? str1 strN 0 len))
-			 (%check-strings-and-return-false who ($cdr strs)))))))))))
+      (or (eq? str1 str2)
+	  (let ((str1.len ($string-length str1)))
+	    (and ($fx= str1.len ($string-length str2))
+		 (%unsafe.two-strings=? str1 str2 0 str1.len)
+		 (let next-string ((str1 str1)
+				   (strs strs)
+				   (len  str1.len))
+		   (or (null? strs)
+		       (let ((strN ($car strs)))
+			 (with-arguments-validation (who)
+			     ((string strN))
+			   (if ($fx= len ($string-length strN))
+			       (and (next-string str1 ($cdr strs) len)
+				    (%unsafe.two-strings=? str1 strN 0 len))
+			     (%check-strings-and-return-false who ($cdr strs))))))))))))
    ))
 
 (define (%unsafe.two-strings=? str1 str2 index end)
@@ -380,6 +394,14 @@
       (with-arguments-validation (who)
 	  ((string str))
 	(%check-strings-and-return-false who ($cdr strs))))))
+
+;;; --------------------------------------------------------------------
+
+(define ($string= str1 str2)
+  (or (eq? str1 str2)
+      (let ((len ($string-length str1)))
+	(and ($fx= len ($string-length str2))
+	     (%unsafe.two-strings=? str1 str2 0 len)))))
 
 
 ;;;; string comparison
@@ -857,16 +879,19 @@
   (define who 'ascii->string)
   (with-arguments-validation (who)
       ((string	str))
-    ;;Both strings and bytevectors have length representable as fixnum.
-    (let* ((bv.len	($string-length str))
-	   (bv		($make-bytevector bv.len)))
-      (do ((i 0 ($fxadd1 i)))
-	  (($fx= i bv.len)
-	   bv)
-	(let ((code-point ($char->fixnum ($string-ref str i))))
-	  (with-arguments-validation (who)
-	      ((ascii	code-point str))
-	    ($bytevector-u8-set! bv i code-point)))))))
+    ($string->ascii who str)))
+
+(define ($string->ascii who str)
+  ;;Both strings and bytevectors have length representable as fixnum.
+  (let* ((bv.len	($string-length str))
+	 (bv		($make-bytevector bv.len)))
+    (do ((i 0 ($fxadd1 i)))
+	(($fx= i bv.len)
+	 bv)
+      (let ((code-point ($char->fixnum ($string-ref str i))))
+	(with-arguments-validation (who)
+	    ((ascii	code-point str))
+	  ($bytevector-u8-set! bv i code-point))))))
 
 (define (ascii->string bv)
   ;;Defined by Vicare.  Convert the  bytevector BV into a string holding
@@ -875,16 +900,120 @@
   (define who 'ascii->string)
   (with-arguments-validation (who)
       ((bytevector	bv))
-    ;;Both strings and bytevectors have length representable as fixnum.
-    (let* ((str.len	($bytevector-length bv))
-	   (str		($make-string str.len)))
-      (do ((i 0 ($fxadd1 i)))
-	  (($fx= i str.len)
-	   str)
-	(let ((code-point ($bytevector-u8-ref bv i)))
-	  (with-arguments-validation (who)
-	      ((ascii	code-point bv))
-	    ($string-set! str i ($fixnum->char code-point))))))))
+    ($ascii->string who bv)))
+
+(define ($ascii->string who bv)
+  ;;Both strings and bytevectors have length representable as fixnum.
+  (let* ((str.len	($bytevector-length bv))
+	 (str		($make-string str.len)))
+    (do ((i 0 ($fxadd1 i)))
+	(($fx= i str.len)
+	 str)
+      (let ((code-point ($bytevector-u8-ref bv i)))
+	(with-arguments-validation (who)
+	    ((ascii	code-point bv))
+	  ($string-set! str i ($fixnum->char code-point)))))))
+
+
+;;;; bytevectors to/from HEX strings
+
+(define (bytevector->hex bv)
+  ;;Defined by Vicare.  Convert a bytevector of octets into a bytevector
+  ;;representing the  ASCII HEX encoding  of the octets.   If successful
+  ;;return the encoded bytevector, else return #f.
+  ;;
+  ;;The length of the output bytevector is twice the length of the input
+  ;;bytevector.  An error  occurs if the output  bytevector length would
+  ;;exceed the maximum bytevector length (which is the greatest fixnum).
+  ;;
+  (define who 'bytevector->hex)
+  (with-arguments-validation (who)
+      ((bytevector	bv))
+    (foreign-call "ikrt_bytevector_to_hex" bv)))
+
+(define (hex->bytevector bv)
+  ;;Defined by Vicare.  Convert a  bytevector representing the ASCII HEX
+  ;;encoding  of octets  into  a bytevector  of  octets.  If  successful
+  ;;return the encoded bytevector, else return #f.
+  ;;
+  ;;The length of the output bytevector  is half the length of the input
+  ;;bytevector.  An error  occurs if the input  bytevector holds invalid
+  ;;data.
+  ;;
+  (define who 'hex->bytevector)
+  (with-arguments-validation (who)
+      ((bytevector	bv))
+    (foreign-call "ikrt_bytevector_from_hex" bv)))
+
+;;; --------------------------------------------------------------------
+
+(define (bytevector->string-hex bv)
+  ;;Defined by Vicare.  Convert the  bytevector BV into a string holding
+  ;;the HEX representation of the bytes.
+  ;;
+  (define who 'bytevector->string-hex)
+  (with-arguments-validation (who)
+      ((bytevector	bv))
+    (let ((rv (foreign-call "ikrt_bytevector_to_hex" bv)))
+      (and rv ($ascii->string who rv)))))
+
+(define (string-hex->bytevector S)
+  ;;Defined by Vicare.   Convert the string S into  a bytevector holding
+  ;;the byte representation of the HEX sequences.
+  ;;
+  (define who 'string-hex->bytevector)
+  (with-arguments-validation (who)
+      ((string	S))
+    (foreign-call "ikrt_bytevector_from_hex" ($string->ascii who S))))
+
+
+;;;; bytevectors to/from BASE64 strings
+
+(define (bytevector->base64 bv)
+  ;;Defined by Vicare.  Convert a bytevector of octets into a bytevector
+  ;;representing the ASCII Base64 encoding of the octets.  If successful
+  ;;return the encoded bytevector, else return #f.
+  ;;
+  ;;An error  occurs if  the output bytevector  length would  exceed the
+  ;;maximum bytevector length (which is the greatest fixnum).
+  ;;
+  (define who 'bytevector->base64)
+  (with-arguments-validation (who)
+      ((bytevector	bv))
+    (foreign-call "ikrt_bytevector_to_base64" bv)))
+
+(define (base64->bytevector bv)
+  ;;Defined  by Vicare.   Convert  a bytevector  representing the  ASCII
+  ;;Base64  encoding  of  octets  into   a  bytevector  of  octets.   If
+  ;;successful return the encoded bytevector, else return #f.
+  ;;
+  ;; An error occurs if the input bytevector holds invalid data.
+  ;;
+  (define who 'base64->bytevector)
+  (with-arguments-validation (who)
+      ((bytevector	bv))
+    (foreign-call "ikrt_bytevector_from_base64" bv)))
+
+;;; --------------------------------------------------------------------
+
+(define (bytevector->string-base64 bv)
+  ;;Defined by Vicare.  Convert the  bytevector BV into a string holding
+  ;;the Base64 representation of the bytes.
+  ;;
+  (define who 'bytevector->string-base64)
+  (with-arguments-validation (who)
+      ((bytevector	bv))
+    (let ((rv (foreign-call "ikrt_bytevector_to_base64" bv)))
+      (and rv ($ascii->string who rv)))))
+
+(define (string-base64->bytevector S)
+  ;;Defined by Vicare.   Convert the string S into  a bytevector holding
+  ;;the byte representation of the Base64 sequences.
+  ;;
+  (define who 'string-base64->bytevector)
+  (with-arguments-validation (who)
+      ((string	S))
+    (foreign-call "ikrt_bytevector_from_base64" ($string->ascii who S))))
 
 
 ;;;; done
