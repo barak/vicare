@@ -2,7 +2,11 @@
 @section @ansrfi{26} Notation for specializing parameters without currying
 
 
-@cindex @srfi{} specialize-procedures
+@cindex @ansrfi{26} notation for specializing parameters without currying
+@cindex @library{srfi :26}, library
+@cindex @library{srfi :26 cut}, library
+@cindex Library @library{srfi :26}
+@cindex Library @library{srfi :26 cut}
 
 
 The library @library{srfi :26} is by Sebastian Egner as the reference

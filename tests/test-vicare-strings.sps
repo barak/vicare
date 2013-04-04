@@ -8,7 +8,7 @@
 ;;;
 ;;;
 ;;;
-;;;Copyright (C) 2011, 2012 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (C) 2011, 2012, 2013 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
 ;;;it under the terms of the  GNU General Public License as published by
@@ -27,6 +27,7 @@
 
 #!vicare
 (import (ikarus)
+  (ikarus system $strings)
   (vicare checks))
 
 (check-set-mode! 'report-failed)
@@ -1278,6 +1279,176 @@
   (check
       (utf16->string (string->utf16n test-string) (native-endianness))
     => test-string)
+
+  #t)
+
+
+(parametrise ((check-test-name	'hex))
+
+  (check
+      (ascii->string (bytevector->hex (string->ascii "ciao mamma")))
+    => "6369616F206D616D6D61")
+
+  (check
+      (bytevector->hex '#vu8(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15))
+    => (string->ascii "000102030405060708090A0B0C0D0E0F"))
+
+  (check
+      (bytevector->hex '#vu8(16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31))
+    => (string->ascii "101112131415161718191A1B1C1D1E1F"))
+
+;;; --------------------------------------------------------------------
+;;; hex->bytevector
+
+  (check	;upper case
+      (ascii->string (hex->bytevector (string->ascii "6369616F206D616D6D61")))
+    => "ciao mamma")
+
+  (check	;lower case
+      (ascii->string (hex->bytevector (string->ascii "6369616f206d616d6d61")))
+    => "ciao mamma")
+
+  (check	;upper case
+      (hex->bytevector (string->ascii "000102030405060708090A0B0C0D0E0F"))
+    => '#vu8(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15))
+
+  (check	;lower case
+      (hex->bytevector (string->ascii "000102030405060708090a0b0c0d0e0f"))
+    => '#vu8(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15))
+
+  (check	;upper case
+      (hex->bytevector (string->ascii "101112131415161718191A1B1C1D1E1F"))
+    => '#vu8(16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31))
+
+  (check	;lower case
+      (hex->bytevector (string->ascii "101112131415161718191a1b1c1d1e1f"))
+    => '#vu8(16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31))
+
+  (check	;invalid input
+      (hex->bytevector (string->ascii "101112131415161718191a1Z1c1d1e1f"))
+;;;                                                           ^
+    => #f)
+
+;;; --------------------------------------------------------------------
+;;; bytevector->string-hex
+
+  (check
+      (bytevector->string-hex (string->ascii "ciao mamma"))
+    => "6369616F206D616D6D61")
+
+  (check
+      (bytevector->string-hex '#vu8(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15))
+    => "000102030405060708090A0B0C0D0E0F")
+
+  (check
+      (bytevector->string-hex '#vu8(16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31))
+    => "101112131415161718191A1B1C1D1E1F")
+
+;;; --------------------------------------------------------------------
+;;; string-hex->bytevector
+
+  (check	;upper case
+      (string-hex->bytevector "6369616F206D616D6D61")
+    => (string->ascii "ciao mamma"))
+
+  (check	;lower case
+      (string-hex->bytevector "6369616f206d616d6d61")
+    => (string->ascii "ciao mamma"))
+
+  (check	;upper case
+      (string-hex->bytevector "000102030405060708090A0B0C0D0E0F")
+    => '#vu8(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15))
+
+  (check	;lower case
+      (string-hex->bytevector "000102030405060708090a0b0c0d0e0f")
+    => '#vu8(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15))
+
+  (check	;upper case
+      (string-hex->bytevector "101112131415161718191A1B1C1D1E1F")
+    => '#vu8(16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31))
+
+  (check	;lower case
+      (string-hex->bytevector "101112131415161718191a1b1c1d1e1f")
+    => '#vu8(16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31))
+
+  (check	;invalid input
+      (string-hex->bytevector "101112131415161718191a1Z1c1d1e1f")
+;;;                                                   ^
+    => #f)
+
+  #t)
+
+
+(parametrise ((check-test-name	'base64))
+
+  (define-syntax doit
+    (syntax-rules ()
+      ((_ ?ascii ?base64)
+       (begin
+	 (check
+	     (ascii->string (bytevector->base64 (string->ascii ?ascii)))
+	   => ?base64)
+	 (check
+	     (ascii->string (base64->bytevector (string->ascii ?base64)))
+	   => ?ascii)
+	 ))))
+
+;;; --------------------------------------------------------------------
+
+  (doit ""		"")
+  (doit "ABC"		"QUJD")
+  (doit "H"		"SA==")
+  (doit "He"		"SGU=")
+  (doit "Hel"		"SGVs")
+  (doit "Hell"		"SGVsbA==")
+  (doit "Hello"		"SGVsbG8=")
+  (doit "this is a test\n"
+	"dGhpcyBpcyBhIHRlc3QK")
+  (doit "y"		"eQ==")
+  (doit "yy"		"eXk=")
+  (doit "y "		"eSA=")
+  (doit "quickly "	"cXVpY2tseSA=")
+  (doit "and"		"YW5k")
+  (doit "an"		"YW4=")
+  (doit "an "		"YW4g")
+
+  (doit
+   "The short red fox ran quickly"
+   "VGhlIHNob3J0IHJlZCBmb3ggcmFuIHF1aWNrbHk=")
+
+  (doit
+   "The short red fox ran quickly "
+   "VGhlIHNob3J0IHJlZCBmb3ggcmFuIHF1aWNrbHkg")
+
+  (doit
+   "The short red fox ran quickly through the green field and jumped over the tall brown bear\n"
+   "VGhlIHNob3J0IHJlZCBmb3ggcmFuIHF1aWNrbHkgdGhyb3VnaCB0aGUgZ3JlZW4gZmllbGQgYW5kIGp1bXBlZCBvdmVyIHRoZSB0YWxsIGJyb3duIGJlYXIK")
+
+  (doit
+   "Le Poete est semblable au prince des nuees Qui hante la tempete e se rit de l'archer; Exile sul le sol au milieu des huees, Ses ailes de geant l'empechent de marcher."
+   "TGUgUG9ldGUgZXN0IHNlbWJsYWJsZSBhdSBwcmluY2UgZGVzIG51ZWVzIFF1aSBoYW50ZSBsYSB0ZW1wZXRlIGUgc2Ugcml0IGRlIGwnYXJjaGVyOyBFeGlsZSBzdWwgbGUgc29sIGF1IG1pbGlldSBkZXMgaHVlZXMsIFNlcyBhaWxlcyBkZSBnZWFudCBsJ2VtcGVjaGVudCBkZSBtYXJjaGVyLg==")
+
+  #t)
+
+
+(parametrise ((check-test-name	'unsafe))
+
+  (check
+      ($string= "ciao" (string #\c #\i #\a #\o))
+    => #t)
+
+  (check
+      ($string= "ciao" "ciao")
+    => #t)
+
+  (check
+      (let ((S "ciao"))
+	($string= S S))
+    => #t)
+
+  (check
+      ($string= "ciao" "hello")
+    => #f)
 
   #t)
 

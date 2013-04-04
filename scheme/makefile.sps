@@ -152,8 +152,8 @@
 		current-letrec-pass
 		current-core-eval
 		assembler-output optimize-cp optimize-level
-		cp0-size-limit cp0-effort-limit expand/optimize
-		expand/scc-letrec expand
+		cp0-size-limit cp0-effort-limit
+		expand
 		optimizer-output tag-analysis-output perform-tag-analysis))
 (import (ikarus.compiler))
 (import (except (psyntax system $bootstrap)
@@ -537,7 +537,7 @@
     ($for		(ikarus system $foreign)		#f	#t)
     ($all		(psyntax system $all)			#f	#t)
     ($boot		(psyntax system $bootstrap)		#f	#t)
-    ($compiler		(ikarus system $compiler)		#t	#t)
+    ($compiler		(ikarus system $compiler)		#f	#f)
     ($numerics		(ikarus system $numerics)		#f	#f)
 ;;;
     (ne			(psyntax null-environment-5)		#f	#f)
@@ -713,7 +713,6 @@
     (struct-reset				i v $language)
     (struct-guardian-logger			i v $language)
     (struct-guardian-log			i v $language)
-    ($struct-guardian				$structs)
     (code?					i v $language)
     (immediate?					i v $language)
     (pointer-value				i v $language)
@@ -746,6 +745,7 @@
     ($string-ref				$strings)
     ($string-set!				$strings)
     ($string-length				$strings)
+    ($string=					$strings)
     ($make-bytevector				$bytes)
     ($bytevector-length				$bytes)
     ($bytevector-s8-ref				$bytes)
@@ -940,6 +940,8 @@
     ($make-struct				$structs)
     ($struct?					$structs)
     ($struct/rtd?				$structs)
+    ($struct-guardian				$structs)
+    ($record-guardian				$structs)
 
 ;;; --------------------------------------------------------------------
 ;;; (ikarus system $pointers)
@@ -1228,6 +1230,14 @@
     (latin1->string				i v $language)
     (string->ascii				i v $language)
     (ascii->string				i v $language)
+    (bytevector->hex				i v $language)
+    (hex->bytevector				i v $language)
+    (string-hex->bytevector			i v $language)
+    (bytevector->string-hex			i v $language)
+    (bytevector->base64				i v $language)
+    (base64->bytevector				i v $language)
+    (string-base64->bytevector			i v $language)
+    (bytevector->string-base64			i v $language)
     (symbol->string				i v symbols r ba se)
     (symbol=?					i v symbols r ba)
     (symbol?					i v symbols r ba se)
@@ -1861,6 +1871,11 @@
     (record-mutator				i v r rp)
     (record-predicate				i v r rp)
     (record-type-descriptor?			i v r rp)
+    (record-destructor-set!			i v $language)
+    (record-destructor				i v $language)
+    (record-guardian-logger			i v $language)
+    (record-guardian-log			i v $language)
+    (record-reset				i v $language)
     (syntax-violation				i v r sc)
     (bound-identifier=?				i v r sc)
     (datum->syntax				i v r sc)
@@ -2037,6 +2052,7 @@
     (strerror					i v $language)
     (errno->string				posix)
     (getenv					i v $language posix)
+    (environ					i v $language posix)
     (mkdir					posix)
     (mkdir/parents				posix)
     (real-pathname				posix)

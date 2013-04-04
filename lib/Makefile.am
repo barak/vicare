@@ -12,25 +12,41 @@ dist_pkglibexec_SCRIPTS	= compile-all.sps
 libvicaredir		= $(libdir)/vicare-scheme
 
 nobase_dist_libvicare_DATA	= \
-	vicare/arguments/validation.sls		\
-	vicare/arguments/general-c-buffers.sls	\
-	vicare/assembler/inspection.sls		\
-	vicare/debugging/compiler.sls		\
-	vicare/flonum-formatter.sls		\
-	vicare/flonum-parser.sls		\
-	vicare/include.sls			\
-	vicare/infix.sls			\
-	vicare/numerics/constants.sls		\
-	vicare/keywords.sls			\
-	vicare/parser-logic.sls			\
-	vicare/syntactic-extensions.sls		\
-	vicare/unsafe-capi.sls			\
-	vicare/unsafe-operations.sls		\
-	vicare/unsafe-unicode.sls		\
-	vicare/platform/utilities.sls		\
-	vicare/weak-hashtables.sls		\
-	vicare/checks.sls			\
-	\
+	vicare/arguments/validation.sls			\
+	vicare/arguments/general-c-buffers.sls		\
+	vicare/assembler/inspection.sls			\
+	vicare/cond-expand.sls				\
+	vicare/cond-expand/helpers.sls			\
+	vicare/cond-expand/feature-cond.sls		\
+	vicare/cond-expand/OS-id-features.sls		\
+	vicare/cond-expand/platform-features.sls	\
+	vicare/cond-expand/registry.sls			\
+	vicare/debugging/compiler.sls			\
+	vicare/flonum-formatter.sls			\
+	vicare/flonum-parser.sls			\
+	vicare/include.sls				\
+	vicare/infix.sls				\
+	vicare/numerics/constants.sls			\
+	vicare/keywords.sls				\
+	vicare/parser-logic.sls				\
+	vicare/syntactic-extensions.sls			\
+	vicare/unsafe-capi.sls				\
+	vicare/unsafe-operations.sls			\
+	vicare/unsafe-unicode.sls			\
+	vicare/platform/utilities.sls			\
+	vicare/weak-hashtables.sls			\
+	vicare/checks.sls
+
+nobase_nodist_libvicare_DATA	= \
+	vicare/errno.sls			\
+	vicare/installation-configuration.sls	\
+	vicare/platform-constants.sls		\
+	vicare/platform/constants.sls		\
+	vicare/platform/features.sls		\
+	vicare/words.sls
+
+if WANT_SRFI
+nobase_dist_libvicare_DATA	+= \
 	srfi/%3a0.sls					\
 	srfi/%3a0/cond-expand.sls			\
 	\
@@ -66,30 +82,26 @@ nobase_dist_libvicare_DATA	= \
 	srfi/%3a19/read-table.sps			\
 	srfi/%3a19/table.scm				\
 	srfi/%3a19/tai-utc.dat				\
+	srfi/%3a19/time/extensions.sls			\
+	srfi/%3a19/time/core.sls			\
 	\
 	srfi/%3a23.sls					\
 	srfi/%3a23/error.sls				\
-	srfi/%3a23/error/tricks.sls			\
 	\
 	srfi/%3a25.sls					\
 	srfi/%3a25/multi-dimensional-arrays.sls		\
 	srfi/%3a25/arlib.scm				\
-	srfi/%3a25/array.scm				\
-	srfi/%3a25/ix-ctor.scm				\
 	srfi/%3a25/list.scm				\
-	srfi/%3a25/multi-dimensional-arrays/all.sls	\
 	srfi/%3a25/multi-dimensional-arrays/arlib.sls	\
-	srfi/%3a25/op-ctor.scm				\
-	srfi/%3a25/test.scm				\
 	\
 	srfi/%3a26.sls					\
 	srfi/%3a26/cut.sls				\
 	\
 	srfi/%3a27.sls					\
 	srfi/%3a27/random-bits.sls			\
-	srfi/%3a27/conftest.scm				\
-	srfi/%3a27/mrg32k3a-a.scm			\
-	srfi/%3a27/mrg32k3a.scm				\
+	\
+	srfi/%3a28.sls					\
+	srfi/%3a28/basic-format-strings.sls		\
 	\
 	srfi/%3a31.sls					\
 	srfi/%3a31/rec.sls				\
@@ -98,7 +110,7 @@ nobase_dist_libvicare_DATA	= \
 	srfi/%3a37/args-fold.sls			\
 	\
 	srfi/%3a38.sls					\
-	srfi/%3a38/with-shared-structure.vicare.sls	\
+	srfi/%3a38/with-shared-structure.sls		\
 	\
 	srfi/%3a39.sls					\
 	srfi/%3a39/parameters.sls			\
@@ -109,32 +121,24 @@ nobase_dist_libvicare_DATA	= \
 	srfi/%3a41/streams/primitive.sls		\
 	\
 	srfi/%3a42.sls					\
-	srfi/%3a42/ec.scm				\
 	srfi/%3a42/eager-comprehensions.sls		\
-	srfi/%3a42/examples.scm				\
 	\
 	srfi/%3a43.sls					\
 	srfi/%3a43/vectors.sls				\
-	srfi/%3a43/vector-lib.scm			\
 	\
 	srfi/%3a45.sls					\
 	srfi/%3a45/lazy.sls				\
 	\
 	srfi/%3a48.sls					\
-	srfi/%3a48/intermediate-format-strings.sls			\
-	srfi/%3a48/intermediate-format-strings/compat.vicare.sls	\
+	srfi/%3a48/intermediate-format-strings.sls	\
 	\
 	srfi/%3a61/cond.sls				\
 	srfi/%3a61.sls					\
 	\
 	srfi/%3a64.sls					\
-	srfi/%3a64/srfi-64-test.scm			\
-	srfi/%3a64/testing.scm				\
 	srfi/%3a64/testing.sls				\
 	\
 	srfi/%3a67/compare-procedures.sls		\
-	srfi/%3a67/compare.scm				\
-	srfi/%3a67/examples.scm				\
 	srfi/%3a67.sls					\
 	\
 	srfi/%3a69/basic-hash-tables.sls		\
@@ -153,27 +157,18 @@ nobase_dist_libvicare_DATA	= \
 	srfi/%3a99/records/procedural.sls		\
 	srfi/%3a99/records/syntactic.sls		\
 	\
-	srfi/private/check-arg.sls			\
-	srfi/private/feature-cond.sls			\
-	srfi/private/include/compat.vicare.sls		\
-	srfi/private/include.sls			\
-	srfi/private/let-opt.sls			\
-	srfi/private/make-aliased-libraries.sps		\
-	srfi/private/OS-id-features.sls			\
-	srfi/private/platform-features.vicare.sls	\
-	srfi/private/registry.sls			\
-	srfi/private/vanish.sls
-
-nobase_nodist_libvicare_DATA	= \
-	vicare/errno.sls			\
-	vicare/installation-configuration.sls	\
-	vicare/platform-constants.sls		\
-	vicare/platform/constants.sls		\
-	vicare/platform/features.sls		\
-	vicare/words.sls
+	srfi/%3a101.sls					\
+	srfi/%3a101/random-access-lists.sls		\
+	srfi/%3a101/random-access-lists/procedures.sls	\
+	srfi/%3a101/random-access-lists/syntax.sls	\
+	srfi/%3a101/random-access-lists/equal.sls
+dist_pkglibexec_SCRIPTS		+= compile-srfi.sps
+endif
 
 if WANT_LIBFFI
-nobase_dist_libvicare_DATA	+= vicare/ffi.sls
+nobase_dist_libvicare_DATA	+= \
+	vicare/ffi.sls				\
+	vicare/ffi/foreign-pointer-wrapper.sls
 dist_pkglibexec_SCRIPTS		+= compile-ffi.sps
 endif
 
@@ -186,6 +181,11 @@ endif
 if WANT_GLIBC
 nobase_dist_libvicare_DATA	+= vicare/glibc.sls
 dist_pkglibexec_SCRIPTS		+= compile-glibc.sps
+endif
+
+if WANT_LIBICONV
+nobase_dist_libvicare_DATA	+= vicare/iconv.sls
+dist_pkglibexec_SCRIPTS		+= compile-iconv.sps
 endif
 
 if WANT_LIBFFI
@@ -242,6 +242,9 @@ VICARE_INST_RUN	= $(VICARE_INST_ENV) $(VICARE_INST)
 vfasl:
 	test -d $(VICARE_FASL_DIRECTORY) || $(MKDIR_P) $(VICARE_FASL_DIRECTORY)
 	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-all.sps
+if WANT_SRFI
+	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-srfi.sps
+endif
 if WANT_LIBFFI
 	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-ffi.sps
 endif
@@ -270,6 +273,9 @@ endif
 
 vfasl-installed:
 	$(VICARE_INST_RUN) --compile-dependencies $(srcdir)/compile-all.sps
+if WANT_SRFI
+	$(VICARE_INST_RUN) --compile-dependencies $(srcdir)/compile-srfi.sps
+endif
 if WANT_LIBFFI
 	$(VICARE_INST_RUN) --compile-dependencies $(srcdir)/compile-ffi.sps
 endif

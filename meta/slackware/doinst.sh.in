@@ -20,8 +20,10 @@ install -m 0775 -d "$fasldir"
 
 for item in \
     compile-all.sps             \
+    compile-srfi.sps            \
     compile-ffi.sps             \
     compile-glibc.sps           \
+    compile-iconv.sps           \
     compile-linux.sps           \
     compile-posix.sps           \
     compile-gcc.sps             \

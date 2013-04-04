@@ -39,6 +39,7 @@ missing
 mkinstalldirs
 ltmain.sh
 m4/
+autotools/
 /config.h
 /config.log
 /config.status
