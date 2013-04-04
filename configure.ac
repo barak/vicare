@@ -25,6 +25,25 @@ AC_LANG([C])
 AC_DEFINE([_GNU_SOURCE],[1],[enable everything GNU])
 
 #page
+#### Figure out timestamp information, for substitution.
+#### If we are in a git repo, use the timestamp of the
+#### most recent commit.  Otherwise, use the current time.
+
+if git log -1 >& /dev/null; then
+   thetimestamp=$(git log -1 --format=format:'%cd' --date=iso)
+else
+   thetimestamp=$(date --rfc-3339=seconds)
+fi
+YEAR=$(date --date="${thetimestamp}" +'%Y')
+NMONTH=$(date --date="${thetimestamp}" +'%m')
+DAY=$(date --date="${thetimestamp}" +'%d')
+MONTH=$(date --date="${thetimestamp}" +'%B')
+AC_SUBST(YEAR)
+AC_SUBST(NMONTH)
+AC_SUBST(MONTH)
+AC_SUBST(DAY)
+
+#page
 #### additional configuration command line options
 
 VICARE_ENABLE_OPTION([DEBUG],[debug],[no],
@@ -1519,7 +1538,8 @@ AC_CONFIG_FILES(Makefile
                 lib/vicare/platform-constants.sls
                 lib/vicare/platform/constants.sls
                 lib/vicare/words.sls
-                meta/slackware/doinst.sh)
+                meta/slackware/doinst.sh
+		doc/version.texi)
 AC_OUTPUT
 
 ### end of file
