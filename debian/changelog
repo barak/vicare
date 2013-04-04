@@ -1,6 +1,6 @@
-vicare (0.2d19-1) unstable; urgency=low
+vicare (0.2d21-1) unstable; urgency=low
 
   * Initial release
   * Import/modify/update Ikarus packaging scripts (debian/*)
 
- -- Barak A. Pearlmutter <bap@debian.org>  Thu, 01 Mar 2012 12:09:22 +0000
+ -- Barak A. Pearlmutter <bap@debian.org>  Thu, 04 Apr 2013 09:13:05 +0100
