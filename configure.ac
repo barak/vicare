@@ -2,7 +2,7 @@ dnl @configure_input@
 dnl
 
 AC_PREREQ([2.68])
-AC_INIT([Vicare Scheme],[0.2d21],[marco.maggi-ipsu@poste.it],
+AC_INIT([Vicare Scheme],[0.3d0],[marco.maggi-ipsu@poste.it],
   [vicare-scheme],[http://marcomaggi.github.com/vicare.html])
 AC_CONFIG_SRCDIR([src])
 AC_CONFIG_MACRO_DIR([autotools])
@@ -30,9 +30,13 @@ AC_DEFINE([_GNU_SOURCE],[1],[enable everything GNU])
 #### most recent commit.  Otherwise, use the current time.
 
 if git log -1 >& /dev/null; then
-   thetimestamp=$(git log -1 --format=format:'%cd' --date=iso)
+  thetimestamp=$(git log -1 --format=format:'%cd' --date=iso)
+  BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
+  COMMIT_HASH=$(git rev-parse HEAD)
 else
-   thetimestamp=$(date --rfc-3339=seconds)
+  thetimestamp=$(date --rfc-3339=seconds)
+  BRANCH_NAME=no-branch
+  COMMIT_HASH=no-commit
 fi
 YEAR=$(date --date="${thetimestamp}" +'%Y')
 NMONTH=$(date --date="${thetimestamp}" +'%m')
@@ -42,15 +46,29 @@ AC_SUBST(YEAR)
 AC_SUBST(NMONTH)
 AC_SUBST(MONTH)
 AC_SUBST(DAY)
+AC_SUBST(BRANCH_NAME)
+AC_SUBST(COMMIT_HASH)
 
 #page
 #### additional configuration command line options
+
+# This must always be defined.  When true: the bottom page of the Scheme
+# stack segment  is protected  from read/write operation,  so that  if a
+# stack  overflow happens  it results  in a  SIGSEGV rather  than memory
+# corruption.
+AC_DEFINE([IK_PROTECT_FROM_STACK_OVERFLOW],[1],
+  [Define to true to protect the Scheme stack from overflow.])
+
+AS_VAR_SET_IF(VFLAGS,,[AS_VAR_SET(VFLAGS,["-O2"])])
 
 VICARE_ENABLE_OPTION([DEBUG],[debug],[no],
   [whether debugging features are included in compiled Scheme libraries],
   [enable compilation of Scheme libraries with debugging features])
 AM_CONDITIONAL([WANT_DEBUG],
   [test "x$vicare_enable_DEBUG" = xyes])
+
+AM_COND_IF([WANT_DEBUG],
+  [AS_VAR_SET(VFLAGS,"$VFLAGS -g")])
 
 VICARE_ENABLE_OPTION([ARGUMENTS_VALIDATION],[arguments-validation],[yes],
   [whether arguments validation is enabled],
@@ -1530,14 +1548,17 @@ AC_CACHE_SAVE
 #page
 #### finish
 
+AC_SUBST([VFLAGS])
+
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES(Makefile
-                src/Makefile scheme/Makefile doc/Makefile lib/Makefile tests/Makefile
-                lib/vicare/installation-configuration.sls
-                lib/vicare/errno.sls
-                lib/vicare/platform-constants.sls
+                src/Makefile scheme/Makefile doc/Makefile lib/Makefile
+                tests/Makefile demos/Makefile
+                src/last-revision.h
+                lib/vicare/platform/configuration.sls
                 lib/vicare/platform/constants.sls
-                lib/vicare/words.sls
+                lib/vicare/platform/errno.sls
+                lib/vicare/platform/words.sls
                 meta/slackware/doinst.sh
 		doc/version.texi)
 AC_OUTPUT

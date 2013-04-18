@@ -30,7 +30,7 @@
     (except (ikarus.code-objects)
 	    procedure-annotation)
     (vicare syntactic-extensions)
-    (prefix (vicare unsafe-operations)
+    (prefix (vicare unsafe operations)
 	    unsafe.))
 
 
@@ -48,7 +48,7 @@
 ;;;; helpers
 
 (module (wordsize)
-  (import (vicare include))
+  (import (vicare language-extensions include))
   (include/verbose "ikarus.config.ss"))
 
 (define who 'fasl-write)

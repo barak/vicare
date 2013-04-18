@@ -50,7 +50,7 @@
 
 
 #!r6rs
-(library (vicare unsafe-operations)
+(library (vicare unsafe operations)
   (export
     (rename ($make-struct	make-struct)
 	    ($struct		struct)
@@ -158,6 +158,7 @@
 
     (rename ($make-bytevector		make-bytevector)
 	    ($bytevector-length		bytevector-length)
+	    ($bytevector-empty?		bytevector-empty?)
 	    ($bytevector-u8-ref		bytevector-u8-ref)
 	    ($bytevector-s8-ref		bytevector-s8-ref)
 	    ($bytevector-u8-set!	bytevector-u8-set!)
@@ -312,7 +313,7 @@
     (ikarus system $strings)
     (ikarus system $codes)
     (ikarus system $pointers)
-    (for (prefix (only (vicare installation-configuration)
+    (for (prefix (only (vicare platform configuration)
 		       platform-endianness)
 		 config.)
 	 expand))
@@ -900,6 +901,9 @@
 
 
 ;;;; miscellaneous bytevector operations
+
+(define-inline ($bytevector-empty? ?bv)
+  ($fxzero? ($bytevector-length ?bv)))
 
 (define-inline ($bytevector-fill! ?bv ?index ?end ?fill)
   ;;Fill the  positions in ?BV  from ?INDEX inclusive to  ?END exclusive

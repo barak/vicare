@@ -104,7 +104,7 @@
 
 @c To be used as @value{COPYRIGHT_YEARS} whenever we need to include the
 @c list of copyright years.
-@set COPYRIGHT_YEARS            2010-2012
+@set COPYRIGHT_YEARS            2010-2013
 
 
 @set TARBALLURL                 @url{http://github.com/marcomaggi/vicare/downloads}
@@ -231,6 +231,7 @@ Internals
 
 * objects::                     Built in Scheme objects.
 * debug int::                   Debug mode.
+* machinery::                   Introduction to execution machinery.
 * compiler::                    Wild notes on the compiler internals.
 
 Appendices
@@ -276,6 +277,7 @@ External documents
 @include libs.texi
 @include objects.texi
 @include debug.texi
+@include machinery.texi
 @include compiler.texi
 
 @include missing.texi

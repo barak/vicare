@@ -1,4 +1,4 @@
-Subject: [announce] Vicare Scheme revision 0.2d21
+Subject: [announce] Vicare Scheme revision 0.3d0
 
                              Vicare Scheme
                              =============
@@ -37,23 +37,77 @@ collection of R6 Scheme libraries:
 	      <http://marcomaggi.github.com/nausicaa.html>
 
 
-Notes for revision 0.2d21
--------------------------
+Notes for revision 0.3d0
+------------------------
+
+* The version  number has been  bumped to 0.3: this  revision introduces
+  backwards INcompatible changes that will force upgrading of almost all
+  the packages binding Vicare to foreign libraries.
 
 * The boot images have been rotated.
 
-* Added  automatic  finalisation of  R6RS  records  through the  garbage
-  collector  facilities,  see  the  documentation  node  "iklib  records
-  final".
+* Added command line option -g as alias for --debug.
 
-* Changed tarball distribution from .bz2 compression to .xz compression.
+* Added command line option -F as alias for --fasl-path.
 
-* Added $STRING= to (ikarus system $strings).
+* The  script "configure"  and the  makefiles accept  the user  variable
+  VFLAGS  to  set  command  line options  for  "vicare"  when  compiling
+  libraries and  running the test  suite.  VFLAGS is  to be used  in the
+  same way of CFLAGS for the C compiler.
+
+* Some changes to attempt a fix  for Issue #35 have been implemented see
+  "doc/QUEST-FOR-ISSUE-35".
+
+* SRFI 19,  time and date functions,  has been reverted to  the original
+  Eddington's port.
 
 * BACKWARDS INCOMPATIBILITY The iconv functions have been moved from the
   library (vicare glibc) into the library (vicare iconv).  Documentation
   and tests also have been moved into modules independent from the Glibc
   ones.
+
+* BACKWARDS  INCOMPATIBILITY  The  following C  functions  have  changed
+  signature:
+
+      void ik_enter_c_function (ikpcb* pcb);
+      void ik_leave_c_function (ikpcb* pcb);
+
+  which means the  extensions of Vicare binding it  to foreign libraries
+  have to be fixed.
+
+* BACKWARDS INCOMPATIBILITY The  library:
+
+     (vicare platform-constants)
+
+  has been removed; use (vicare platform constants) instead.
+
+* BACKWARDS INCOMPATIBILITY The following libraries:
+
+     (vicare installation-configuration)
+     (vicare words)
+     (vicare errno)
+     (vicare unsafe-operations)
+     (vicare unsafe-unicode)
+     (vicare unsafe-capi)
+     (vicare infix)
+     (vicare include)
+
+  have been renamed to:
+
+     (vicare platform configuration)
+     (vicare platform words)
+     (vicare platform errno)
+     (vicare unsafe operations)
+     (vicare unsafe unicode)
+     (vicare unsafe capi)
+     (vicare language-extensions infix)
+     (vicare language-extensions include)
+
+* Added  automatic  finalisation of  R6RS  records  through the  garbage
+  collector  facilities,  see  the  documentation  node  "iklib  records
+  final".
+
+* Added $STRING= to (ikarus system $strings).
 
 * Added  functions to  (vicare) to  convert between  bytevectors holding
   octets and  strings or bytevectors  holding the ASCII  hexadecimal and
@@ -64,7 +118,52 @@ Notes for revision 0.2d21
       base64->bytevector	bytevector->base64
       string-base64->bytevector	bytevector->string-base64
 
-* Added library (vicare cond-expand).
+* Added  functions to  (vicare) to  convert between  bytevectors holding
+  octets and bytevectors holding the corresponding URI percent encoding.
+
+    string->uri-encoding	uri-encoding->string
+    uri-encode			uri-decode
+    uri-normalise-encoding
+
+* Added functions to (vicare) to manipulate time objects:
+
+      make-time
+      time-addition		time-difference
+      time=?
+      time<?			time<=?
+      time>?			time>=?
+
+* Added functions FOR-EACH-IN-ORDER and MAKE-QUEUE to (vicare).
+
+* Added DEPREFIX import specification clause:
+
+     (import (rnrs)
+       (rnrs eval))
+     (eval '(str.length "ciao")
+           (environment
+            '(prefix (deprefix (only (rnrs)
+                                     string-length
+                                     string-append)
+                               string-)
+                     str.)))
+     => 4
+
+* Added  library  (vicare  cond-expand),   see  the  documentation  node
+  "cond-expand".
+
+* Added  library  (vicare  custom-ports),  see  the  documentation  node
+  "custom-ports".
+
+* Added  library   (vicare  language-extensions  coroutines),   see  the
+  documentation node "coroutines".
+
+* Added library (vicare language-extensions  amb), see the documentation
+  node "amb".
+
+* Added library (vicare  net channels), see the  documentation node "net
+  channels".
+
+* Changed tarball distribution from .bz2 compression to .xz compression.
 
 
 Notes for revision 0.2d20

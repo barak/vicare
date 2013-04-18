@@ -305,15 +305,15 @@
     (only (ikarus system $pointers)
 	  $pointer=)
     (vicare syntactic-extensions)
-    (prefix (vicare unsafe-operations)
+    (prefix (vicare unsafe operations)
 	    unsafe.)
-    (prefix (vicare unsafe-capi)
+    (prefix (vicare unsafe capi)
 	    capi.)
-    (prefix (vicare words)
+    (prefix (vicare platform words)
 	    words.))
 
   (module (arguments-validation)
-    (import (vicare include))
+    (import (vicare language-extensions include))
     (include/verbose "ikarus.config.ss"))
 
 

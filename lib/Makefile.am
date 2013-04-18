@@ -1,49 +1,60 @@
 ## Process this file with automake to produce Makefile.in
 
 EXTRA_DIST = \
-	vicare/errno.sls.in			\
-	vicare/platform-constants.sls.in	\
+	vicare/platform/configuration.sls.in	\
 	vicare/platform/constants.sls.in	\
-	vicare/words.sls.in			\
-	vicare/installation-configuration.sls.in
+	vicare/platform/errno.sls.in		\
+	vicare/platform/words.sls.in
 
 dist_pkglibexec_SCRIPTS	= compile-all.sps
 
 libvicaredir		= $(libdir)/vicare-scheme
 
 nobase_dist_libvicare_DATA	= \
-	vicare/arguments/validation.sls			\
-	vicare/arguments/general-c-buffers.sls		\
-	vicare/assembler/inspection.sls			\
+	vicare/unsafe/capi.sls				\
+	vicare/unsafe/operations.sls			\
+	vicare/unsafe/unicode.sls			\
+	\
+	vicare/platform/utilities.sls			\
+	\
 	vicare/cond-expand.sls				\
-	vicare/cond-expand/helpers.sls			\
-	vicare/cond-expand/feature-cond.sls		\
 	vicare/cond-expand/OS-id-features.sls		\
+	vicare/cond-expand/feature-cond.sls		\
+	vicare/cond-expand/helpers.sls			\
 	vicare/cond-expand/platform-features.sls	\
 	vicare/cond-expand/registry.sls			\
+	\
+	vicare/arguments/general-c-buffers.sls		\
+	vicare/arguments/validation.sls			\
+	\
+	vicare/language-extensions/amb.sls		\
+	vicare/language-extensions/coroutines.sls	\
+	vicare/language-extensions/infix.sls		\
+	vicare/language-extensions/include.sls		\
+	\
+	vicare/assembler/inspection.sls			\
+	vicare/bytevector-compounds.sls			\
+	vicare/bytevector-compounds/core.sls		\
+	vicare/bytevector-compounds/unsafe.sls		\
+	vicare/checks.sls				\
+	vicare/custom-ports.sls				\
 	vicare/debugging/compiler.sls			\
 	vicare/flonum-formatter.sls			\
 	vicare/flonum-parser.sls			\
-	vicare/include.sls				\
-	vicare/infix.sls				\
-	vicare/numerics/constants.sls			\
 	vicare/keywords.sls				\
+	vicare/numerics/constants.sls			\
 	vicare/parser-logic.sls				\
 	vicare/syntactic-extensions.sls			\
-	vicare/unsafe-capi.sls				\
-	vicare/unsafe-operations.sls			\
-	vicare/unsafe-unicode.sls			\
-	vicare/platform/utilities.sls			\
 	vicare/weak-hashtables.sls			\
-	vicare/checks.sls
+	\
+	vicare/net/channels.sls
 
 nobase_nodist_libvicare_DATA	= \
-	vicare/errno.sls			\
-	vicare/installation-configuration.sls	\
-	vicare/platform-constants.sls		\
+	vicare/platform/configuration.sls	\
 	vicare/platform/constants.sls		\
+	vicare/platform/errno.sls		\
 	vicare/platform/features.sls		\
-	vicare/words.sls
+	vicare/platform/words.sls
 
 if WANT_SRFI
 nobase_dist_libvicare_DATA	+= \
@@ -79,11 +90,6 @@ nobase_dist_libvicare_DATA	+= \
 	\
 	srfi/%3a19.sls					\
 	srfi/%3a19/time.sls				\
-	srfi/%3a19/read-table.sps			\
-	srfi/%3a19/table.scm				\
-	srfi/%3a19/tai-utc.dat				\
-	srfi/%3a19/time/extensions.sls			\
-	srfi/%3a19/time/core.sls			\
 	\
 	srfi/%3a23.sls					\
 	srfi/%3a23/error.sls				\
@@ -219,18 +225,19 @@ VICARE_COMPILE_LIBRARY_PATH	= $(builddir):$(srcdir):$(VICARE_LIBRARY_PATH)
 VICARE_COMPILE_FASL_PATH	= $(VICARE_FASL_DIRECTORY):$(VICARE_FASL_PATH)
 VICARE_COMPILE_LD_PATH		= $(builddir)/../src/.libs
 
-# The variable "user_flags"  is for the user to be  set on the command
-# line of "make", for example "user_flags=--print-loaded-libraries".
-VICARE_FLAGS	= -b $(VICARE_BOOT) --fasl-directory $(VICARE_FASL_DIRECTORY) $(user_flags)
-if WANT_DEBUG
-VICARE_FLAGS	+= --debug
-endif
+# The variable "VFLAGS" is for the user  to be set on the command line
+# of "make" or "configure", for example:
+#
+#   make VFLAGS="-g -O2 --print-loaded-libraries"
+#
+VFLAGS		= @VFLAGS@
 
 VICARE		= $(builddir)/../src/vicare
 VICARE_BOOT	= $(builddir)/../scheme/vicare.boot
 VICARE_ENV	= VICARE_LIBRARY_PATH=$(VICARE_COMPILE_LIBRARY_PATH)	\
 		  VICARE_FASL_PATH=$(VICARE_COMPILE_FASL_PATH)		\
 		  LD_LIBRARY_PATH=$(VICARE_COMPILE_LD_PATH)
+VICARE_FLAGS	= -b $(VICARE_BOOT) --fasl-directory $(VICARE_FASL_DIRECTORY) $(VFLAGS)
 VICARE_RUN	= $(VICARE_ENV) $(VICARE) $(VICARE_FLAGS)
 
 VICARE_INST	= $(bindir)/vicare

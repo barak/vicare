@@ -1,6 +1,7 @@
 ## Process this file with automake to produce Makefile.in
 
 AM_CFLAGS = -Wall
+EXTRA_DIST		= last-revision.h
 
 SRCS	= \
 	cpu_has_sse2.S			\
@@ -26,9 +27,12 @@ SRCS	= \
 	ikarus-glibc.c			\
 	ikarus-linux.c			\
 	ikarus-readline.c		\
+	last-revision.h			\
 	internals.h
 
 include_HEADERS		= vicare.h
+
+MAINTAINERCLEANFILES	= last-revision.h
 
 bin_PROGRAMS		= vicare
 vicare_SOURCES		= $(SRCS) ikarus.c
