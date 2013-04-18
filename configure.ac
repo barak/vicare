@@ -30,9 +30,13 @@ AC_DEFINE([_GNU_SOURCE],[1],[enable everything GNU])
 #### most recent commit.  Otherwise, use the current time.
 
 if git log -1 >& /dev/null; then
-   thetimestamp=$(git log -1 --format=format:'%cd' --date=iso)
+  thetimestamp=$(git log -1 --format=format:'%cd' --date=iso)
+  BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
+  COMMIT_HASH=$(git rev-parse HEAD)
 else
-   thetimestamp=$(date --rfc-3339=seconds)
+  thetimestamp=$(date --rfc-3339=seconds)
+  BRANCH_NAME=no-branch
+  COMMIT_HASH=no-commit
 fi
 YEAR=$(date --date="${thetimestamp}" +'%Y')
 NMONTH=$(date --date="${thetimestamp}" +'%m')
@@ -42,6 +46,8 @@ AC_SUBST(YEAR)
 AC_SUBST(NMONTH)
 AC_SUBST(MONTH)
 AC_SUBST(DAY)
+AC_SUBST(BRANCH_NAME)
+AC_SUBST(COMMIT_HASH)
 
 #page
 #### additional configuration command line options
@@ -1548,6 +1554,7 @@ AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES(Makefile
                 src/Makefile scheme/Makefile doc/Makefile lib/Makefile
                 tests/Makefile demos/Makefile
+                src/last-revision.h
                 lib/vicare/platform/configuration.sls
                 lib/vicare/platform/constants.sls
                 lib/vicare/platform/errno.sls

@@ -34,11 +34,6 @@ include_HEADERS		= vicare.h
 
 MAINTAINERCLEANFILES	= last-revision.h
 
-$(srcdir)/last-revision.h:
-	echo '#define LAST_REVISION "no-branch/no-commit"' >$@
-
-ikarus-main.$(OBJEXT): last-revision.h
-
 bin_PROGRAMS		= vicare
 vicare_SOURCES		= $(SRCS) ikarus.c
 
