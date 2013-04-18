@@ -63,8 +63,6 @@ boolean value: @true{} if the feature is available, @false{} otherwise.
 * iklib enumerations::          Additional functions on enumerations.
 * iklib hashtables::            Additional functions on hashtables.
 * iklib load::                  Loading source files.
-* iklib import::                Local library imports.
-* iklib export::                Extended library exports.
 * iklib modules::               Local modules.
 * iklib parameters::            Parameters.
 * iklib gensym::                Gensyms.
@@ -688,9 +686,12 @@ the character.
 
 
 @menu
-* iklib expander syntax::       Inspecting syntax objects.
-* iklib expander transformers:: Syntax transformers facilities.
-* iklib expander expand::       Expander facilities.
+* iklib expander syntax::           Inspecting syntax objects.
+* iklib expander transformers::     Syntax transformers facilities.
+* iklib expander expand::           Expander facilities.
+* iklib expander import specs::     Additional import specifications.
+* iklib expander local import::     Local library imports.
+* iklib expander extended export::  Extended library exports.
 @end menu
 
 @c page
@@ -886,6 +887,204 @@ Example:
                  #@{x |O3I3z7rSrwZ9/X2O|@}))))))
 @end example
 @end defun
+
+@c page
+@node iklib expander import specs
+@subsection Additional import specifications
+
+
+@deffn {Import Spec} deprefix @meta{import-spec} @meta{prefix}
+Similar to the import specification @code{prefix}, but removes a prefix
+rather than add it.  This clause is always enabled: there is no way to
+disable it to enforce @rnrs{6} compatibility.
+
+@example
+(import (rnrs)
+  (rnrs eval))
+
+(eval '(str.length "ciao")
+      (environment
+       '(prefix
+         (deprefix (only (rnrs)
+                         string-length
+                         string-append)
+                   string-)
+         str.)))
+@result{} 4
+@end example
+@end deffn
+
+@c page
+@node iklib expander local import
+@subsection Local library imports
+
+
+Local @func{import} forms are useful for the following reasons:
+
+@enumerate
+@item
+They minimize the namespace clutter that usually occurs when many
+libraries are imported at the top level.
+
+@item
+They limit the scope of the import and thus help modularize a library's
+dependencies.
+@end enumerate
+
+Let's suppose we are constructing a large library and at some point we
+realize that a procedure needs to make use of some other library to
+performing a specific task; importing that library at top level makes it
+available for the entire library.  Consequently, even if that library is
+no longer used anywhere in the code (say when the code that uses it is
+deleted), it becomes very hard to delete the import without first
+examiniming the entire library body for potential usage leaks.  By
+locally importing a library into the appropriate scope, we gain the
+ability to delete the @func{import} form when the procedure that was
+using it is deleted.
+
+
+@deffn Syntax import @meta{import-spec} ...
+This syntax can be used anywhere definitions can occur:
+
+@enumerate
+@item
+In a script body.
+
+@item
+At library's top--level.
+
+@item
+In internal definitions context.
+@end enumerate
+
+The syntax of the local @func{import} form is similar to the
+@func{import} that appears at the top of a library or a script form, and
+carries with it the same restrictions:
+
+@itemize
+@item
+No identifier name may be imported twice unless it denotes the same
+identifier.
+
+@item
+No identifier may be both imported and defined.
+
+@item
+Imported identifiers are immutable.
+@end itemize
+
+Each @meta{import-spec} can be as defined by @rnrs{6} or a symbol
+representing the name of a module; notice that module import
+specifications can be only symbols, @strong{without} prefixes, renaming
+and the features allowed for libraries.
+@end deffn
+
+
+In the following example we import a library in the body of a function:
+
+@example
+;;; file "alpha.sls"
+(library (alpha)
+  (export doit)
+  (import (vicare))
+  (define (doit)
+    (fprintf (current-error-port) "From alpha!\n")))
+
+;;; file "beta.sls"
+(library (beta)
+  (export doit)
+  (import (vicare))
+  (define (doit)
+    (fprintf (current-error-port) "From beta!\n")))
+
+;;; file "program.sps"
+(import (vicare)
+  (alpha))
+(define (do-that)
+  (import (beta))
+  (doit))
+(doit)
+(do-that)
+@print{} From alpha!
+@print{} From beta!
+@end example
+
+In the following example we import bindings from a module in the body of
+a function:
+
+@example
+(import (vicare))
+
+(define (doit)
+  (fprintf (current-error-port) "From body!\n"))
+
+(module do-stuff
+  (doit)
+  (define (doit)
+    (fprintf (current-error-port) "From module!\n")))
+
+(define (do-that)
+  (import do-stuff)
+  (doit))
+
+(doit)
+(do-that)
+@print{} From body!
+@print{} From module!
+@end example
+
+@c page
+@node iklib expander extended export
+@subsection Extended library exports
+
+
+@value{PRJNAME} allows the @func{export} syntax to appear at the top
+level of a library among the definitions, not only as third form of a
+@func{library} form.
+
+
+@deffn Syntax export @meta{export-spec} ...
+Export the specified bidings from the current library or module.  When
+@func{export} appears at the top level of a library: it exports the
+specified bindings from the library.  When @func{export} appears in the
+body of a module: it exports the specified bindings from the module
+(@strong{not} from the enclosing library).
+@end deffn
+
+
+Here is an example of library exporting a binding with a @func{export}
+at the end:
+
+@example
+;;; file "alpha.sls"
+(library (alpha)
+  (export red)
+  (import (vicare))
+  (define (blue)
+    'blue)
+  (define (red)
+    'red)
+  (export blue))
+
+;;; file "program.sps"
+(import (vicare)
+  (alpha))
+(pretty-print (red)  (current-error-port))
+(pretty-print (blue) (current-error-port))
+@end example
+
+Here is an example of module exporting a binding with @func{export}:
+
+@example
+(import (vicare))
+
+(module (green)
+  (define (green) 'green)
+  (define (yellow) 'yellow)
+  (export yellow))
+
+(list (green) (yellow)) @result{} (green yellow)
+@end example
 
 @c page
 @node iklib shared
@@ -1614,6 +1813,8 @@ Return an exact integer suitable to be used as hash value for
 
 @menu
 * iklib lists weak::            Weak pairs.
+* iklib lists queue::           Queues of items.
+* iklib lists misc::            Miscellaneous functions.
 @end menu
 
 @c page
@@ -1655,6 +1856,83 @@ vicare> x
 vicare> (bwp-object? (car x))
 #t
 @end example
+@end defun
+
+@c page
+@node iklib lists queue
+@subsection Queues of items
+
+
+Queues are object containers that allow constructing a first-in
+first-out sequence.  The following bindings are exported by the library
+@library{vicare}.
+
+
+@defun make-queue
+Build a queue of items and return @math{3} values:
+
+@enumerate
+@item
+A predicate thunk returning @true{} if the queue is empty.
+
+@item
+A function which, applied to a single argument, enqueues it as last
+item.
+
+@item
+A thunk extracting and returning the first item from the queue.  If the
+queue is empty an error is raised.
+@end enumerate
+
+Usage examples:
+
+@example
+#!r6rs
+(import (vicare))
+
+(let-values (((empty? enqueue! dequeue!)
+              (make-queue)))
+  (empty?))
+@result{} #t
+
+(let-values (((empty? enqueue! dequeue!)
+              (make-queue)))
+  (enqueue! 1)
+  (empty?))
+@result{} #f
+
+(let-values (((empty? enqueue! dequeue!)
+              (make-queue)))
+  (enqueue! 1)
+  (empty?)      @result{} #f
+  (dequeue!)    @result{} 1
+  (empty?))
+@result{} #t
+
+(let-values (((empty? enqueue! dequeue!)
+              (make-queue)))
+  (enqueue! 1)
+  (enqueue! 2)
+  (enqueue! 3)
+  (dequeue!)    @result{} 1
+  (dequeue!)    @result{} 2
+  (dequeue!)    @result{} 3
+  (empty?))
+@result{} #t
+@end example
+@end defun
+
+@c page
+@node iklib lists misc
+@subsection Miscellaneous functions
+
+
+The following bindings are exported by the library @library{vicare}.
+
+
+@defun for-each-in-order @var{proc} @varo{list} @var{list} ...
+Like @func{for-each} from @rsixlibrary{base} but guarantees that
+@var{proc} is applied starting from the head of the lists.
 @end defun
 
 @c page
@@ -1865,6 +2143,28 @@ bytevector containing the @ascii{} Base64 representation of the octets.
 If an error occurs in the conversion: the return value is @false{}.
 @end defun
 
+
+@defun uri-encode @var{bytevector}
+@defunx uri-decode @var{bytevector}
+Encode or decode a bytevector according to @rfc{} 3986 @acronym{URI}
+percent encoding; return a bytevector.  All the octets are encoded
+except the ones having the following @ascii{} representation:
+
+@example
+ABCDEFGHIJKLMNOPQRSTUVWXYZ
+abcdefghijklmnopqrstuvwxyz
+0123456789
+-._~
+@end example
+@end defun
+
+
+@defun uri-normalise-encoding @var{bytevector}
+Given a bytevector encoded according to to @rfc{} 3986 @acronym{URI}
+percent encoding: return an encoded and normalised bytevector, octets
+that are encoded but should not are decoded.
+@end defun
+
 @c page
 @node iklib bytevectors generic
 @subsection Generic bytevectors operations
@@ -1946,6 +2246,20 @@ If an error occurs in the conversion: the return value is @false{}.
 @defun uuid
 Attempt to build a unique string and return it.  If an internal error
 occurs because of impossible generation: raise an error.
+@end defun
+
+
+@defun string->uri-encoding @var{str}
+Convert the string @var{str} to its @utf{}-8 representation, then encode
+such representation according to @rfc{} 3986, @acronym{URI} percent
+encoding.
+@end defun
+
+
+@defun uri-encoding->string @var{bytevector}
+Interpret the bytevector as encoded according to @rfc{} 3986,
+@acronym{URI} percent encoding, decode it and interpret the result as
+the @utf{}-8 representation of a string; return the string.
 @end defun
 
 @c page
@@ -2624,178 +2938,6 @@ argument, an annotated form, and evaluates it.  The default
 The format of the annotated source is the one which is comprehensible by
 @func{eval}.
 @end defun
-
-@c page
-@node iklib import
-@section Local library imports
-
-
-Local @func{import} forms are useful for the following reasons:
-
-@enumerate
-@item
-They minimize the namespace clutter that usually occurs when many
-libraries are imported at the top level.
-
-@item
-They limit the scope of the import and thus help modularize a library's
-dependencies.
-@end enumerate
-
-Let's suppose we are constructing a large library and at some point we
-realize that a procedure needs to make use of some other library to
-performing a specific task; importing that library at top level makes it
-available for the entire library.  Consequently, even if that library is
-no longer used anywhere in the code (say when the code that uses it is
-deleted), it becomes very hard to delete the import without first
-examiniming the entire library body for potential usage leaks.  By
-locally importing a library into the appropriate scope, we gain the
-ability to delete the @func{import} form when the procedure that was
-using it is deleted.
-
-
-@deffn Syntax import @meta{import-spec} ...
-This syntax can be used anywhere definitions can occur:
-
-@enumerate
-@item
-In a script body.
-
-@item
-At library's top--level.
-
-@item
-In internal definitions context.
-@end enumerate
-
-The syntax of the local @func{import} form is similar to the
-@func{import} that appears at the top of a library or a script form, and
-carries with it the same restrictions:
-
-@itemize
-@item
-No identifier name may be imported twice unless it denotes the same
-identifier.
-
-@item
-No identifier may be both imported and defined.
-
-@item
-Imported identifiers are immutable.
-@end itemize
-
-Each @meta{import-spec} can be as defined by @rnrs{6} or a symbol
-representing the name of a module; notice that module import
-specifications can be only symbols, @strong{without} prefixes, renaming
-and the features allowed for libraries.
-@end deffn
-
-
-In the following example we import a library in the body of a function:
-
-@example
-;;; file "alpha.sls"
-(library (alpha)
-  (export doit)
-  (import (vicare))
-  (define (doit)
-    (fprintf (current-error-port) "From alpha!\n")))
-
-;;; file "beta.sls"
-(library (beta)
-  (export doit)
-  (import (vicare))
-  (define (doit)
-    (fprintf (current-error-port) "From beta!\n")))
-
-;;; file "program.sps"
-(import (vicare)
-  (alpha))
-(define (do-that)
-  (import (beta))
-  (doit))
-(doit)
-(do-that)
-@print{} From alpha!
-@print{} From beta!
-@end example
-
-In the following example we import bindings from a module in the body of
-a function:
-
-@example
-(import (vicare))
-
-(define (doit)
-  (fprintf (current-error-port) "From body!\n"))
-
-(module do-stuff
-  (doit)
-  (define (doit)
-    (fprintf (current-error-port) "From module!\n")))
-
-(define (do-that)
-  (import do-stuff)
-  (doit))
-
-(doit)
-(do-that)
-@print{} From body!
-@print{} From module!
-@end example
-
-@c page
-@node iklib export
-@section Extended library exports
-
-
-@value{PRJNAME} allows the @func{export} syntax to appear at the top
-level of a library among the definitions, not only as third form of a
-@func{library} form.
-
-
-@deffn Syntax export @meta{export-spec} ...
-Export the specified bidings from the current library or module.  When
-@func{export} appears at the top level of a library: it exports the
-specified bindings from the library.  When @func{export} appears in the
-body of a module: it exports the specified bindings from the module
-(@strong{not} from the enclosing library).
-@end deffn
-
-
-Here is an example of library exporting a binding with a @func{export}
-at the end:
-
-@example
-;;; file "alpha.sls"
-(library (alpha)
-  (export red)
-  (import (vicare))
-  (define (blue)
-    'blue)
-  (define (red)
-    'red)
-  (export blue))
-
-;;; file "program.sps"
-(import (vicare)
-  (alpha))
-(pretty-print (red)  (current-error-port))
-(pretty-print (blue) (current-error-port))
-@end example
-
-Here is an example of module exporting a binding with @func{export}:
-
-@example
-(import (vicare))
-
-(module (green)
-  (define (green) 'green)
-  (define (yellow) 'yellow)
-  (export yellow))
-
-(list (green) (yellow)) @result{} (green yellow)
-@end example
 
 @c page
 @node iklib modules
@@ -6282,15 +6424,16 @@ variable @code{errno} to some predefined integer constant,
 @glibcref{Checking for Errors, errno}.  The Scheme code accessing
 @code{errno} values should be agnostic with respect to the actual error
 codes; for this to happen we should use the following facilities along
-with bindings from @library{vicare errno}, @ref{errno} for details.
+with bindings from @library{vicare platform errno}, @ref{errno} for
+details.
 
 Values for the C language variable @code{errno} are encoded as negated
 fixnum values: if @code{EPERM} is defined to @code{1} at the C language
 level, @value{PRJNAME} defines it as the fixnum @code{-1}; at present
 all the known error codes fit into fixnums range.  One syntax identifier
 binding for each known @code{errno} value is exported by the library
-@library{vicare errno} and reexported by the library @library{vicare
-platform constants}.
+@library{vicare platform errno} and reexported by the library
+@library{vicare platform constants}.
 
 If some error codes are not defined on a platform: the corresponding
 binding evaluates to @true{}.  Notice that if no error occurred
@@ -6350,6 +6493,19 @@ Epoch.
 @end defun
 
 
+@defun time-from-now @var{delta}
+Return a time object representing the current time plus the time object
+@var{delta}.
+@end defun
+
+
+@defun make-time @var{seconds} @var{nanoseconds}
+Build and return a new time object with microseconds resolution.  If
+@var{nanoseconds} exceeds @math{1000000} its value is normalised and the
+excess added to @var{seconds}.
+@end defun
+
+
 @defun time? @var{obj}
 Return @true{} if @var{obj} is a time object returned by
 @func{current-time}.
@@ -6372,6 +6528,55 @@ returned by @func{current-time}, as determined ty @cfunc{gmtime_r}.
 @defun date-string
 Return a string representing the current date in the simple format:
 year, month, day.
+@end defun
+
+@c ------------------------------------------------------------
+
+@subsubheading Time operations
+
+
+@defun time-addition @vari{time} @varii{time}
+Compute the addition between two times: @code{@vari{time} +
+@varii{time}} and return a time struct representing it.
+@end defun
+
+
+@defun time-difference @vari{time} @varii{time}
+Compute the difference between two times: @code{@vari{time} -
+@varii{time}} and return a time struct representing it.
+@end defun
+
+@c ------------------------------------------------------------
+
+@subsubheading Time comparison
+
+
+@defun time=? @vari{time} @varii{time}
+Return @true{} if the time objects are equal, else return @false{}.
+@end defun
+
+
+@defun time<? @vari{time} @varii{time}
+Return @true{} if the @vari{time} is less than @varii{time}, else return
+@false{}.
+@end defun
+
+
+@defun time<=? @vari{time} @varii{time}
+Return @true{} if the @vari{time} is less than or equal to @varii{time},
+else return @false{}.
+@end defun
+
+
+@defun time>? @vari{time} @varii{time}
+Return @true{} if the @vari{time} is greater than @varii{time}, else
+return @false{}.
+@end defun
+
+
+@defun time>=? @vari{time} @varii{time}
+Return @true{} if the @vari{time} is greater than or equal to
+@varii{time}, else return @false{}.
 @end defun
 
 @c page

@@ -8,7 +8,7 @@
 ;;;
 ;;;
 ;;;
-;;;Copyright (C) 2011, 2012 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (C) 2011, 2012, 2013 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
 ;;;it under the terms of the  GNU General Public License as published by
@@ -111,13 +111,13 @@
     (vicare syntactic-extensions)
     (vicare platform constants)
     (vicare arguments validation)
-    (prefix (vicare words)
+    (prefix (vicare platform words)
 	    words.)
     (prefix (vicare posix)
 	    px.)
-    (prefix (vicare unsafe-capi)
+    (prefix (vicare unsafe capi)
 	    capi.)
-    (prefix (vicare unsafe-operations)
+    (prefix (vicare unsafe operations)
 	    unsafe.))
 
 

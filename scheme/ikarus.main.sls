@@ -22,12 +22,11 @@
     vicare-lib-dir
     scheme-lib-dir
     vicare-version
-    vicare-revision
     bootfile
     host-info)
   (import (except (ikarus)
 		  host-info)
-    (vicare include))
+    (vicare language-extensions include))
   (include/verbose "ikarus.config.ss"))
 
 
@@ -481,7 +480,7 @@
 ;;; --------------------------------------------------------------------
 ;;; Vicare options without argument
 
-	  ((%option= "-d" "--debug")
+	  ((%option= "-d" "-g" "--debug")
 	   (next-option (cdr args) (lambda () (k) (compiler.$generate-debug-calls #t))))
 
 	  ((%option= "-nd" "--no-debug")
@@ -556,7 +555,7 @@
 	       (run-time-config-search-path-register! cfg (cadr args))
 	       (next-option (cddr args) k))))
 
-	  ((%option= "--fasl-path")
+	  ((%option= "-F" "--fasl-path")
 	   (if (null? (cdr args))
 	       (%error-and-exit "--fasl-path requires a directory name")
 	     (begin
@@ -600,6 +599,9 @@
 ;;; --------------------------------------------------------------------
 ;;; compiler options without argument
 
+	  ((%option= "-O3")
+	   (next-option (cdr args) (lambda () (k) (compiler.$optimize-level 3))))
+
 	  ((%option= "-O2")
 	   (next-option (cdr args) (lambda () (k) (compiler.$optimize-level 2))))
 
@@ -612,7 +614,7 @@
 	  ((%option= "--enable-open-mvcalls")
 	   (next-option (cdr args) (lambda () (k) (compiler.$open-mvcalls #t))))
 
-	  ((%option= "--disable-open-mvcalls-open")
+	  ((%option= "--disable-open-mvcalls")
 	   (next-option (cdr args) (lambda () (k) (compiler.$open-mvcalls #f))))
 
 ;;; --------------------------------------------------------------------
@@ -647,10 +649,12 @@
   (unless (= 30 (fixnum-width))
     (%display ", 64-bit"))
   (%newline)
-  (unless (zero? (string-length config.vicare-revision))
-    (%display "Revision ")
-    (%display config.vicare-revision)
-    (%newline))
+  ;;Print the git branch and HEAD commit checksum.
+  (let ((rev (foreign-call "ikrt_get_last_revision")))
+    (unless (zero? (bytevector-length rev))
+      (%display "Revision ")
+      (%display (ascii->string rev))
+      (%newline)))
   (%display "Build ")
   ;;This  LET-SYNTAX looks  weird, but  it  is to  take the  DATE-STRING
   ;;result at expansion-time rather than run-time.
@@ -659,7 +663,7 @@
   (%newline)
   (%display "
 Copyright (c) 2006-2010 Abdulaziz Ghuloum and contributors
-Copyright (c) 2011, 2012 Marco Maggi\n\n"))
+Copyright (c) 2011-2013 Marco Maggi\n\n"))
 
 (define (print-version-screen)
   ;;Print the version screen.
@@ -789,6 +793,7 @@ Other options:
         Add DIRECTORY  to the library  search path.  This option  can be
         used multiple times.
 
+   -F DIRECTORY
    --fasl-path DIRECTORY
         Add DIRECTORY to the FASL search path.  This option can  be used
         multiple times.
@@ -816,6 +821,7 @@ Other options:
 	interface is available.
 
    -d
+   -g
    --debug
         Turn  on debugging  mode.  Unhandled  exceptions in  the program
 	will result  in starting the debugger, which  allows stack trace
@@ -837,6 +843,7 @@ Other options:
 
    -O1
    -O2
+   -O3
         Turn on various levels of compiler optimisations.
 
    --optimizer-passes-count COUNT
@@ -1268,8 +1275,6 @@ Consult Vicare Scheme User's Guide for more details.\n\n")
 
 
 ;;;; main expressions
-
-#;(define dummy #f)
 
 (let-values (((cfg execution-state-initialisation-according-to-command-line-options)
 	      (parse-command-line-arguments)))

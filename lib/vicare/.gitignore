@@ -1,4 +1,4 @@
-/installation-configuration.sls
-/platform-constants.sls
-/words.sls
-/errno.sls
+platform/constants.sls
+platform/configuration.sls
+platform/errno.sls
+platform/words.sls

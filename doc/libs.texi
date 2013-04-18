@@ -22,7 +22,12 @@
 * flonum parse::                Parsing flonums.
 * sel::                         Simple event loop.
 * infix::                       Infix to prefix transformer.
+* amb::                         McCarthy's @func{amb} operator.
 * debugging::                   Debugging facilities.
+* coroutines::                  Running coroutines.
+* custom-ports::                Custom ports.
+* bytevector compounds::        Bytevector compounds.
+* net channels::                Interprocess connection channels.
 @end menu
 
 @c page
@@ -59,8 +64,8 @@ and @library{rnrs}.
 
 Global arguments validation is enabled or disabled by setting to @true{}
 or @false{} the @code{arguments-validation} identifier syntax exported
-by @library{vicare installation-configuration}, the default is @true{};
-such value can be configured as follows:
+by @library{vicare platform configuration}, the default is @true{}; such
+value can be configured as follows:
 
 @enumerate
 @item
@@ -252,10 +257,12 @@ When used without arguments or arguments validation disabled: expand to
 * args predefined cflonums::       Validating cflonums.
 * args predefined complexes::      Validating complexes.
 * args predefined ports::          Validating input/output ports.
+* args predefined procedures::     Validating procedures.
 * args predefined genstrings::     Validating generalised C string
                                    arguments.
 * args predefined genbuffers::     Validating generalised C buffer
                                    arguments.
+* args predefined time::           Time objects.
 @end menu
 
 @c page
@@ -514,7 +521,7 @@ machine word is @math{32}-bit or @math{64}-bit integer.
 
 Exact integers in the range of the C language type @code{int} are used
 often when interfacing with a foreign C language library; the library
-@library{vicare words} provides the predicate @func{signed-int?} to
+@library{vicare platform words} provides the predicate @func{signed-int?} to
 validated such values; @ref{words predicates} for details.
 
 The following bindings are exported by the library @library{vicare
@@ -565,7 +572,7 @@ predicate @func{even?} or @func{odd?}.
 @subsubsection Validating C language values
 
 
-The library @library{vicare words} provides the predicates to validate
+The library @library{vicare platform words} provides the predicates to validate
 typical values used when interfacing with foreign C language libraries;
 @ref{words predicates} for details.
 
@@ -1134,6 +1141,24 @@ Succeed if @var{obj} is @false{} or an textual or binary port.
 @end deffn
 
 @c page
+@node args predefined procedures
+@subsubsection Validating procedures
+
+
+The following bindings are exported by the library @library{vicare
+arguments validation}.
+
+
+@deffn {Validation Clause} procedure @var{obj}
+Succeed if @var{obj} is a procedure.
+@end deffn
+
+
+@deffn {Validation Clause} procedure/false @var{obj}
+Succeed if @var{obj} is @false{} or a procedure.
+@end deffn
+
+@c page
 @node args predefined genstrings
 @subsubsection Validating generalised C string arguments
 
@@ -1217,7 +1242,7 @@ Succeed if @var{obj} is @false{} or a generalised C sticky buffer.
 @end deffn
 
 
-@deffn {Validation Clause} general-c-string.len @var{buf} @var{buf.len}
+@deffn {Validation Clause} general-c-buffer.len @var{buf} @var{buf.len}
 If @var{buf} is a pointer object: succeed if @var{buf.len} an exact
 integer in the range of the C language type @code{size_t}.  Otherwise
 succeed if @var{buf.len} is @false{}.
@@ -1230,9 +1255,29 @@ optional length.
 @end deffn
 
 
-@deffn {Validation Clause} general-c-buffer* @var{obj} @var{obj.len}
+@deffn {Validation Clause} general-c-sticky-buffer* @var{obj} @var{obj.len}
 Succeed if @var{obj} is a generalised C buffer and @var{obj.len} its
 optional length.
+@end deffn
+
+@c page
+@node args predefined time
+@subsubsection Validating time objects
+
+
+The following bindings are exported by the library @library{vicare
+arguments validation}.
+
+
+@deffn {Validation Clause} time @var{obj}
+Succeed if @var{obj} is a time object: it satisfies the predicate
+@func{time?} exported by @library{vicare}.
+@end deffn
+
+
+@deffn {Validation Clause} time/false @var{obj}
+Succeed if @var{obj} is @false{} or a time object: it satisfies the
+predicate @func{time?} exported by @library{vicare}.
 @end deffn
 
 @c page
@@ -1240,12 +1285,12 @@ optional length.
 @section Including source files at expand time
 
 
-@cindex Library @library{vicare include}
-@cindex @library{vicare include}, library
+@cindex Library @library{vicare language-extensions include}
+@cindex @library{vicare language-extensions include}, library
 
 
 The following bindings are exported by the library @library{vicare
-include}.
+language-extensions include}.
 
 
 @deffn Syntax include @var{filename}
@@ -1392,15 +1437,16 @@ additionally recognises the features @func{write} and @func{display}:
 @section More features for @code{errno}
 
 
-@cindex Library @library{vicare errno}
-@cindex @library{vicare errno}, library
+@cindex Library @library{vicare platform errno}
+@cindex @library{vicare platform errno}, library
 
 
 One syntax identifier binding for each known @code{errno} value is
-exported by the library @library{vicare errno} and reexported by the
-library @library{vicare platform constants}; @ref{iklib errno} for
-details on @value{PRJNAME} internal encoding of @code{errno} codes.  The
-following bindings are exported by the library @library{vicare errno}.
+exported by the library @library{vicare platform errno} and reexported
+by the library @library{vicare platform constants}; @ref{iklib errno}
+for details on @value{PRJNAME} internal encoding of @code{errno} codes.
+The following bindings are exported by the library @library{vicare
+platform errno}.
 
 
 @deffn Syntax errno-code @meta{symbol}
@@ -1419,7 +1465,7 @@ the auxiliary keyword exported by @library{rnrs}.  Example:
 @example
 #!r6rs
 (import (rnrs)
-  (vicare errno))
+  (vicare platform errno))
 
 (define identifier "some-port")
 
@@ -1504,13 +1550,13 @@ corresponding symbol; if @var{code} is not recognised as encoded
 @section Exact integer predicates and constants
 
 
-@cindex Library @library{vicare words}
-@cindex @library{vicare words}, library
+@cindex Library @library{vicare platform words}
+@cindex @library{vicare platform words}, library
 
 
 It is often needed to validate exact integers agains fixed range bounds,
 for example for 32-bit and 64-bit representations or some platform
-specific C language type.  The library @library{vicare words} implements
+specific C language type.  The library @library{vicare platform words} implements
 such predicates and minimum/maximum range constants.
 
 @menu
@@ -1524,7 +1570,7 @@ such predicates and minimum/maximum range constants.
 @subsection Knowing the size of C language types
 
 
-The following bindings are exported by the @library{vicare words}
+The following bindings are exported by the @library{vicare platform words}
 library.
 
 
@@ -1592,7 +1638,7 @@ Number of bytes in the C language type @code{void *}.
 @subsection Verifying the range of integers
 
 
-The following bindings are exported by the @library{vicare words}
+The following bindings are exported by the @library{vicare platform words}
 library.
 
 
@@ -1751,8 +1797,8 @@ else evaluate to @false{}.
 @subsection Exact integer range limits
 
 
-The following bindings are exported by the @library{vicare words}
-library.
+The following bindings are exported by the @library{vicare platform
+words} library.
 
 @c ------------------------------------------------------------
 
@@ -4277,8 +4323,11 @@ errors appropriately in the handlers.
 
 
 @deffn Parameter logging
-When set to true cause debugging messages to be displayed on the current
-error port; when set to @false{} nothing happens.
+When set to @true{} causes debugging messages to be displayed on the
+current error port.  When set to a procedure: such procedure is called
+with a single argument whenever a log message must be reported; such
+single argument is a string representing a log line (@strong{without}
+terminating newline).  When set to @false{} nothing happens.
 @end deffn
 
 
@@ -4390,13 +4439,13 @@ was run.
 @section Infix to prefix transformer
 
 
-@cindex Library @library{vicare infix}
-@cindex @library{vicare infix}, library
+@cindex Library @library{vicare language-extensions infix}
+@cindex @library{vicare language-extensions infix}, library
 
 
-The library @library{vicare infix} provides the @func{infix} macro which
-converts the traditional infix notation for expressions to the
-equivalent Scheme's prefix notation.
+The library @library{vicare language-extensions infix} provides the
+@func{infix} macro which converts the traditional infix notation for
+expressions to the equivalent Scheme's prefix notation.
 
 To use the library just import @library{vicare infix} and use the
 @func{infix} macro: it expands to a prefix expression to be evaluated at
@@ -4652,6 +4701,110 @@ fxarithmetic-shift-right          -> fx>>
 @end itemize
 
 @c page
+@node amb
+@section McCarthy's @func{amb} operator
+
+
+@cindex Library @library{vicare language-extensions amb}
+@cindex @library{vicare language-extensions amb}, library
+
+
+The @dfn{ambiguous operator} allows the execution of a depth first
+search in a tree of choices integrated in the normal control flow of a
+Scheme program; it is built upon continuations.
+
+@menu
+* amb syntaxes::                Programming interface for @func{amb}.
+* amb examples::                Usage example for @func{amb}.
+@end menu
+
+@c page
+@node amb syntaxes
+@subsection Programming interface for @func{amb}
+
+
+The following bindings are exported by the library @library{vicare
+language-extensions amb}.
+
+
+@deffn Syntax amb @meta{expr} ...
+Evaluate one of the @meta{expr} expressions and return its result;
+create a continuation that can be reinstated to reject the result of
+this @meta{expr} and try with the next @meta{expr}.  The given
+@var{expr} arguments are tried in the given order: left to right.
+
+When used with no arguments: reject the result of the most recent
+@var{expr} and reinstate the previous continuation to try the next
+@var{expr}.
+
+When all the choices have been tried: raise a continuable exception with
+condition object components @condition{who}, @condition{message},
+@condition{amb-exhaustion}.
+@end deffn
+
+
+@deffn Syntax amb-random @meta{expr} ...
+Like @func{amb} but randomly select the order in which the given
+expressions are tried.  The order is determined at every first execution
+of the expanded code, using the random fixnum generator referenced by
+@func{amb-random-fixnum-maker}.
+@end deffn
+
+
+@deffn Parameter amb-random-fixnum-maker
+Hold a procedure accepting a fixnum as single argument: when applied to
+the fixnum @math{N} it must returns a fixnum in the range @math{[0, N)}.
+It is initialised with @func{random} from the library @library{vicare}.
+@end deffn
+
+
+@deffn Syntax amb-assert @meta{expr}
+Evaluate @meta{expr} and if the result is true return it; if the result
+is false reject the latest @func{amb} choice.
+
+@example
+(amb-assert @meta{expr}) @expansion{} (or @meta{expr} (amb))
+@end example
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Condition objects
+
+
+@deftp {Condition Type} &amb-exhaustion
+Condition type used to signal the exhaustion of a search tree visited by
+@func{amb}; it is derived from @condition{error}.
+@end deftp
+
+
+@defun make-amb-exhaustion
+Build and return a new instance of @condition{amb-exhaustion}.
+@end defun
+
+
+@defun amb-exhaustion? @var{obj}
+Return @true{} if @var{obj} is an instance of
+@condition{amb-exhaustion}, else return @false{}.
+@end defun
+
+@c page
+@node amb examples
+@subsection Usage example for @func{amb}
+
+
+@menu
+* amb examples simple::         Simple examples.
+@end menu
+
+@c page
+@node amb examples simple
+@subsubsection Simple examples
+
+
+
+
+@c page
 @node debugging
 @section Debugging facilities
 
@@ -4671,5 +4824,928 @@ fxarithmetic-shift-right          -> fx>>
 
 The following bindings are exported by the library @library{vicare
 debugging compiler}.
+
+@c page
+@node coroutines
+@section Running coroutines
+
+
+@cindex Library @library{vicare language-extensions coroutines}
+@cindex @library{vicare language-extensions coroutines}, library
+
+The library @library{vicare language-extensions coroutines} implements
+coroutines on top of Scheme continuations.  The implementation is a
+simple queue of escape functions: whenever coroutine @var{A} yields
+control to the ``next'' coroutine, it enqueues an escape function to its
+current continuation and causes the next escape function to be invoked.
+
+For discussions about other implementations of coroutines and
+continuations see @ref{HFWCoro, references}.
+
+@menu
+* coroutines examples::         Usage examples for coroutines.
+* coroutines api::              Programming interface to coroutines.
+@end menu
+
+@c page
+@node coroutines examples
+@subsection Usage examples for coroutines
+
+
+Coroutines are created by the function @func{coroutine}; a coroutine in
+execution can yield control to the next coroutine with the function
+@func{yield}.  It is possible to enter a loop that runs all the
+coroutines until all of them are finished with the function
+@func{finish-coroutines}.
+
+All the examples in this section are to be considered as Scheme programs
+after the prelude:
+
+@example
+#!r6rs
+(import (vicare)
+  (vicare language-extensions coroutines))
+
+(set-port-buffer-mode! (current-output-port)
+                       (buffer-mode line))
+@end example
+
+@noindent
+which allows the intertwining of coroutines to be seen by displaying
+strings on the current output port.
+
+@c ------------------------------------------------------------
+
+@subsubheading Two coroutines
+
+The following example runs two coroutines and waits for them to finish:
+
+@example
+(coroutine
+    (lambda ()
+      (display "one 1\n")
+      (yield)
+      (display "one 2\n")
+      (yield)
+      (display "one 3\n")))
+
+(coroutine
+    (lambda ()
+      (display "two 1\n")
+      (yield)
+      (display "two 2\n")
+      (yield)
+      (display "two 3\n")))
+
+(finish-coroutines)
+@end example
+
+@noindent
+the output is:
+
+@example
+one 1
+two 1
+one 2
+two 2
+one 3
+two 3
+@end example
+
+We see that to exit a coroutine we just return from its start function.
+
+@c ------------------------------------------------------------
+
+@subsubheading The main routine and a subroutine
+
+We can always consider the ordinary control flow of a program as a
+coroutine, the @dfn{main routine}; so the following program produces
+output similar to the one above:
+
+@example
+(coroutine
+    (lambda ()
+      (display "sub 1\n")
+      (yield)
+      (display "sub 2\n")
+      (yield)
+      (display "sub 3\n")))
+
+;;This runs in the main routine.
+(display "main 1\n")
+(yield)
+(display "main 2\n")
+(yield)
+(display "main 3\n")
+
+(finish-coroutines)
+@end example
+
+@noindent
+the output is:
+
+@example
+sub 1
+main 1
+sub 2
+main 2
+sub 3
+main 3
+@end example
+
+@c ------------------------------------------------------------
+
+@subsubheading Main routine alone
+
+It is perfectly all right to call @func{yield} and
+@func{finish-coroutines} from the main routine even when there are no
+subroutines:
+
+@example
+(display "main 1\n")
+(yield)
+(display "main 2\n")
+(yield)
+(display "main 3\n")
+(finish-coroutines)
+@end example
+
+@noindent
+the output of this program is just:
+
+@example
+main 1
+main 2
+main 3
+@end example
+
+@c ------------------------------------------------------------
+
+@subsubheading Finishing coroutines
+
+It is possible to call @func{finish-coroutines} from any coroutine, but
+we must be careful because if we let the main routine exit before all
+the routines are finished some computation will not take place.  In the
+following program the subroutine has more steps than the main routine:
+
+@example
+(coroutine
+    (lambda ()
+      (display "sub 1\n")
+      (yield)
+      (display "sub 2\n")
+      (yield)
+      (display "sub 3\n")
+      (yield)
+      (display "sub 4\n")
+      (yield)
+      (display "sub 5\n")
+      (finish-coroutines)))
+
+;; This runs in the main routine.
+(display "main 1\n")
+(yield)
+(display "main 2\n")
+(yield)
+(display "main 3\n")
+@end example
+
+@noindent
+and its output is:
+
+@example
+sub 1
+main 1
+sub 2
+main 2
+sub 3
+main 3
+@end example
+
+@noindent
+we see that @samp{sub 4} and @samp{sub 5} are not displayed.
+
+@c ------------------------------------------------------------
+
+@subsubheading Finish coroutines as exit hook
+
+It can be useful to register @func{finish-coroutines} as exit hook, so
+that upon exiting the process all the pending coroutines are correctly
+terminated.
+
+@example
+(coroutine
+    (lambda ()
+      (display "one 1\n")
+      (yield)
+      (display "one 2\n")
+      (yield)
+      (display "one 3\n")))
+
+(coroutine
+    (lambda ()
+      (display "two 1\n")
+      (yield)
+      (display "two 2\n")
+      (yield)
+      (display "two 3\n")))
+
+(exit-hooks (cons finish-coroutines (exit-hooks)))
+(exit)
+@end example
+
+@c page
+@node coroutines api
+@subsection Programming interface to coroutines
+
+
+The following bindings are exported by the library @library{vicare
+language-extensions coroutines}.
+
+
+@defun coroutine @var{thunk}
+Create a new coroutine having @var{thunk} as function and enter it;
+return unspecified values.
+@end defun
+
+
+@defun yield
+Register the current continuation as coroutine, then run the next
+coroutine; return unspecified values.
+@end defun
+
+
+@defun finish-coroutines
+Loop running the next coroutine until there are no more; return
+unspecified values.
+@end defun
+
+@c page
+@node custom-ports
+@section Custom ports.
+
+
+@cindex Library @library{vicare custom-ports}
+@cindex @library{vicare custom-ports}, library
+
+The library @library{vicare custom-ports} implements special custom
+Scheme input and output ports.
+
+@menu
+* custom-ports pairs::          Port pairs.
+@end menu
+
+@c page
+@node custom-ports pairs
+@subsection Port pairs
+
+
+Port pairs are Scheme ports connected together so that data written to
+one port is read from the other port.
+
+Forking a @value{PRJNAME} process does @strong{not} allow the use of
+port pairs to communicate between processes; it is rather possible to
+use port pairs to communicate among coroutines, @ref{coroutines, Running
+coroutines}.  To communicate between processes we have to use the
+@posix{} library and create pipes (@pxref{posix fd pipe, pipe}) or
+socket pairs (@pxref{posix socket socket, socketpair}).
+
+The following bindings are exported by the library @library{vicare
+custom-ports}.
+
+
+@defun open-binary-input-port-pair
+Return two values being binary ports: input the first, output the
+second.  Such ports are connected together so that data written to the
+output port is read from the input port.
+@end defun
+
+
+@defun open-binary-output-port-pair
+Return two values being binary ports: output the first, input the
+second.  Such ports are connected together so that data written to the
+output port is read from the input port.
+@end defun
+
+
+@defun open-binary-input/output-port-pair
+Return two values being binary ports: input/output the first,
+input/output the second.  Such ports are connected together so that data
+written to one port is read from the other port.
+@end defun
+
+
+@defun open-textual-input-port-pair
+Return two values being textual ports: input the first, output the
+second.  Such ports are connected together so that data written to the
+output port is read from the input port.
+@end defun
+
+
+@defun open-textual-output-port-pair
+Return two values being textual ports: output the first, input the
+second.  Such ports are connected together so that data written to the
+output port is read from the input port.
+@end defun
+
+
+@defun open-textual-input/output-port-pair
+Return two values being textual ports: input/output the first,
+input/output the second.  Such ports are connected together so that data
+written to one port is read from the other port.
+@end defun
+
+@c page
+@node bytevector compounds
+@section Bytevector compounds
+
+
+@cindex Library @library{vicare bytevector-compounds}
+@cindex @library{vicare bytevector-compounds}, library
+
+
+A @dfn{bytevector compound} is a sequence of octets split into a
+sequence of bytevectors.  Bytevector compounds have a special @api{} to
+handle the sequence of octets as a First--in First--out queue.
+Bytevector compounds are defined by the library @library{vicare
+bytevector-compounds}.
+
+@menu
+* bytevector compounds types::    Data type definitions.
+* bytevector compounds inspect::  Inspecting bytevector compounds.
+* bytevector compounds queue::    Queue programming interface.
+* bytevector compounds access::   Accessors and mutators.
+@end menu
+
+@c page
+@node bytevector compounds types
+@subsection Data type definitions
+
+
+The following bindings are exported by the library @library{vicare
+bytevector-compounds}.
+
+
+@deftp {@rnrs{6} Record Type} bytevector-compound
+@cindex Argument @var{bvcom}
+@cindex Function argument @var{bvcom}
+@cindex @var{bvcom}, function argument
+Record type representing a bytevector compound.  When instances of this
+type are used as arguments to functions: this documentation identifies
+them as @var{bvcom}.
+@end deftp
+
+
+@defun bytevector-compound? @var{obj}
+Return @true{} if @var{obj} is an instance of
+@code{bytevector-compound}, else return @false{}.
+@end defun
+
+@c ------------------------------------------------------------
+
+@subsubheading Validation clauses
+
+The following bindings are to be used with the facilities of the library
+@library{vicare arguments validation}, @ref{args, Optional function
+arguments validation}.
+
+
+@deffn {Validation Clause} bytevector-compound @var{obj}
+@deffnx {Validation Clause} false-or-bytevector-compound @var{obj}
+Succeed if @var{obj} is an instance of @code{bytevector-compound}.  The
+second clause accepts also @false{}.
+@end deffn
+
+
+@deffn {Validation Clause} bytevector-compound/filled @var{obj}
+Succeed if @var{obj} is an instance of @code{bytevector-compound} and it
+contains at least one octet.
+@end deffn
+
+@c page
+@node bytevector compounds inspect
+@subsection Inspecting bytevector compounds
+
+
+The following bindings are exported by the library @library{vicare
+bytevector-compounds}.
+
+
+@defun bytevector-compound-empty? @var{bvcom}
+Return @true{} if @var{bvcom} has no octets in it, else return @false{}.
+@end defun
+
+
+@defun bytevector-compound-filled? @var{bvcom}
+Return @true{} if @var{bvcom} has at least one octet in it, else return
+@false{}.
+@end defun
+
+
+@defun bytevector-compound-length @var{bvcom}
+Return a non--negative exact integer representing the number of octets
+currently in @var{bvcom}.
+@end defun
+
+
+@defun bytevector-compound-total-length @var{bvcom}
+Return a non--negative exact integer representing the number of octets
+in @var{bvcom}, including the ones in the bytevectors that have been
+already dequeued.
+@end defun
+
+
+@defun bytevector-compound-data @var{bvcom}
+Return the list of bytevectors in @var{bvcom}.  Mutating the return
+value results in undefined behaviour.
+@end defun
+
+@c page
+@node bytevector compounds queue
+@subsection Queue programming interface
+
+
+The following bindings are exported by the library @library{vicare
+bytevector-compounds}.
+
+
+@defun bytevector-compound-enqueue! @var{bvcom} @var{item}
+Enqueue the bytevector @var{item} into @var{bvcom}.  Return unspecified
+values.
+@end defun
+
+
+@defun bytevector-compound-dequeue! @var{bvcom}
+Dequeue the next bytevector from @var{bvcom} and return it; return
+@false{} if @var{bvcom} is empty.
+@end defun
+
+@c page
+@node bytevector compounds access
+@subsection Accessors and mutators
+
+
+The following bindings are exported by the library @library{vicare
+bytevector-compounds}.
+
+
+@defun bytevector-compound-u8-set! @var{bvcom} @var{idx} @var{octet}
+@defunx bytevector-compound-u8-ref @var{bvcom} @var{idx}
+Accessor and mutator for non-negative exact integers in the range
+@math{[0, 255]}.
+@end defun
+
+
+@defun bytevector-compound-s8-set! @var{bvcom} @var{idx} @var{byte}
+@defunx bytevector-compound-s8-ref @var{bvcom} @var{idx}
+Accessor and mutator for non-negative exact integers in the range
+@math{[-128, 127]}.
+@end defun
+
+
+@c page
+@node net channels
+@section Interprocess connection channels
+
+
+@cindex Library @library{vicare net channels}
+@cindex @library{vicare net channels}, library
+
+The library @library{vicare net channels} implements utilities to
+transfer data through Scheme binary ports, typically between processes.
+
+@menu
+* net channels types::          Data type definitions.
+* net channels init::           Constructors and destructors.
+* net channels config::         Configuration parameters.
+* net channels preds::          Predicates and arguments validation.
+* net channels recv::           Receiving a message.
+* net channels send::           Sending a message.
+* net channels conditions::     Condition object types.
+@end menu
+
+@c page
+@node net channels types
+@subsection Data type definitions
+
+
+The following bindings are exported by the library @library{vicare net
+channels}.
+
+
+@deftp {@rnrs{6} Record Type} channel
+Record type representing an interprocess connection channel.  Whenever
+this documentation refers to arguments being instances of this type: it
+uses the identifier @var{chan}.
+@end deftp
+
+
+@defun channel? @var{obj}
+Return @true{} if @var{obj} is an instance of @code{channel}, else
+return @false{}.
+@end defun
+
+
+@deffn {Validation Clause} channel @var{obj}
+@deffnx {Validation Clause} false-or-channel @var{obj}
+Validation clause to be used with the facilities of the library
+@library{vicare arguments validation}.  The first form succeeds if
+@var{obj} is an instance of @code{channel}; the second also accepts
+@false{}.
+@end deffn
+
+@c page
+@node net channels init
+@subsection Constructors and destructors
+
+
+The following bindings are exported by the library @library{vicare net
+channels}.
+
+
+@defun open-input-channel @var{in-port}
+Build and return a new instance of @code{channel} to be used to receive
+messages; the returned channel is inactive.  The channel wraps the
+binary input or input/output port @var{in-port}.
+@end defun
+
+
+@defun open-output-channel @var{ou-port}
+Build and return a new instance of @code{channel} to be used to send
+messages; the returned channel is inactive.  The channel wraps the
+binary output or input/output port @var{ou-port}.
+@end defun
+
+
+@defun open-input/output-channel @var{port}
+@defunx open-input/output-channel @var{in-port} @var{ou-port}
+Build and return a new instance of @code{channel} to be used to both
+receive and send messages; the returned channel is inactive.
+
+The channel wraps the binary input or input/output port @var{in-port},
+used to receive messages, and the binary output or input/output port
+@var{ou-port}, used to send messages.  @var{in-port} and @var{ou-port}
+can be the same port.
+
+When a single argument is given: @var{port} is used for both input and
+output.
+@end defun
+
+
+@defun close-channel @var{chan}
+Finalise a channel closing its connection port; return unspecified
+values.  A pending message delivery, if any, is aborted.
+@end defun
+
+@c page
+@node net channels config
+@subsection Configuration parameters
+
+
+The following bindings are exported by the library @library{vicare net
+channels}.
+
+
+@defun channel-set-maximum-message-size! @var{chan} @var{maximum-message-size}
+Configure the maximum message size; return unspecified values.
+
+@var{maximum-message-size} must be a non--negative exact integer
+representing the inclusive maximum message size; if the size of the
+message exceeds this value: message delivery will fail.
+
+When not configured: the maximum message size defaults to @math{4096}.
+
+The maximum message size @strong{is not} reset when a message delivery
+is completed.
+@end defun
+
+
+@defun channel-set-expiration-time! @var{chan} @var{expiration-time}
+Configure the message delivery expiration time; return unspecified
+values.
+
+If @var{expiration-time} is a time object (as defined by the library
+@library{vicare}): it represents the limit of time since the Epoch to
+complete message delivery; if the allotted time expires: message
+delivery will fail.  Typically we build such time objects using
+@func{time-from-now}.
+
+If @var{expiration-time} is @false{}: there is not time limit.
+
+When not configured: the expiration time defaults to no time limit.
+
+The expiration time @strong{is not} reset when a message delivery is
+completed.
+@end defun
+
+
+@defun channel-set-message-terminators! @var{chan} @var{terminators}
+Configure the message terminators; return unspecified values.
+@var{terminators} must be a non--empty list of non--empty bytevectors
+representing possible message terminators.
+
+When not configured: the list of terminators defaults to:
+
+@example
+(#ve(ascii "\r\n\r\n") #ve(ascii "\n\n"))
+@end example
+
+The terminators @strong{are not} reset when a message delivery is
+completed.
+@end defun
+
+@c page
+@node net channels preds
+@subsection Predicates and arguments validation
+
+
+The following bindings are exported by the library @library{vicare net
+channels}.
+
+
+@defun receiving-channel? @var{chan}
+Return @true{} if @var{chan} is in the course of receiving a message,
+else return @false{}.  It is an error if @var{chan} is not an instance
+of @code{channel}.
+@end defun
+
+
+@defun sending-channel? @var{chan}
+Return @true{} if @var{chan} is in the course of sending a message, else
+return @false{}.  It is an error if @var{chan} is not an instance of
+@code{channel}.
+@end defun
+
+
+@defun inactive-channel? @var{chan}
+Return @true{} if @var{chan} is @strong{neither} in the course of
+sending @strong{nor} receiving a message, else return @false{}.  It is
+an error if @var{chan} is not an instance of @code{channel}.
+@end defun
+
+
+@defun input-channel? @var{chan}
+Return @true{} if @var{chan} is an input or input/output channel, else
+return @false{}.  It is an error if @var{chan} is not an instance of
+@code{channel}.
+@end defun
+
+
+@defun output-channel? @var{chan}
+Return @true{} if @var{chan} is an output or input/output channel, else
+return @false{}.  It is an error if @var{chan} is not an instance of
+@code{channel}.
+@end defun
+
+
+@defun input/output-channel? @var{chan}
+Return @true{} if @var{chan} is an input/output channel, else return
+@false{}.  It is an error if @var{chan} is not an instance of
+@code{channel}.
+@end defun
+
+@c ------------------------------------------------------------
+
+The following bindings are validation clauses to be used with the
+facilities of the library @library{vicare arguments validation}.
+
+
+@deffn {Validation Clause} receiving-channel @var{obj}
+Succeed if @var{obj} is an instance of @code{channel} and it is in the
+course of receiving a message.
+@end deffn
+
+
+@deffn {Validation Clause} not-receiving-channel @var{obj}
+Succeed if @var{obj} is an instance of @code{channel} and it is
+@strong{not} in the course of receiving a message.
+@end deffn
+
+
+@deffn {Validation Clause} sending-channel @var{obj}
+Succeed if @var{obj} is an instance of @code{channel} and it is in the
+course of sending a message.
+@end deffn
+
+
+@deffn {Validation Clause} not-sending-channel @var{obj}
+Succeed if @var{obj} is an instance of @code{channel} and it is
+@strong{not} in the course of sending a message.
+@end deffn
+
+
+@deffn {Validation Clause} inactive-channel @var{obj}
+Succeed if @var{obj} is an instance of @code{channel} and it is
+@strong{neither} in the course of sending @strong{nor} receiving a
+message.
+@end deffn
+
+
+@deffn {Validation Clause} not-inactive-channel @var{obj}
+Succeed if @var{obj} is an instance of @code{channel} and it is
+@strong{either} in the course of sending @strong{or} receiving a
+message.
+@end deffn
+
+@c page
+@node net channels recv
+@subsection Receiving a message
+
+
+The following bindings are exported by the library @library{vicare net
+channels}.
+
+
+@defun channel-recv-begin! @var{chan}
+Configure a channel to start receiving a message; return unspecified
+values.  @var{chan} must be an input or input/output channel; it is an
+error if the channel is not inactive.
+@end defun
+
+
+@defun channel-recv-end! @var{chan}
+Finish receiving a message and return the accumulated octets in a
+bytevector.  It is an error if the channel is not in the course of
+receiving a message.
+
+After this function is applied to a channel: the channel itself is
+configured as inactive; so it is available to start receiving another
+message or to send a message.
+@end defun
+
+
+@defun channel-recv-end!/rbl @var{chan}
+Like @func{channel-recv-end!}, but return @math{2} values:
+
+@enumerate
+@item
+Null or a list of non--empty bytevectors representing the accumulated
+message data in bytevector--reverse order.
+
+@item
+An exact integer representing the total number of octets in the
+bytevectors.
+@end enumerate
+@end defun
+
+
+@defun channel-recv-message-portion! @var{chan}
+Receive a portion of input message from the given channel and accumulate
+it in the internal state; return @true{} if a configured message
+terminator was read in the tail of the data, else return @false{}.  It
+is an error if the channel is not in the course of receiving a message.
+
+After the message terminator has been read: further calls to this
+function always return @true{} without taking any action.
+
+This function performs multiple read operations from the registered
+connection port, until the end--of--file is read or until a configured
+message terminator is found in the tail of read data.
+
+If at the time of this function call the timeout configured for this
+message is expired: a non--continuable exception is raised with compound
+condition object of types: @condition{who}, @condition{message},
+@condition{channel}, @condition{delivery-timeout-expired}.
+
+If reading data cause the accumulated message to exceed the maximum size
+configured for this message: a non--continuable exception is raised with
+compound condition object of types: @condition{who},
+@condition{message}, @condition{channel},
+@condition{maximum-message-size-exceeded}.
+@end defun
+
+@c page
+@node net channels send
+@subsection Sending a message
+
+
+The following bindings are exported by the library @library{vicare net
+channels}.
+
+
+@defun channel-send-begin! @var{chan}
+Configure a channel to start sending a message; return unspecified
+values.  @var{chan} must be an output or input/output channel; it is an
+error if the channel is not inactive.
+@end defun
+
+
+@defun channel-send-end! @var{chan}
+Finish sending a message by flushing the connect port and return the
+total number of octets sent.  It is an error if the channel is not in
+the course of sending a message.
+
+After this function is applied to a channel: the channel itself is
+configured as inactive; so it is available to start receiving another
+message or to send a message.
+@end defun
+
+
+@defun channel-send-message-portion! @var{chan} @var{portion}
+Send a portion of output message through the given channel; return
+unspecified values.  It is an error if the channel is not in the course
+of sending a message.
+
+@var{portion} must be a bytevector representing the message portion.
+
+This function does not flush the connection port.
+
+If at the time of this function call the timeout configured for this
+message is expired: a non--continuable exception is raised with compound
+condition object of types: @condition{who}, @condition{message},
+@condition{channel}, @condition{delivery-timeout-expired}.
+
+If writing @var{portion} would cause the total message size to exceed
+the maximum size configured for this message: a non--continuable
+exception is raised with compound condition object of types:
+@condition{who}, @condition{message}, @condition{channel},
+@condition{maximum-message-size-exceeded}.
+@end defun
+
+@c page
+@node net channels conditions
+@subsection Condition object types
+
+
+Whenever an error condition happens: the functions of the library
+@library{vicare net channels} react by raising non--continuable exceptions
+whose raised objects are compound conditions of the following types.
+
+The following bindings are exported by the library @library{vicare net
+channels}.
+
+@c ------------------------------------------------------------
+
+@subsubheading Channel condition type
+
+
+@deftp {Condition Type} &channel
+Condition object containing an instance of @code{channel}; it is derived
+from @condition{condition}.
+@end deftp
+
+
+@defun make-channel-condition @var{chan}
+Build and return an instance of @condition{channel} wrapping the channel
+@var{chan}.
+@end defun
+
+
+@defun channel-condition? @var{obj}
+Return @true{} if @var{obj} is a condition object of type
+@condition{channel} or a compound condition object with a component of
+type @condition{channel}.
+@end defun
+
+
+@defun condition-channel @var{cond}
+Given an instance of @condition{channel}: return the @code{channel}
+instance it contains.
+@end defun
+
+@c ------------------------------------------------------------
+
+@subsubheading Delivery timeout error
+
+
+@deftp {Condition Type} &delivery-timeout-expired
+Condition object used to tag exceptions as of type ``message delivery
+timeout expired''; it is derived from @condition{error}.
+@end deftp
+
+
+@defun make-delivery-timeout-expired-condition
+Build and return an instance of @condition{delivery-timeout-expired}.
+@end defun
+
+
+@defun delivery-timeout-expired-condition? @var{obj}
+Return @true{} if @var{obj} is a condition object of type
+@condition{delivery-timeout-expired} or a compound condition object with
+a component of type @condition{delivery-timeout-expired}.
+@end defun
+
+@c ------------------------------------------------------------
+
+@subsubheading Message size error
+
+
+@deftp {Condition Type} &maximum-message-size-exceeded
+Condition object used to tag exceptions as of type ``maximum message
+size exceeded; it is derived from @condition{error}.
+@end deftp
+
+
+@defun make-maximum-message-size-exceeded-condition
+Build and return an instance of
+@condition{maximum-message-size-exceeded}.
+@end defun
+
+
+@defun maximum-message-size-exceeded-condition? @var{obj}
+Return @true{} if @var{obj} is a condition object of type
+@condition{maximum-message-size-exceeded} or a compound condition object
+with a component of type @condition{maximum-message-size-exceeded}.
+@end defun
 
 @c end of file

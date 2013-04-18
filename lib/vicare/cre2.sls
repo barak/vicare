@@ -9,7 +9,7 @@
 ;;;	Built in  binding to the CRE2  library: a C wrapper  for the RE2
 ;;;	regular expressions library from Google.
 ;;;
-;;;Copyright (C) 2012 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (C) 2012, 2013 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
 ;;;it under the terms of the  GNU General Public License as published by
@@ -62,7 +62,7 @@
 	  define-argument-validation
 	  with-arguments-validation
 	  define-inline)
-    (prefix (vicare unsafe-operations)
+    (prefix (vicare unsafe operations)
 	    unsafe.)
     (prefix (only (vicare ffi)
 		  dlopen
@@ -70,7 +70,7 @@
 		  pointer-null?
 		  null-pointer)
 	    ffi.)
-    (prefix (only (vicare words)
+    (prefix (only (vicare platform words)
 		  signed-int?)
 	    words.))
 

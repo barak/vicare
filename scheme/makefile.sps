@@ -1,6 +1,6 @@
 #!../src/vicare -b vicare.boot --r6rs-script
 ;;;Ikarus Scheme -- A compiler for R6RS Scheme.
-;;;Copyright (C) 2006,2007,2008,2012  Abdulaziz Ghuloum
+;;;Copyright (C) 2006,2007,2008  Abdulaziz Ghuloum
 ;;;Modified by Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;
 ;;;Abstract
@@ -527,7 +527,7 @@
     ($comp		(ikarus system $compnums)		#f	#t)
     ($symbols		(ikarus system $symbols)		#f	#t)
     ($structs		(ikarus system $structs)		#f	#t)
-    ($pointers		(ikarus system $pointers)		#t	#t)
+    ($pointers		(ikarus system $pointers)		#f	#t)
     ($codes		(ikarus system $codes)			#f	#t)
     ($tcbuckets		(ikarus system $tcbuckets)		#f	#t)
     ($arg-list		(ikarus system $arg-list)		#f	#t)
@@ -543,8 +543,8 @@
     (ne			(psyntax null-environment-5)		#f	#f)
     (se			(psyntax scheme-report-environment-5)	#f	#f)
 ;;;
-    (posix		(vicare $posix)				#t	#t)
-    ($language		(vicare language-extensions)		#f	#f)
+    (posix		(vicare $posix)				#f	#t)
+    ($language		(vicare language-extensions)		#t	#f)
     ))
 
 
@@ -682,11 +682,20 @@
     (verbose-timer				i v $language)
 ;;;
     (current-time				i v $language)
+    (time-from-now				i v $language)
     (time?					i v $language)
     (time-second				i v $language)
     (time-nanosecond				i v $language)
     (time-gmt-offset				i v $language)
     (date-string				i v $language)
+    (make-time					i v $language)
+    (time-addition				i v $language)
+    (time-difference				i v $language)
+    (time=?					i v $language)
+    (time<?					i v $language)
+    (time<=?					i v $language)
+    (time>?					i v $language)
+    (time>=?					i v $language)
 ;;;
     (command-line-arguments			i v $language)
     (set-rtd-printer!				i v $language)
@@ -1161,6 +1170,7 @@
     (finite?					i v r ba)
     (floor					i v r ba se)
     (for-each					i v r ba se)
+    (for-each-in-order				i v $language)
     (gcd					i v r ba se)
     (imag-part					i v r ba se)
     (inexact					i v r ba)
@@ -1238,6 +1248,11 @@
     (base64->bytevector				i v $language)
     (string-base64->bytevector			i v $language)
     (bytevector->string-base64			i v $language)
+    (string->uri-encoding			i v $language)
+    (uri-encoding->string			i v $language)
+    (uri-encode					i v $language)
+    (uri-decode					i v $language)
+    (uri-normalise-encoding			i v $language)
     (symbol->string				i v symbols r ba se)
     (symbol=?					i v symbols r ba)
     (symbol?					i v symbols r ba se)
@@ -1631,6 +1646,7 @@
     (remp					i v r ls)
     (remv					i v r ls)
     (remove					i v r ls)
+    (make-queue					i v $language)
     (set-car!					i v mp se)
     (set-cdr!					i v mp se)
     (string-set!				i v ms se)

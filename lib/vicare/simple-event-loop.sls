@@ -50,7 +50,7 @@
     task-fragment		do-one-task-event)
   (import (vicare)
     (prefix (vicare posix) px.)
-    (prefix (vicare unsafe-operations) unsafe.)
+    (prefix (vicare unsafe operations) unsafe.)
     (vicare syntactic-extensions)
     (vicare platform constants))
 
@@ -94,15 +94,20 @@
 (define logging
   (make-parameter #f
     (lambda (obj)
-      (if obj #t #f))))
+      (if (or (boolean? obj)
+	      (procedure? obj))
+	  obj
+	#f))))
 
 (define (%log template . args)
   (when (logging)
-    (let ((port (current-error-port)))
-      (fprintf port "vicare SEL: ")
-      (apply fprintf port template args)
-      (fprintf port "\n")
-      (flush-output-port port))))
+    (let ((line (string-append "vicare SEL: " (apply format template args))))
+      (if (procedure? (logging))
+	  ((logging) line)
+	(let ((port (current-error-port)))
+	  (display line port)
+	  (newline port)
+	  (flush-output-port port))))))
 
 
 ;;;; data structures

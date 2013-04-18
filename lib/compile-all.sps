@@ -26,30 +26,39 @@
 
 #!r6rs
 (import
-  (only (vicare installation-configuration))
-  (only (vicare errno))
-  (only (vicare platform-constants))
+  (only (vicare platform configuration))
+  (only (vicare platform words))
+  (only (vicare platform errno))
   (only (vicare platform constants))
   (only (vicare platform features))
   (only (vicare platform utilities))
+
+  (only (vicare unsafe capi))
+  (only (vicare unsafe operations))
+  (only (vicare unsafe unicode))
+
   (only (vicare numerics constants))
-  (only (vicare unsafe-operations))
   (only (vicare arguments validation))
   (only (vicare syntactic-extensions))
   (only (vicare arguments general-c-buffers))
   (only (vicare cond-expand))
   (only (vicare cond-expand helpers))
 
-  (only (vicare unsafe-capi))
-  (only (vicare include))
-  (only (vicare infix))
-  (only (vicare unsafe-unicode))
-  (only (vicare words))
+  (only (vicare language-extensions include))
+  (only (vicare language-extensions amb))
+  (only (vicare language-extensions coroutines))
+  (only (vicare language-extensions infix))
+
   (only (vicare flonum-parser))
   (only (vicare flonum-formatter))
   (only (vicare weak-hashtables))
   (only (vicare keywords))
   (only (vicare checks))
+  (only (vicare custom-ports))
+  (only (vicare bytevector-compounds core))
+  (only (vicare bytevector-compounds))
+  (only (vicare bytevector-compounds unsafe))
+  (only (vicare net channels))
 
   (only (vicare assembler inspection))
   (only (vicare debugging compiler))

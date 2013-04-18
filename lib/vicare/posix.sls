@@ -394,11 +394,11 @@
     (vicare syntactic-extensions)
     (vicare platform constants)
     (vicare arguments validation)
-    (prefix (vicare unsafe-capi)
+    (prefix (vicare unsafe capi)
 	    capi.)
-    (prefix (vicare unsafe-operations)
+    (prefix (vicare unsafe operations)
 	    unsafe.)
-    (prefix (vicare words)
+    (prefix (vicare platform words)
 	    words.))
 
 

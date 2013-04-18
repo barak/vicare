@@ -2,6 +2,8 @@
 
 #AM_MAKEINFOFLAGS	= --no-split
 
+EXTRA_DIST		= QUEST-FOR-ISSUE-35
+
 info_TEXINFOS		= vicare-scheme.texi
 vicare_scheme_TEXINFOS	= \
 	gpl-3.0.texi			\
@@ -20,6 +22,7 @@ vicare_scheme_TEXINFOS	= \
 	libs.texi			\
 	objects.texi			\
 	debug.texi			\
+	machinery.texi			\
 	compiler.texi			\
 	\
 	missing.texi			\

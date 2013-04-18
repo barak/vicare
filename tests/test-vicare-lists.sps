@@ -8,7 +8,7 @@
 ;;;
 ;;;	This test file was originally in Nausicaa.
 ;;;
-;;;Copyright (C) 2011, 2012 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (C) 2011, 2012, 2013 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
 ;;;it under the terms of the  GNU General Public License as published by
@@ -2029,6 +2029,64 @@
 	 '(3 30 300))
 	r)
     => '(111 222 333))
+
+;;; --------------------------------------------------------------------
+
+  (check
+      (let ((r 0))
+	(six.for-each-in-order
+	 (lambda (e)
+	   (set! r (+ e r)))
+	 '())
+	r)
+    => 0)
+
+  (check
+      (let ((r 0))
+	(six.for-each-in-order
+	 (lambda (e1 e2)
+	   (set! r (+ e1 e2 r)))
+	 '() '())
+	r)
+    => 0)
+
+  (check
+      (let ((r 0))
+	(six.for-each-in-order
+	 (lambda (e1 e2 e3)
+	   (set! r (+ e1 e2 e3 r)))
+	 '() '() '())
+	r)
+    => 0)
+
+  (check
+      (let ((r '(0 0)))
+	(six.for-each-in-order
+	 (lambda (e1 e2)
+	   (set! r (six.list (+ e1 (six.car r))
+			     (+ e2 (six.cadr r)))))
+	 '(1 10 100)
+	 '(2 20 200))
+	r)
+    => '(111 222))
+
+  (check
+      (let ((r '(0 0 0)))
+	(six.for-each-in-order
+	 (lambda (e1 e2 e3)
+	   (set! r (six.list (+ e1 (six.car r))
+			     (+ e2 (six.cadr r))
+			     (+ e3 (six.caddr r)))))
+	 '(1 10 100)
+	 '(2 20 200)
+	 '(3 30 300))
+	r)
+    => '(111 222 333))
+
+  (check
+      (with-result
+       (six.for-each-in-order add-result '(1 2 3 4)))
+    => `(,(void) (1 2 3 4)))
 
 ;;; --------------------------------------------------------------------
 
@@ -4810,6 +4868,47 @@ called with at least two arguments.
     => #f)
 
   #f)
+
+
+(parametrise ((check-test-name	'queues))
+
+  (check
+      (let-values (((empty? enqueue! dequeue!)
+		    (make-queue)))
+	(empty?))
+    => #t)
+
+  (check
+      (let-values (((empty? enqueue! dequeue!)
+		    (make-queue)))
+	(enqueue! 1)
+	(empty?))
+    => #f)
+
+  (check
+      (let-values (((empty? enqueue! dequeue!)
+		    (make-queue)))
+	(enqueue! 1)
+	(let ((rv0 (empty?))
+	      (rv1 (dequeue!))
+	      (rv2 (empty?)))
+	  (six.list rv0 rv1 rv2)))
+    => '(#f 1 #t))
+
+  (check
+      (let-values (((empty? enqueue! dequeue!)
+		    (make-queue)))
+	(enqueue! 1)
+	(enqueue! 2)
+	(enqueue! 3)
+	(let ((rv0 (dequeue!))
+	      (rv1 (dequeue!))
+	      (rv2 (dequeue!))
+	      (rv3 (empty?)))
+	  (six.list rv0 rv1 rv2 rv3)))
+    => '(1 2 3 #t))
+
+  #t)
 
 
 ;;;; done

@@ -19,11 +19,16 @@ if WANT_TIME_TESTS
 VICARE_TIME_TESTS	= $(TIME_PROGRAM) -p
 endif
 
-# The variable "user_flags"  is for the user to be  set on the command
-# line of "make".
+# The variable "VFLAGS" is for the user  to be set on the command line
+# of "make" or "configure", for example:
+#
+#   make VFLAGS="-g -O2 --print-loaded-libraries"
+#
+VFLAGS		= @VFLAGS@
+
 VICARE		= $(builddir)/../src/vicare
 VICARE_BOOT	= $(builddir)/../scheme/vicare.boot
-VICARE_FLAGS	= -b $(VICARE_BOOT) $(user_flags) --r6rs-script
+VICARE_FLAGS	= -b $(VICARE_BOOT) $(VFLAGS) --r6rs-script
 VICARE_ENV	= \
 	VICARE_LIBRARY_PATH=$(VICARE_TEST_SEARCH_PATH); export VICARE_LIBRARY_PATH;	\
 	VICARE_FASL_DIRECTORY=$(VICARE_FASL_DIRECTORY); export VICARE_FASL_DIRECTORY;	\
@@ -144,12 +149,16 @@ TESTS			=	\
 	test-ikarus-symbol-table.sps			\
 	test-ikarus-unicode.sps				\
 	\
+	test-vicare-amb.sps				\
 	test-vicare-arguments-validation.sps		\
 	test-vicare-bignums.sps				\
 	test-vicare-bytevectors.sps			\
+	test-vicare-bytevector-compounds.sps		\
 	test-vicare-chars.sps				\
 	test-vicare-collect.sps				\
 	test-vicare-cond-expand.sps			\
+	test-vicare-coroutines.sps			\
+	test-vicare-custom-ports.sps			\
 	test-vicare-enumerations.sps			\
 	test-vicare-equality.sps			\
 	test-vicare-errno.sps				\
@@ -167,6 +176,7 @@ TESTS			=	\
 	test-vicare-letrec-syntax.sps			\
 	test-vicare-lists.sps				\
 	test-vicare-log.sps				\
+	test-vicare-net-channels.sps			\
 	test-vicare-numerics-neg.sps			\
 	test-vicare-numerics-inv.sps			\
 	test-vicare-numerics-add.sps			\
@@ -331,8 +341,6 @@ VICARE_INSTCHECK_RUN	= \
 installcheck-local:
 	@for f in $(TESTS); do $(VICARE_INSTCHECK_RUN) $(srcdir)/$$f; done
 
-XFAIL_TESTS = test-srfi-19-time.sps
-
 #page
 #### extra files to be distributed
 
@@ -443,18 +451,23 @@ EXTRA_DIST = \
 	test-ikarus-symbol-table.sps			\
 	test-ikarus-unicode.sps				\
 	\
+	test-vicare-amb.sps				\
 	test-vicare-arguments-validation.sps		\
 	test-vicare-bignums.sps				\
 	test-vicare-bytevectors.sps			\
+	test-vicare-bytevector-compounds.sps		\
 	test-vicare-chars.sps				\
 	test-vicare-collect.sps				\
 	test-vicare-cond-expand.sps			\
+	test-vicare-coroutines.sps			\
+	test-vicare-custom-ports.sps			\
 	test-vicare-enumerations.sps			\
 	test-vicare-equality.sps			\
 	test-vicare-errno.sps				\
 	test-vicare-expander.sps			\
 	test-vicare-debugging.sps			\
-	test-vicare-ffi.sps				\
+	test-vicare-ffi-core.sps			\
+	test-vicare-ffi-foreign-pointer-wrapper.sps	\
 	test-vicare-fixnums.sps				\
 	test-vicare-flonum-base.sps			\
 	test-vicare-flonum-formatter.sps		\
@@ -462,6 +475,7 @@ EXTRA_DIST = \
 	test-vicare-general-c-buffers.sps		\
 	test-vicare-glibc.sps				\
 	test-vicare-keywords.sps			\
+	test-vicare-iconv.sps				\
 	test-vicare-infix.sps				\
 	test-vicare-io.sps				\
 	test-vicare-language-extensions.sps		\
@@ -469,6 +483,7 @@ EXTRA_DIST = \
 	test-vicare-letrec-syntax.sps			\
 	test-vicare-lists.sps				\
 	test-vicare-log.sps				\
+	test-vicare-net-channels.sps			\
 	test-vicare-numerics-neg.sps			\
 	test-vicare-numerics-inv.sps			\
 	test-vicare-numerics-add.sps			\
