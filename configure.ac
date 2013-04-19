@@ -30,13 +30,13 @@ AC_DEFINE([_GNU_SOURCE],[1],[enable everything GNU])
 #### most recent commit.  Otherwise, use the current time.
 
 if git log -1 >& /dev/null; then
-  thetimestamp=$(git log -1 --format=format:'%cd' --date=iso)
-  BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
   COMMIT_HASH=$(git rev-parse HEAD)
+  BRANCH_NAME=$(git rev-parse --abbrev-ref ${COMMIT_HASH})
+  thetimestamp=$(git show --format=format:'%cd' --date=iso ${COMMIT_HASH} --)
 else
-  thetimestamp=$(date --rfc-3339=seconds)
-  BRANCH_NAME=no-branch
   COMMIT_HASH=no-commit
+  BRANCH_NAME=no-branch
+  thetimestamp=$(date --rfc-3339=seconds)
 fi
 YEAR=$(date --date="${thetimestamp}" +'%Y')
 NMONTH=$(date --date="${thetimestamp}" +'%m')
