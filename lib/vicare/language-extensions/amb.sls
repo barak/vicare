@@ -25,14 +25,30 @@
 ;;;
 
 
+;;;The   function  %MAKE-ORDER-VECTOR   is  derived   from  code   in...
+;;;somewhere, I cannot  remember!!!  I will add a  proper license notice
+;;;whenever I find out.  (Marco Maggi; Fri Apr 19, 2013)
+
+
 #!r6rs
 (library (vicare language-extensions amb)
   (export
+
+    ;; core syntaxes
+    with-ambiguous-choices		with-amb-exhaustion-handler
+    amb
+
+    ;; condition types
     &amb-exhaustion
     make-amb-exhaustion			amb-exhaustion?
-    with-ambiguous-choices		amb
-    amb-assert
-    amb-random				amb-random-fixnum-maker)
+
+    &amb-not-initialised
+    make-amb-not-initialised		amb-not-initialised?
+
+    ;; utilities
+    amb-assert				amb-thunk
+    amb-permute				amb-random
+    amb-random-fixnum-maker		amb-backtrack-log)
   (import (vicare)
     (prefix (vicare unsafe operations)
 	    $))
@@ -77,13 +93,25 @@
 		      (make-who-condition 'amb)
 		      (make-message-condition "search tree exhausted"))))
     (lambda ()
-      (raise-continuable E))))
+      (raise E))))
 
 (define (%raise-internal-error)
   ;;Raised in case of internal error.
   ;;
   (assertion-violation 'amb
     "internal error while , attempt to escape to next choice with no choice"))
+
+
+;;;; dynamic environment
+
+(define %current-fail-escape
+  (make-parameter #f))
+
+(define %previous-fail-escape
+  (make-parameter #f))
+
+(define amb-backtrack-log
+  (make-parameter void))
 
 
 ;;;; core syntaxes
@@ -97,62 +125,104 @@
 		   (%previous-fail-escape %raise-internal-error))
        ?body0 ?body ...))))
 
-(define-syntax amb
+(define-syntax with-amb-exhaustion-handler
+  ;;Install a special handler for search tree exhaustion.
+  ;;
+  (syntax-rules ()
+    ((_ ?handler ?thunk)
+     (parametrise ((%current-fail-escape ?handler))
+       (?thunk)))))
+
+(define-syntax %do-backtrack
   (syntax-rules ()
     ((_)
-     ((%current-fail-escape)))
-    ((_ ?expr0 ?expr ...)
      (begin
-       (%amb-correctly-initialised?)
-       (call/cc
-	   (lambda (return)
-	     (parametrise ((%previous-fail-escape (%current-fail-escape)))
-	       (call/cc
-		   (lambda (escape)
-		     (%current-fail-escape escape)
-		     (return ?expr0)))
-	       (%current-fail-escape (%previous-fail-escape))
-	       (amb ?expr ...))))))
-    ))
+       ((amb-backtrack-log))
+       ((%current-fail-escape))))))
 
-(define %current-fail-escape
-  (make-parameter #f))
+(module (amb)
 
-(define %previous-fail-escape
-  (make-parameter #f))
+  (define-syntax amb
+    (syntax-rules ()
+      ((_)
+       (%do-backtrack))
+      ((_ ?expr0 ?expr ...)
+       (%amb (lambda () ?expr0) (lambda () ?expr) ...))
+
+      ;;NOTE The following implementation  of the multiexpression branch
+      ;;is quite  small and beautiful;  but it recursively  expands AMB,
+      ;;which  may  result  in  a  lot   of  code.   So  we  prefer  the
+      ;;implementation with thunks and the %AMB function.  (Marco Maggi;
+      ;;Fri Apr 19, 2013)
+      ;;
+      ;; ((_ ?expr0 ?expr ...)
+      ;;  (begin
+      ;;    (%amb-correctly-initialised?)
+      ;;    (call/cc
+      ;;        (lambda (return)
+      ;;          (parametrise ((%previous-fail-escape (%current-fail-escape)))
+      ;;            (call/cc
+      ;;                (lambda (escape)
+      ;;                  (%current-fail-escape escape)
+      ;;                  (return ?expr0)))
+      ;;            (%current-fail-escape (%previous-fail-escape))
+      ;;            (amb ?expr ...))))))
+      ))
+
+  (define (%amb . thunks)
+    (%amb-correctly-initialised?)
+    (call/cc
+	(lambda (return)
+	  (let next-choice ((thunks thunks))
+	    (if (null? thunks)
+		(amb)
+	      (parametrise ((%previous-fail-escape (%current-fail-escape)))
+		(call/cc
+		    (lambda (escape)
+		      (%current-fail-escape escape)
+		      (return (let ((result (($car thunks))))
+				(if (promise? result)
+				    (force result)
+				  result)))))
+		(%current-fail-escape (%previous-fail-escape))
+		(next-choice ($cdr thunks))))))))
+
+  #| end of module: AMB |# )
 
 
-;;;; extensions
+;;;; utilities
 
 (define-syntax amb-assert
   (syntax-rules ()
     ((_ ?expr)
      (or ?expr (amb)))))
 
-(module (amb-random amb-random-fixnum-maker)
-  ;;Like  AMB  but  randomly  select   the  order  in  which  the  given
-  ;;expressions are tried.
+(define amb-random-fixnum-maker
+  ;;Hold a procedure accepting a fixnum as single argument: when applied
+  ;;to the fixnum N it must returns a fixnum in the range [0, N).
   ;;
-  (define-syntax amb-random
+  (make-parameter
+      random
+    (lambda (obj)
+      (assert (procedure? obj))
+      obj)))
+
+
+;;;; permuting choices
+
+(module (amb-permute)
+  ;;Like  AMB but  permute  the given  expressions  before starting  the
+  ;;selection.
+  ;;
+  (define-syntax amb-permute
     (syntax-rules ()
       ((_)
-       ((%current-fail-escape)))
+       (%do-backtrack))
       ((_ ?expr0 ?expr ...)
-       (%amb-random `#(,(lambda () ?expr0) ,(lambda () ?expr) ...)))
+       (%amb-permute `#(,(lambda () ?expr0) ,(lambda () ?expr) ...)))
       ))
 
-  (define amb-random-fixnum-maker
-    ;;Hold  a procedure  accepting  a fixnum  as  single argument:  when
-    ;;applied to the fixnum N it must  returns a fixnum in the range [0,
-    ;;N).
-    ;;
-    (make-parameter
-	random
-      (lambda (obj)
-	(assert (procedure? obj))
-	obj)))
-
-  (define (%amb-random thunks)
+  (define (%amb-permute thunks)
     (%amb-correctly-initialised?)
     (let* ((thunks.len  ($vector-length thunks))
 	   (order       (%make-order-vector thunks.len)))
@@ -165,7 +235,10 @@
 		  (call/cc
 		      (lambda (escape)
 			(%current-fail-escape escape)
-			(return (($vector-ref thunks ($vector-ref order idx))))))
+			(return (let ((result (($vector-ref thunks ($vector-ref order idx)))))
+				  (if (promise? result)
+				      (force result)
+				    result)))))
 		  (%current-fail-escape (%previous-fail-escape))
 		  (next-choice ($fxadd1 idx)))))))))
 
@@ -191,7 +264,63 @@
 	  ($vector-set! vec i xj)
 	  ($vector-set! vec j xi)))))
 
+  #| end of module: AMB-PERMUTE |# )
+
+
+;;;; random selection of  choices
+
+(module (amb-random)
+  ;;Like AMB but randomly select among the given expressions.
+  ;;
+  (define-syntax amb-random
+    (syntax-rules ()
+      ((_)
+       (%do-backtrack))
+      ((_ ?expr0 ?expr ...)
+       (%amb-random `#(,(lambda () ?expr0) ,(lambda () ?expr) ...)))
+      ))
+
+  (define (%amb-random thunks)
+    (%amb-correctly-initialised?)
+    (let ((thunks.len ($vector-length thunks)))
+      (call/cc
+	  (lambda (return)
+	    (let next-choice ()
+	      (parametrise ((%previous-fail-escape (%current-fail-escape)))
+		(call/cc
+		    (lambda (escape)
+		      (%current-fail-escape escape)
+		      (return
+		       (let* ((idx    ((amb-random-fixnum-maker) thunks.len))
+			      (result (($vector-ref thunks idx))))
+			 (if (promise? result)
+			     (force result)
+			   result)))))
+		(%current-fail-escape (%previous-fail-escape))
+		(next-choice)))))))
+
   #| end of module: AMB-RANDOM |# )
+
+
+;;;; generating choices
+
+(define (amb-thunk generator-thunk)
+  (define (generate-result)
+    (let ((result (generator-thunk)))
+      (if (promise? result)
+	  (force result)
+	result)))
+  (%amb-correctly-initialised?)
+  (call/cc
+      (lambda (return)
+	(let next-choice ((result (generate-result)))
+	  (parametrise ((%previous-fail-escape (%current-fail-escape)))
+	    (call/cc
+		(lambda (escape)
+		  (%current-fail-escape escape)
+		  (return result)))
+	    (%current-fail-escape (%previous-fail-escape))
+	    (next-choice (generate-result)))))))
 
 
 ;;;; done
