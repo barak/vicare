@@ -768,6 +768,7 @@
     ($bytevector-ieee-single-native-set!	$bytes)
     ($bytevector-ieee-single-nonnative-ref	$bytes)
     ($bytevector-ieee-single-nonnative-set!	$bytes)
+    ($bytevector=				$bytes)
 ;;;
     ($flonum-u8-ref				$flonums)
     ($make-flonum				$flonums)
@@ -1661,6 +1662,7 @@
     (modulo					i v r5 se)
     (remainder					i v r5 se)
     (null-environment				i v r5 se)
+    (promise?					i v $language)
     (quotient					i v r5 se)
     (scheme-report-environment			i v r5 se)
     (interaction-environment			i v $language)
