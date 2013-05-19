@@ -36,10 +36,7 @@
     open-textual-output-port-pair
     open-textual-input/output-port-pair)
   (import (vicare)
-    (prefix (vicare unsafe operations)
-	    $)
-    (only (vicare language-extensions syntaxes)
-	  begin0))
+    (vicare unsafe operations))
 
 
 ;;;; input and output binary port pairs

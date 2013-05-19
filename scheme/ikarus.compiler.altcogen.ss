@@ -785,7 +785,7 @@
 
 ;;;; some external code
 
-(include/verbose "pass-specify-rep.ss")
+(include "pass-specify-rep.ss" #t)
 
 
 ;;;; some CPU registers stuff
@@ -840,8 +840,10 @@
   (define-inline (%locals-cons A)
     (locals (cons A (locals))))
 
-  (define-inline (%locals-cons* A0 A ...)
-    (locals (cons* A0 A ... (locals))))
+  (define-syntax %locals-cons*
+    (syntax-rules ()
+      ((_ A0 A ...)
+       (locals (cons* A0 A ... (locals))))))
 
 ;;; --------------------------------------------------------------------
 
