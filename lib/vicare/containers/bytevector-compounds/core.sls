@@ -69,18 +69,9 @@
   (import (vicare)
     (vicare language-extensions syntaxes)
     (vicare arguments validation)
-    (prefix (vicare unsafe operations)
-	    $)
+    (vicare unsafe operations)
     (only (ikarus system $numerics)
 	  $add-number-fixnum))
-
-
-;;;; helpers
-
-(define-argument-validation (list-of-bytevectors who obj)
-  (and (list? obj)
-       (for-all bytevector? obj))
-  (assertion-violation who "expected list of bytevectors as argument" obj))
 
 
 ;;;; type definitions

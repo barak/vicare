@@ -79,14 +79,12 @@
      (unparse-recordized-code/pretty		$unparse-recordized-code/pretty)))
   (import
       (rnrs hashtables)
-    ;;Remember that this file defines the primitive operations.
-    (ikarus system $fx)
-    (ikarus system $pairs)
     (only (ikarus system $codes)
 	  $code->closure)
     (only (ikarus system $structs)
 	  $struct-ref $struct/rtd?)
     (except (ikarus)
+	    return
 	    current-primitive-locations
 	    eval-core			current-core-eval
 	    compile-core-expr-to-port	compile-core-expr
@@ -106,17 +104,70 @@
     (only (ikarus.fasl.write)
 	  fasl-write)
     (ikarus.intel-assembler)
-    (vicare language-extensions include)
     (except (vicare language-extensions syntaxes)
-	    begin0
 	    case-word-size)
     (vicare arguments validation))
 
   ;;Remember  that WORDSIZE  is  the  number of  bytes  in a  platform's
   ;;machine word: 4 on 32-bit platforms, 8 on 64-bit platforms.
   (module (wordsize)
-    (import (vicare language-extensions include))
-    (include/verbose "ikarus.config.ss"))
+    (include "ikarus.config.ss" #t))
+
+  (module UNSAFE
+    ;;Remember that this file defines the primitive operations.
+    ($car $cdr $set-car! $set-cdr!
+	  $fx= $fx< $fx> $fx<= $fx>=
+	  $fxadd1 $fxsub1 $fx+ $fx- $fx* $fxdiv
+	  $fxlogand $fxlogor $fxlognot $fxsra $fxsll
+	  $fxzero?)
+
+    #;(ikarus system $pairs)
+    (begin
+      (define $car car)
+      (define $cdr cdr)
+      (define-syntax $set-car!
+	(syntax-rules ()
+	  ((_ ?var ?val)
+	   (set-car! ?var ?val))))
+      (define-syntax $set-cdr!
+	(syntax-rules ()
+	  ((_ ?var ?val)
+	   (set-cdr! ?var ?val))))
+      #| end of begin |# )
+
+    #;(ikarus system $fx)
+    (begin
+      (define $fxzero?	 fxzero?)
+      (define $fx=	fx=?)
+      (define $fx<	fx<?)
+      (define $fx>	fx>?)
+      (define $fx<=	fx<=?)
+      (define $fx>=	fx>=?)
+      (define $fx+	fx+)
+      (define $fx-	fx-)
+      (define $fx*	fx*)
+      (define $fxdiv	fxdiv)
+      (define $fxlogand	fxand)
+      (define $fxlogor	fxior)
+      (define $fxlognot	fxnot)
+      (define ($fxadd1 x)
+	(fx+ x 1))
+      (define ($fxsub1 x)
+	(fx- x 1))
+      (define ($fxsra x count)
+	(import (prefix (ikarus system $fx) unsafe.))
+	(assert (fixnum? x))
+	(assert (fixnum? count))
+	(unsafe.$fxsra x count))
+      (define ($fxsll x count)
+	(import (prefix (ikarus system $fx) unsafe.))
+	(assert (fixnum? x))
+	(assert (fixnum? count))
+	(unsafe.$fxsll x count))
+      #| end of begin |# )
+    #| end of module |# )
+
+  (import UNSAFE)
 
 
 ;;;; configuration parameters
@@ -223,15 +274,6 @@
 	       (?func ($car t) ($car T) ...)
 	       (loop  ($cdr t) ($cdr T) ...)))))
       )))
-
-(define-syntax begin0
-  ;;A version of BEGIN0 usable only with single values.
-  ;;
-  (syntax-rules ()
-    ((_ ?form ?body0 ?body ...)
-     (let ((t ?form))
-       ?body0 ?body ...
-       t))))
 
 ;;; --------------------------------------------------------------------
 
@@ -2235,8 +2277,8 @@
   body)
 |#
 
-(include/verbose "ikarus.compiler.optimize-letrec.ss")
-(include/verbose "ikarus.compiler.source-optimizer.ss")
+(include "ikarus.compiler.optimize-letrec.ss"  #t)
+(include "ikarus.compiler.source-optimizer.ss" #t)
 
 
 (module (rewrite-references-and-assignments)
@@ -2483,7 +2525,7 @@
 
 ;;;; some other external code
 
-(include/verbose "ikarus.compiler.tag-annotation-analysis.ss")
+(include "ikarus.compiler.tag-annotation-analysis.ss" #t)
 
 
 (module (introduce-vars)
@@ -4284,13 +4326,14 @@
   (define (thunk?-label x)
     #f)
 
-  (define-auxiliary-syntaxes public-function)
-  (define-auxiliary-syntaxes entry-point-label)
-  (define-auxiliary-syntaxes number-of-free-variables)
-  (define-auxiliary-syntaxes code-annotation)
-  (define-auxiliary-syntaxes definitions)
-  (define-auxiliary-syntaxes local-labels)
-  (define-auxiliary-syntaxes assembly)
+  (define-auxiliary-syntaxes
+    public-function
+    entry-point-label
+    number-of-free-variables
+    code-annotation
+    definitions
+    local-labels
+    assembly)
 
   (define-syntax define-cached
     (lambda (x)
@@ -5382,7 +5425,7 @@
 
 ;;;; external code for actual code generation
 
-(include/verbose "ikarus.compiler.altcogen.ss")
+(include "ikarus.compiler.altcogen.ss" #t)
 
 
 (define (unparse-recordized-code x)

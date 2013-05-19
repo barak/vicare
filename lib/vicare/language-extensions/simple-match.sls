@@ -33,10 +33,8 @@
 
     ;; auxiliary keywords
     else let quote quasiquote and or not apply eval ... _ =>)
-  (import (vicare)
-    (prefix (except (vicare unsafe operations)
-		    bytevector=)
-	    $)
+  (import (ikarus)
+    (vicare unsafe operations)
     (only (ikarus system $bytevectors)
 	  $bytevector=))
 

@@ -306,6 +306,7 @@
     "ikarus.time-and-date.sls"
     "ikarus.sort.sls"
     "ikarus.promises.sls"
+    "ikarus.compensations.sls"
     "ikarus.enumerations.sls"
     "ikarus.command-line.sls"
 ;;; "ikarus.trace.sls"
@@ -395,6 +396,37 @@
     (define-enumeration			(macro . define-enumeration))
     (define-condition-type		(macro . define-condition-type))
 ;;;
+    (define-auxiliary-syntaxes		(macro . define-auxiliary-syntaxes))
+    (define-integrable			(macro . define-integrable))
+    (define-inline			(macro . define-inline))
+    (define-constant			(macro . define-constant))
+    (define-inline-constant		(macro . define-inline-constant))
+    (define-values			(macro . define-values))
+    (define-constant-values		(macro . define-constant-values))
+    (define-syntax-rule			(macro . define-syntax-rule))
+    (receive				(macro . receive))
+    (receive-and-return			(macro . receive-and-return))
+    (begin0				(macro . begin0))
+    (xor				(macro . xor))
+    (unwind-protect			(macro . unwind-protect))
+    (include				(macro . include))
+;;;
+    (return				($fluid . return))
+    (continue				($fluid . continue))
+    (break				($fluid . break))
+    (while				(macro . while))
+    (until				(macro . until))
+    (for				(macro . for))
+    (define-returnable			(macro . define-returnable))
+    (lambda-returnable			(macro . lambda-returnable))
+    (begin-returnable			(macro . begin-returnable))
+;;;
+    (with-compensations			(macro . with-compensations))
+    (with-compensations/on-error	(macro . with-compensations/on-error))
+    (compensate				(macro . compensate))
+    (with				($fluid . with))
+    (push-compensation			(macro . push-compensation))
+;;;
     (&condition				($core-rtd . (&condition-rtd
 						      &condition-rcd)))
     (&message				($core-rtd . (&message-rtd
@@ -475,14 +507,15 @@
   ;;LIBRARY   is  created   and  included   in  the   starting   set  of
   ;;BOOTSTRAP-COLLECTION.
   ;;
-  ;;The libraries marked as VISIBLE? are installed in the boot image.
+  ;;The  libraries marked  as  VISIBLE?  are listed  by  default by  the
+  ;;function INSTALLED-LIBRARIES.
   ;;
   ;;See BOOTSTRAP-COLLECTION for details on how to add a library to this
   ;;list.
   ;;
   ;; abbr.              name			                visible? required?
   '((i			(ikarus)				#t	#t)
-    (v			(vicare)				#t	#f)
+    (v			(vicare)				#t	#t)
     (cm			(chez modules)				#t	#t)
     (symbols		(ikarus symbols)			#t	#t)
     (parameters		(ikarus parameters)			#t	#t)
@@ -631,6 +664,9 @@
     (console-input-port				i v $language)
     (console-error-port				i v $language)
     (console-output-port			i v $language)
+    (stdin					i v $language)
+    (stdout					i v $language)
+    (stderr					i v $language)
     (reset-input-port!				i v $language)
     (reset-output-port!				i v $language)
     (printf					i v $language)
@@ -659,8 +695,13 @@
     (expand-form-to-core-language		i v $language)
     (expand-library				i v $language)
     (expand-top-level				i v $language)
+;;;
     (environment?				i v $language)
     (environment-symbols			i v $language)
+    (environment-libraries			i v $language)
+    (environment-labels				i v $language)
+    (environment-binding			i v $language)
+;;;
     (time-and-gather				i v $language)
     (stats?					i v $language)
     (stats-user-secs				i v $language)
@@ -755,6 +796,10 @@
     ($string-set!				$strings)
     ($string-length				$strings)
     ($string=					$strings)
+    ($string-total-length			$strings)
+    ($string-concatenate			$strings)
+    ($string-reverse-and-concatenate		$strings)
+;;
     ($make-bytevector				$bytes)
     ($bytevector-length				$bytes)
     ($bytevector-s8-ref				$bytes)
@@ -769,6 +814,9 @@
     ($bytevector-ieee-single-nonnative-ref	$bytes)
     ($bytevector-ieee-single-nonnative-set!	$bytes)
     ($bytevector=				$bytes)
+    ($bytevector-total-length			$bytes)
+    ($bytevector-concatenate			$bytes)
+    ($bytevector-reverse-and-concatenate	$bytes)
 ;;;
     ($flonum-u8-ref				$flonums)
     ($make-flonum				$flonums)
@@ -1226,6 +1274,7 @@
     (string->number				i v r ba se)
     (string->symbol				i v symbols r ba se)
     (string-append				i v r ba se)
+    (string-reverse-and-concatenate		i v $language)
     (string-copy				i v r ba se)
     (string-for-each				i v r ba)
     (string-length				i v r ba se)
@@ -1274,6 +1323,7 @@
     (vector-append				i v $language)
     (vector-copy				i v $language)
     (vector-copy!				i v $language)
+    (vector-resize				i v $language)
     (vector?					i v r ba se)
     (zero?					i v r ba se)
     (...					i v ne r ba sc se)
@@ -1507,6 +1557,7 @@
     (subbytevector-s8				i v $language)
     (subbytevector-s8/count			i v $language)
     (bytevector-append				i v $language)
+    (bytevector-reverse-and-concatenate		i v $language)
     (endianness					i v r bv)
     (native-endianness				i v r bv)
     (sint-list->bytevector			i v r bv)
@@ -1683,6 +1734,7 @@
     (get-string-all				i v r ip)
     (get-string-n				i v r ip)
     (get-string-n!				i v r ip)
+    (get-string-some				i v $language)
     (get-u8					i v r ip)
     (&i/o					i v r ip is fi)
     (&i/o-decoding				i v r ip)
@@ -1810,6 +1862,8 @@
     (utf-16be-codec				i v $language)
     (utf-16n-codec				i v $language)
     (utf-bom-codec				i v $language)
+    (would-block-object				i v $language)
+    (would-block-object?			i v $language)
     (input-port?				i v r is ip se)
     (output-port?				i v r is ip se)
     (input/output-port?				i v)
@@ -1957,6 +2011,9 @@
     (current-core-eval				i v $language) ;;; temp
     (pretty-print				i v $language $boot)
     (pretty-print*				i v $language)
+    (debug-print				i v $language)
+    (debug-print-enabled?			i v $language)
+    (debug-print*				i v $language)
     (pretty-format				i v $language)
     (pretty-width				i v $language)
     (module					i v $language cm)
@@ -1967,10 +2024,52 @@
     ($data->transcoder				$transc)
     (make-file-options				i v $language)
 ;;;
+    (define-auxiliary-syntaxes			i v $language)
+    (define-integrable				i v $language)
+    (define-inline				i v $language)
+    (define-constant				i v $language)
+    (define-inline-constant			i v $language)
+    (define-values				i v $language)
+    (define-constant-values			i v $language)
+    (define-syntax-rule				i v $language)
+    (receive					i v $language)
+    (receive-and-return				i v $language)
+    (begin0					i v $language)
+    (xor					i v $language)
+    (unwind-protect				i v $language)
+    (include					i v $language)
+;;;
+    (return					i v $language)
+    (continue					i v $language)
+    (break					i v $language)
+    (while					i v $language)
+    (until					i v $language)
+    (for					i v $language)
+    (define-returnable				i v $language)
+    (lambda-returnable				i v $language)
+    (begin-returnable				i v $language)
+;;;
+    (with-compensations				i v $language)
+    (with-compensations/on-error		i v $language)
+    (compensate					i v $language)
+    (with					i v $language)
+    (push-compensation				i v $language)
+    (run-compensations				i v $language)
+    (compensations)
+    (run-compensations-store)
+    (push-compensation-thunk			i v $language)
+;;;
     (port-id					i v $language)
     (port-uid					i v $language)
     (port-hash					i v $language)
     (port-fd					i v $language)
+    (port-set-non-blocking-mode!		i v $language)
+    (port-unset-non-blocking-mode!		i v $language)
+    (port-in-non-blocking-mode?			i v $language)
+    (port-putprop				i v $language)
+    (port-getprop				i v $language)
+    (port-remprop				i v $language)
+    (port-property-list				i v $language)
     (string->filename-func			i v $language)
     (filename->string-func			i v $language)
     (string->pathname-func			i v $language)
@@ -2320,6 +2419,37 @@
     (keyword?					i v $language)
     (keyword=?					i v $language)
     (keyword-hash				i v $language)
+
+;;; --------------------------------------------------------------------
+;;; library names
+
+    (library-name?				i v $language)
+    (library-version-numbers?			i v $language)
+    (library-version-number?			i v $language)
+    (library-name-decompose			i v $language)
+    (library-name->identifiers			i v $language)
+    (library-name->version			i v $language)
+    (library-name-identifiers=?			i v $language)
+    (library-name=?				i v $language)
+    (library-name<?				i v $language)
+    (library-name<=?				i v $language)
+    (library-version=?				i v $language)
+    (library-version<?				i v $language)
+    (library-version<=?				i v $language)
+
+;;; --------------------------------------------------------------------
+;;; library references and conformity
+
+    (library-reference?					i v $language)
+    (library-version-reference?				i v $language)
+    (library-sub-version-reference?			i v $language)
+    (library-reference-decompose			i v $language)
+    (library-reference->identifiers			i v $language)
+    (library-reference->version-reference		i v $language)
+    (library-reference-identifiers=?			i v $language)
+    (conforming-sub-version-and-sub-version-reference?	i v $language)
+    (conforming-version-and-version-reference?		i v $language)
+    (conforming-library-name-and-library-reference?	i v $language)
 
 ;;; --------------------------------------------------------------------
 
@@ -2988,10 +3118,10 @@
   ;;installed in the boot image running this program.
   ;;
   ;;To add a REQUIRED? library to a  boot image: first we have to add an
-  ;;entry to  LIBRARY-LEGEND marked as  VISIBLE?  and build  a temporary
-  ;;boot image, then mark the entry as REQUIRED? and using the temporary
-  ;;boot image build another boot  image which will have the new library
-  ;;as REQUIRED?.
+  ;;entry  to  LIBRARY-LEGEND  marked  as  non-REQUIRED?   and  build  a
+  ;;temporary boot image, then mark the entry as REQUIRED? and using the
+  ;;temporary boot  image build another  boot image which will  have the
+  ;;new library as REQUIRED?.
   ;;
   (let ((list-of-library-records
 	 (let next-library-entry ((entries library-legend))

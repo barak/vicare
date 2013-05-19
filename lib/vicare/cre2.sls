@@ -60,10 +60,8 @@
   (import (vicare)
     (only (vicare language-extensions syntaxes)
 	  define-argument-validation
-	  with-arguments-validation
-	  define-inline)
-    (prefix (vicare unsafe operations)
-	    unsafe.)
+	  with-arguments-validation)
+    (vicare unsafe operations)
     (prefix (only (vicare ffi)
 		  dlopen
 		  pointer?
@@ -112,11 +110,11 @@
   (assertion-violation who "expected a positive signed int as argument" obj))
 
 (define-argument-validation (index who obj)
-  (and (fixnum? obj) (unsafe.fx<= 0 obj))
+  (and (fixnum? obj) ($fx<= 0 obj))
   (assertion-violation who "expected non-negative fixnum as argument" obj))
 
 (define-argument-validation (false/index who obj)
-  (or (not obj) (and (fixnum? obj) (unsafe.fx<= 0 obj)))
+  (or (not obj) (and (fixnum? obj) ($fx<= 0 obj)))
   (assertion-violation who "expected false or non-negative fixnum as argument" obj))
 
 ;;; --------------------------------------------------------------------

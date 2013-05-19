@@ -10,7 +10,7 @@
 ;;;	the Vicare  documentation.  This library  exports only syntaxes,
 ;;;	so it can be used in the source code of Vicare itself.
 ;;;
-;;;Copyright (C) 2011, 2012 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (C) 2011, 2012, 2013 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
 ;;;it under the terms of the  GNU General Public License as published by
@@ -216,9 +216,13 @@
     posix-select-fd-exceptional?
     posix-poll
     posix-fcntl				posix-ioctl
+    posix-fd-set-non-blocking-mode	posix-fd-set-close-on-exec-mode
+    posix-fd-unset-non-blocking-mode	posix-fd-unset-close-on-exec-mode
+    posix-fd-ref-non-blocking-mode	posix-fd-ref-close-on-exec-mode
     posix-dup				posix-dup2
     posix-pipe				posix-mkfifo
     posix-truncate			posix-ftruncate
+    posix-lockf
 
     posix-sizeof-fd-set			posix-make-fd-set-bytevector
     posix-make-fd-set-pointer		posix-make-fd-set-memory-block!
@@ -311,6 +315,8 @@
     platform-open-input/output-fd	platform-close-fd
     platform-read-fd			platform-write-fd
     platform-set-position
+    platform-fd-set-non-blocking-mode	platform-fd-unset-non-blocking-mode
+    platform-fd-ref-non-blocking-mode
 
     ;; users and groups
     posix-getuid			posix-getgid
@@ -344,6 +350,9 @@
     posix-getrlimit			posix-setrlimit
     posix-getrusage			posix-RLIM_INFINITY
     linux-prlimit
+
+    ;; daemonisation
+    linux-daemon
 
     ;; mathematics
     glibc-csin		glibc-ccos	glibc-ctan
@@ -381,13 +390,13 @@
 
 ;;;; helpers
 
-(define-syntax define-inline
-  (syntax-rules ()
-    ((_ (?name ?arg ... . ?rest) ?form0 ?form ...)
-     (define-syntax ?name
-       (syntax-rules ()
-	 ((_ ?arg ... . ?rest)
-	  (begin ?form0 ?form ...)))))))
+;; (define-syntax define-inline
+;;   (syntax-rules ()
+;;     ((_ (?name ?arg ... . ?rest) ?form0 ?form ...)
+;;      (define-syntax ?name
+;;        (syntax-rules ()
+;; 	 ((_ ?arg ... . ?rest)
+;; 	  (begin ?form0 ?form ...)))))))
 
 
 ;;;; foreign functions interface
@@ -1269,6 +1278,28 @@
 
 ;;; --------------------------------------------------------------------
 
+(define-inline (posix-fd-set-non-blocking-mode fd)
+  (foreign-call "ikptr_posix_fd_set_non_blocking_mode" fd))
+
+(define-inline (posix-fd-unset-non-blocking-mode fd)
+  (foreign-call "ikptr_posix_fd_unset_non_blocking_mode" fd))
+
+(define-inline (posix-fd-ref-non-blocking-mode fd)
+  (foreign-call "ikptr_posix_fd_ref_non_blocking_mode" fd))
+
+;;; --------------------------------------------------------------------
+
+(define-inline (posix-fd-set-close-on-exec-mode fd)
+  (foreign-call "ikptr_posix_fd_set_close_on_exec_mode" fd))
+
+(define-inline (posix-fd-unset-close-on-exec-mode fd)
+  (foreign-call "ikptr_posix_fd_unset_close_on_exec_mode" fd))
+
+(define-inline (posix-fd-ref-close-on-exec-mode fd)
+  (foreign-call "ikptr_posix_fd_ref_close_on_exec_mode" fd))
+
+;;; --------------------------------------------------------------------
+
 (define-inline (posix-dup fd)
   (foreign-call "ikrt_posix_dup" fd))
 
@@ -1290,6 +1321,11 @@
 
 (define-inline (posix-ftruncate fd length)
   (foreign-call "ikrt_posix_ftruncate" fd length))
+
+;;; --------------------------------------------------------------------
+
+(define-inline (posix-lockf fd cmd len)
+  (foreign-call "ikrt_posix_lockf" fd cmd len))
 
 ;;; --------------------------------------------------------------------
 
@@ -1803,6 +1839,24 @@
   ;;
   (foreign-call "ikrt_close_fd" fd))
 
+(define-inline (platform-fd-set-non-blocking-mode fd)
+  ;;Make  use  of  "fcntl()"  to   set  non-blocking  mode  for  a  file
+  ;;descriptor.
+  ;;
+  (foreign-call "ikptr_fd_set_non_blocking_mode" fd))
+
+(define-inline (platform-fd-unset-non-blocking-mode fd)
+  ;;Make  use  of  "fcntl()"  to  unset non-blocking  mode  for  a  file
+  ;;descriptor.
+  ;;
+  (foreign-call "ikptr_fd_unset_non_blocking_mode" fd))
+
+(define-inline (platform-fd-ref-non-blocking-mode fd)
+  ;;Make use  of "fcntl()" to  query a file descriptor  for non-blocking
+  ;;mode.
+  ;;
+  (foreign-call "ikptr_fd_ref_non_blocking_mode" fd))
+
 
 ;;;; users and groups
 
@@ -1968,6 +2022,12 @@
 
 (define-inline (linux-prlimit pid resource new-limit old-limit)
   (foreign-call "ikrt_linux_prlimit" pid resource new-limit old-limit))
+
+
+;;;; daemonisation
+
+(define-inline (linux-daemon nochdir noclose)
+  (foreign-call "ikrt_linux_daemon" nochdir noclose))
 
 
 ;;;; mathematics

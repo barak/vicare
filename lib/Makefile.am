@@ -32,7 +32,6 @@ nobase_dist_libvicare_DATA	= \
 	vicare/language-extensions/syntaxes.sls				\
 	vicare/language-extensions/coroutines.sls			\
 	vicare/language-extensions/infix.sls				\
-	vicare/language-extensions/include.sls				\
 	vicare/language-extensions/keywords.sls				\
 	vicare/language-extensions/custom-ports.sls			\
 	\
@@ -182,8 +181,14 @@ dist_pkglibexec_SCRIPTS		+= compile-ffi.sps
 endif
 
 if WANT_POSIX
-nobase_dist_libvicare_DATA	+= vicare/posix.sls	\
-				   vicare/simple-event-loop.sls
+nobase_dist_libvicare_DATA	+= \
+	vicare/posix.sls			\
+	vicare/posix/pid-files.sls		\
+	vicare/posix/lock-pid-files.sls		\
+	vicare/posix/log-files.sls		\
+	vicare/posix/daemonisations.sls		\
+	vicare/posix/simple-event-loop.sls	\
+	vicare/posix/tcp-server-sockets.sls
 dist_pkglibexec_SCRIPTS		+= compile-posix.sps
 endif
 

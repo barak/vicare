@@ -27,6 +27,8 @@
 
 #!vicare
 (import (for (except (vicare)
+		     break
+
 		     ;; from (rnrs base (6))
 		     pair?		cons
 		     car		cdr
@@ -71,13 +73,6 @@
 ;;;; helpers
 
 (define numbers '(0 1 2 3 4 5 6 7 8 9))
-
-(define-syntax receive
-  (syntax-rules ()
-    ((_ ?formals ?expression ?form0 ?form ...)
-     (call-with-values
-	 (lambda () ?expression)
-       (lambda ?formals ?form0 ?form ...)))))
 
 
 ;;;; miscellaneous tests on circular lists

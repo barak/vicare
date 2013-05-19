@@ -68,7 +68,7 @@ VIE			= $(srcdir)/../scripts/vie
 
 # The variable "user_flags"  is for the user to be  set on the command
 # line of "make".
-VICARE_TEST_RUN_FLAGS	= -b $(VICARE_BOOT) $(user_flags)
+VICARE_TEST_RUN_FLAGS	= -b $(VICARE_BOOT) $(VFLAGS) $(user_flags)
 VICARE_TEST_RUN_ENV	= \
 	VICARE_LIBRARY_PATH=$(VICARE_TEST_SEARCH_PATH); export VICARE_LIBRARY_PATH;	\
 	VICARE_SRC_DIR=$(srcdir); export VICARE_SRC_DIR;				\
@@ -156,6 +156,7 @@ TESTS			=	\
 	test-vicare-bytevector-compounds.sps		\
 	test-vicare-chars.sps				\
 	test-vicare-collect.sps				\
+	test-vicare-compensations.sps			\
 	test-vicare-cond-expand.sps			\
 	test-vicare-coroutines.sps			\
 	test-vicare-custom-ports.sps			\
@@ -164,6 +165,7 @@ TESTS			=	\
 	test-vicare-errno.sps				\
 	test-vicare-expander.sps			\
 	test-vicare-debugging.sps			\
+	test-vicare-fasl.sps				\
 	test-vicare-fixnums.sps				\
 	test-vicare-flonum-base.sps			\
 	test-vicare-flonum-formatter.sps		\
@@ -174,9 +176,11 @@ TESTS			=	\
 	test-vicare-io.sps				\
 	test-vicare-language-extensions.sps		\
 	test-vicare-letrec-syntax.sps			\
+	test-vicare-library-utils.sps			\
 	test-vicare-lists.sps				\
 	test-vicare-log.sps				\
-	test-vicare-net-channels.sps			\
+	test-vicare-net-channels-binary.sps		\
+	test-vicare-net-channels-textual.sps		\
 	test-vicare-numerics-neg.sps			\
 	test-vicare-numerics-inv.sps			\
 	test-vicare-numerics-add.sps			\
@@ -295,19 +299,27 @@ endif
 
 if WANT_POSIX
 TESTS	+= \
-	test-vicare-posix-basic.sps		\
-	test-vicare-posix-net.sps		\
-	test-vicare-posix-mmap.sps		\
-	test-vicare-posix-bub.sps		\
-	test-vicare-posix-time.sps		\
-	test-vicare-posix-timers.sps		\
-	test-vicare-posix-message-queue.sps	\
-	test-vicare-posix-shared-memory.sps	\
-	test-vicare-posix-semaphores.sps	\
-	test-vicare-posix-sigwait.sps		\
+	test-vicare-posix-basic.sps			\
+	test-vicare-posix-non-blocking.sps		\
+	test-vicare-posix-close-on-exec.sps		\
+	test-vicare-posix-sockets.sps			\
+	test-vicare-posix-mmap.sps			\
+	test-vicare-posix-bub.sps			\
+	test-vicare-posix-time.sps			\
+	test-vicare-posix-timers.sps			\
+	test-vicare-posix-message-queue.sps		\
+	test-vicare-posix-shared-memory.sps		\
+	test-vicare-posix-semaphores.sps		\
+	test-vicare-posix-sigwait.sps			\
 	\
-	test-vicare-shared-memory.sps		\
-	test-vicare-sel.sps
+	test-vicare-shared-memory.sps			\
+	test-vicare-posix-sel.sps			\
+	test-vicare-posix-pid-files.sps			\
+	test-vicare-posix-lock-pid-files.sps		\
+	test-vicare-posix-log-files.sps			\
+	\
+	test-vicare-posix-net-channels-binary.sps	\
+	test-vicare-posix-net-channels-textual.sps
 endif
 
 if WANT_GLIBC
@@ -459,6 +471,7 @@ EXTRA_DIST = \
 	test-vicare-bytevector-compounds.sps		\
 	test-vicare-chars.sps				\
 	test-vicare-collect.sps				\
+	test-vicare-compensations.sps			\
 	test-vicare-cond-expand.sps			\
 	test-vicare-coroutines.sps			\
 	test-vicare-custom-ports.sps			\
@@ -469,6 +482,7 @@ EXTRA_DIST = \
 	test-vicare-debugging.sps			\
 	test-vicare-ffi-core.sps			\
 	test-vicare-ffi-foreign-pointer-wrapper.sps	\
+	test-vicare-fasl.sps				\
 	test-vicare-fixnums.sps				\
 	test-vicare-flonum-base.sps			\
 	test-vicare-flonum-formatter.sps		\
@@ -482,9 +496,11 @@ EXTRA_DIST = \
 	test-vicare-language-extensions.sps		\
 	test-vicare-linux.sps				\
 	test-vicare-letrec-syntax.sps			\
+	test-vicare-library-utils.sps			\
 	test-vicare-lists.sps				\
 	test-vicare-log.sps				\
-	test-vicare-net-channels.sps			\
+	test-vicare-net-channels-binary.sps		\
+	test-vicare-net-channels-textual.sps		\
 	test-vicare-numerics-neg.sps			\
 	test-vicare-numerics-inv.sps			\
 	test-vicare-numerics-add.sps			\
@@ -530,7 +546,9 @@ EXTRA_DIST = \
 	test-vicare-pointers.sps			\
 	\
 	test-vicare-posix-basic.sps			\
-	test-vicare-posix-net.sps			\
+	test-vicare-posix-sockets.sps			\
+	test-vicare-posix-non-blocking.sps		\
+	test-vicare-posix-close-on-exec.sps		\
 	test-vicare-posix-mmap.sps			\
 	test-vicare-posix-bub.sps			\
 	test-vicare-posix-time.sps			\
@@ -539,6 +557,12 @@ EXTRA_DIST = \
 	test-vicare-posix-shared-memory.sps		\
 	test-vicare-posix-semaphores.sps		\
 	test-vicare-posix-sigwait.sps			\
+	test-vicare-posix-log-files.sps			\
+	test-vicare-posix-pid-files.sps			\
+	test-vicare-posix-lock-pid-files.sps		\
+	test-vicare-posix-sel.sps			\
+	test-vicare-posix-net-channels-binary.sps	\
+	test-vicare-posix-net-channels-textual.sps	\
 	\
 	test-vicare-promises.sps			\
 	test-vicare-time.sps				\
@@ -546,7 +570,6 @@ EXTRA_DIST = \
 	test-vicare-records-procedural.sps		\
 	test-vicare-records-syntactic.sps		\
 	test-vicare-round.sps				\
-	test-vicare-sel.sps				\
 	test-vicare-shared-memory.sps			\
 	test-vicare-simple-match.sps			\
 	test-vicare-string-to-number.sps		\
