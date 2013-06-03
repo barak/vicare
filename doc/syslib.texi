@@ -736,6 +736,11 @@ Compute the inverse hyperbolic functions.  Return flonum objects.
 @subsubheading Exponentials and logarithms
 
 
+@deffn {Unsafe Operation} $flcbrt @var{fl}
+Return the real cube root function of @var{fl}.
+@end deffn
+
+
 @deffn {Unsafe Operation} $flexp @var{fl}
 Return the base @math{e} exponential of the operand.
 @end deffn
@@ -761,6 +766,12 @@ Return an equivalent of @math{exp(@var{fl}) - 1}.
 
 @deffn {Unsafe Operation} $fllog1p @var{fl}
 Return an equivalent of @math{log(1 + @var{fl})}.
+@end deffn
+
+
+@deffn {Unsafe Operation} $flhypot @vari{fl} @varii{fl}
+Compute the Euclidean distance function: @math{\sqrt(X*X+Y*Y)}.
+@glibcref{Exponents and Logarithms, hypot}.
 @end deffn
 
 @c ------------------------------------------------------------
