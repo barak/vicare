@@ -35,6 +35,7 @@
  ** Headers.
  ** ----------------------------------------------------------------- */
 
+#include <vicare-platform.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -147,16 +148,6 @@ ik_decl void	ik_fprint		(FILE*, ikptr x);
  ** Basic object related macros.
  ** ----------------------------------------------------------------- */
 
-#define wordsize	((int)(sizeof(ikptr)))
-/* The value of "wordshift" is selected in such a way that:
-
-     length_in_bytes = number_of_words * wordsize
-		     = number_of_words << wordshift
-
-   this	 allows us,  for example,  to take  the fixnum	representing the
-   number of items  in a vector and consider it directly  as size of the
-   vector's data area in bytes. */
-#define wordshift	((4 == wordsize)? 2 : 3)
 #define IK_ALIGN_SHIFT	(1 + wordshift)
 #define IK_ALIGN_SIZE	(2 * wordsize)
 #define immediate_tag	7

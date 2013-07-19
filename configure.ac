@@ -2,7 +2,7 @@ dnl @configure_input@
 dnl
 
 AC_PREREQ([2.68])
-AC_INIT([Vicare Scheme],[0.3d0],[marco.maggi-ipsu@poste.it],
+AC_INIT([Vicare Scheme],[0.3d1],[marco.maggi-ipsu@poste.it],
   [vicare-scheme],[http://marcomaggi.github.com/vicare.html])
 AC_CONFIG_SRCDIR([src])
 AC_CONFIG_MACRO_DIR([autotools])
@@ -1567,12 +1567,13 @@ AC_CONFIG_FILES(Makefile
                 src/Makefile scheme/Makefile doc/Makefile lib/Makefile
                 tests/Makefile demos/Makefile
                 src/last-revision.h
+                src/vicare-platform.h
                 lib/vicare/platform/configuration.sls
                 lib/vicare/platform/constants.sls
                 lib/vicare/platform/errno.sls
                 lib/vicare/platform/words.sls
                 meta/slackware/doinst.sh
-		doc/version.texi)
+                doc/version.texi)
 AC_OUTPUT
 
 ### end of file

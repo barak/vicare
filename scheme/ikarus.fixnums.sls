@@ -601,6 +601,7 @@
 
 
 (module (fixnum->string)
+  (import (ikarus.emergency))
 
   (define who 'fixnum->string)
 
