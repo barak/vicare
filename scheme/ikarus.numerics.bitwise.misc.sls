@@ -32,6 +32,10 @@
     $fxcopy-bit			$fxcopy-bit-field
     $fxrotate-bit-field		$fxbit-field)
   (import (except (ikarus)
+		  fixnum-width
+		  greatest-fixnum
+		  least-fixnum
+
 		  bitwise-bit-set?		bitwise-first-bit-set
 		  bitwise-bit-count
 		  fxfirst-bit-set		fxbit-count
@@ -46,27 +50,10 @@
 	    $fxbit-field)
     (ikarus system $bignums)
     (ikarus system $flonums)
-    (except (vicare language-extensions syntaxes)
-	    case-word-size)
+    (vicare language-extensions syntaxes)
     (vicare arguments validation))
 
-  ;;Remember  that WORDSIZE  is  the  number of  bytes  in a  platform's
-  ;;machine word: 4 on 32-bit platforms, 8 on 64-bit platforms.
-  (module (wordsize)
-    (include "ikarus.config.ss"))
-
-
-;;;; helpers
-
-(define-syntax case-word-size
-  ;;We really  need to define  this macro so that  it uses the  value of
-  ;;WORDSIZE just defined by the "ikarus.config.ss" file.
-  ;;
-  (syntax-rules ()
-    ((_ ((32) . ?body-32) ((64) . ?body-64))
-     (if (= 4 wordsize)
-	 (begin . ?body-32)
-       (begin . ?body-64)))))
+  (include "ikarus.wordsize.scm")
 
 
 (module (bitwise-first-bit-set
@@ -132,25 +119,25 @@
   (define (pos-fxbitcount n)
       ;;; nifty parrallel count from:
       ;;; http://infolab.stanford.edu/~manku/bitcount/bitcount.html
-    (case-fixnums (fixnum-width)
-      ((30)
-       (let ((m0 #x15555555)
-	     (m1 #x13333333)
-	     (m2 #x0f0f0f0f))
-	 (let* ((n ($fx+ ($fxlogand n m0) ($fxlogand ($fxsra n 1) m0)))
-		(n ($fx+ ($fxlogand n m1) ($fxlogand ($fxsra n 2) m1)))
-		(n ($fx+ ($fxlogand n m2) ($fxlogand ($fxsra n 4) m2))))
-	   (fxmodulo n 255))))
-      (else
-       (let ((m0 #x0555555555555555)
-	     (m1 #x0333333333333333)
-	     (m2 #x0f0f0f0f0f0f0f0f)
-	     (m3 #x00ff00ff00ff00ff))
-	 (let* ((n ($fx+ ($fxlogand n m0) ($fxlogand ($fxsra n 1) m0)))
-		(n ($fx+ ($fxlogand n m1) ($fxlogand ($fxsra n 2) m1)))
-		(n ($fx+ ($fxlogand n m2) ($fxlogand ($fxsra n 4) m2)))
-		(n ($fx+ ($fxlogand n m3) ($fxlogand ($fxsra n 8) m3))))
-	   (fxmodulo n 255))))))
+    (boot.case-word-size
+     ((32)
+      (let ((m0 #x15555555)
+	    (m1 #x13333333)
+	    (m2 #x0f0f0f0f))
+	(let* ((n ($fx+ ($fxlogand n m0) ($fxlogand ($fxsra n 1) m0)))
+	       (n ($fx+ ($fxlogand n m1) ($fxlogand ($fxsra n 2) m1)))
+	       (n ($fx+ ($fxlogand n m2) ($fxlogand ($fxsra n 4) m2))))
+	  (fxmodulo n 255))))
+     ((64)
+      (let ((m0 #x0555555555555555)
+	    (m1 #x0333333333333333)
+	    (m2 #x0f0f0f0f0f0f0f0f)
+	    (m3 #x00ff00ff00ff00ff))
+	(let* ((n ($fx+ ($fxlogand n m0) ($fxlogand ($fxsra n 1) m0)))
+	       (n ($fx+ ($fxlogand n m1) ($fxlogand ($fxsra n 2) m1)))
+	       (n ($fx+ ($fxlogand n m2) ($fxlogand ($fxsra n 4) m2)))
+	       (n ($fx+ ($fxlogand n m3) ($fxlogand ($fxsra n 8) m3))))
+	  (fxmodulo n 255))))))
 
   (define ($fxbitcount n)
     (if ($fx< n 0)
@@ -208,7 +195,7 @@
       (let ((x^ (if ($fx< x 0)
 		    ($fxlognot x)
 		  x)))
-	(case-word-size
+	(boot.case-word-size
 	 ((32)
 	  (%fxlength32 x^))
 	 ((64)

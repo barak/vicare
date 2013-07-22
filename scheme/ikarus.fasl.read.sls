@@ -18,6 +18,9 @@
 (library (ikarus fasl read)
   (export fasl-read)
   (import (except (ikarus)
+		  fixnum-width
+		  greatest-fixnum
+		  least-fixnum
 		  fasl-read)
     (except (ikarus.code-objects)
 	    procedure-annotation)
@@ -26,6 +29,8 @@
     (vicare unsafe operations)
     (vicare language-extensions syntaxes)
     (vicare arguments validation))
+
+  (include "ikarus.wordsize.scm")
 
 
 ;;;; main functions
@@ -47,11 +52,11 @@
     (%assert (read-u8-as-char port) #\I)
     (%assert (read-u8-as-char port) #\K)
     (%assert (read-u8-as-char port) #\0)
-    (case (fixnum-width)
-      ((30)
-       (%assert (read-u8-as-char port) #\1))
-      (else
-       (%assert (read-u8-as-char port) #\2)))
+    (boot.case-word-size
+     ((32)
+      (%assert (read-u8-as-char port) #\1))
+     ((64)
+      (%assert (read-u8-as-char port) #\2)))
     (let ((v (%do-read port)))
       (if (port-eof? port)
 	  v
@@ -421,8 +426,8 @@
   ;;Read from  the input PORT a  fixnum represented as  32-bit or 64-bit
   ;;value depending on the underlying platform's word size.
   ;;
-  (case (fixnum-width)
-    ((30)
+  (boot.case-word-size
+    ((32)
      (let* ((c0 (read-u8 port))
 	    (c1 (read-u8 port))
 	    (c2 (read-u8 port))
@@ -441,7 +446,7 @@
 				  (fxsll c1 6))
 			 (fxlogor (fxsll c2 14)
 				  (fxsll c3 22)))))))))
-    (else
+    ((64)
      (let* ((u0 (read-u32 port))
 	    (u1 (read-u32 port)))
        (if (<= u1 #x7FFFFFF)
@@ -455,8 +460,8 @@
   ;;Read from the  input PORT an exact integer  represented as 32-bit or
   ;;64-bit value depending on the underlying platform's word size.
   ;;
-  (case (fixnum-width)
-    ((30)	;32-bit platform
+  (boot.case-word-size
+    ((32)	;32-bit platform
      (let* ((c0 (char->int (read-u8-as-char port)))
 	    (c1 (char->int (read-u8-as-char port)))
 	    (c2 (char->int (read-u8-as-char port)))
@@ -475,7 +480,7 @@
 				  (fxsll c1 8))
 			 (fxlogor (fxsll c2 16)
 				  (fxsll c3 24)))))))))
-    (else	;64-bit platform
+    ((64)	;64-bit platform
      (let* ((u0 (read-u32 port))
 	    (u1 (read-u32 port)))
        (if (<= u1 #x7FFFFFF)

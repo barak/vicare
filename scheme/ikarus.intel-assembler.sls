@@ -20,20 +20,20 @@
     assemble-sources
     code-entry-adjustment
     assembler-property-key)
-  (import (ikarus)
+  (import (except (ikarus)
+		  fixnum-width
+		  greatest-fixnum
+		  least-fixnum
+		  )
     (except (ikarus.code-objects)
 	    procedure-annotation)
     (vicare unsafe operations)
     (vicare arguments validation)
     (prefix (vicare platform words)
 	    words.)
-    (except (vicare language-extensions syntaxes)
-	    case-word-size))
+    (vicare language-extensions syntaxes))
 
-  ;;Remember  that WORDSIZE  is  the  number of  bytes  in a  platform's
-  ;;machine word: 4 on 32-bit platforms, 8 on 64-bit platforms.
-  (module (wordsize)
-    (include "ikarus.config.ss" #t))
+  (include "ikarus.wordsize.scm")
 
 
 ;;;; Introduction
@@ -106,16 +106,6 @@
 
 
 ;;;; helpers
-
-(define-syntax case-word-size
-  ;;We really  need to define  this macro so that  it uses the  value of
-  ;;WORDSIZE just defined by the "ikarus.config.ss" file.
-  ;;
-  (syntax-rules ()
-    ((_ ((32) . ?body-32) ((64) . ?body-64))
-     (if (= 4 wordsize)
-	 (begin . ?body-32)
-       (begin . ?body-64)))))
 
 (define (fold func init ls)
   (if (null? ls)
@@ -325,7 +315,7 @@
 	    ac)))
 
   (define (IMM32 n ac)
-    (case-word-size
+    (boot.case-word-size
      ((32)
       (IMM n ac))
      ((64)
@@ -376,7 +366,7 @@
 	   ;;
 	   ;;  #xDDCCBBAA -> `(#xAA #xBB #xCC #xDD . ,ac)
 	   ;;
-	   (case-word-size
+	   (boot.case-word-size
 	    ((32)
 	     (cons* (byte n)
 		    (byte (sra n 8))
@@ -500,7 +490,7 @@
 	  ac))
 
   (define (imm32? x)
-    (case-word-size
+    (boot.case-word-size
      ((32)
       (imm? x))
      ((64)
@@ -928,7 +918,7 @@
   ;;   ls)
 
   (define (jmp-pc-relative code0 code1 dst ac)
-    (case-word-size
+    (boot.case-word-size
      ((32)
       (error 'intel-assembler "no pc-relative jumps in 32-bit mode"))
      ((64)
@@ -1287,7 +1277,7 @@
 	    (CODE #xE9 (cons `(local-relative . ,(label-name dst))
 			     ac)))
 	   ((imm? dst)
-	    (case-word-size
+	    (boot.case-word-size
 	     ((32)
 	      (CODE #xE9 (IMM32 dst ac)))
 	     ((64)
@@ -1302,7 +1292,7 @@
 	    (CODE #xE8 (cons `(local-relative . ,(label-name dst))
 			     ac)))
 	   ((imm? dst)
-	    (case-word-size
+	    (boot.case-word-size
 	     ((32)
 	      (CODE #xE8 (IMM32 dst ac)))
 	     ((64)

@@ -696,7 +696,8 @@
       (let recur ((sexp libname))
 	(syntax-match sexp ()
 	  (((?vers* ...))
-	   (for-all library-version-number? ?vers*) ;this is the fender
+	   (for-all library-version-number? (map syntax->datum ?vers*)) ;this is the fender
+	   #;(for-all library-version-number? ?vers*) ;this is the fender
 	   (values '() (map syntax->datum ?vers*)))
 
 	  ((?id . ?rest)
@@ -7340,6 +7341,9 @@
     ;;  (define-syntax (?name ?arg) ?body0 ?body ...)
     ;;
     (syntax-match stx ()
+      ((_ ?id)
+       (identifier? ?id)
+       (values ?id (bless '(syntax-rules ()))))
       ((_ ?id ?transformer-expr)
        (identifier? ?id)
        (values ?id ?transformer-expr))

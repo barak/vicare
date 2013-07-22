@@ -8,7 +8,7 @@
 ;;;
 ;;;
 ;;;
-;;;Copyright (C) 2012 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (C) 2012, 2013 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
 ;;;it under the terms of the  GNU General Public License as published by
@@ -27,6 +27,8 @@
 
 #!r6rs
 (import (vicare)
+  (only (vicare platform words)
+	case-word-size)
   (vicare checks))
 
 (check-set-mode! 'report-failed)
@@ -35,9 +37,15 @@
 
 (parametrise ((check-test-name	'words))
 
-  (check
-      (integer->machine-word #b11100)
-    => #b111)
+  (case-word-size
+   ((32)
+    (check
+	(integer->machine-word #b11100)
+      => #b111))
+   ((64)
+    (check
+	(integer->machine-word #b111000)
+      => #b111)))
 
   (check
       (integer->machine-word #x3F)
@@ -56,6 +64,51 @@
   (check
       (machine-word->integer #f)
     => #x2F)
+
+  #t)
+
+
+(parametrise ((check-test-name	'dummy-args))
+
+  (check
+      (foreign-call "ikrt_dummy_arg_0")
+    => #t)
+
+  (check
+      (foreign-call "ikrt_dummy_arg_1" 2)
+    => 1002)
+
+  (check
+      (foreign-call "ikrt_dummy_arg_2" 2 30)
+    => 1032)
+
+  (check
+      (foreign-call "ikrt_dummy_arg_3" 2 30 400)
+    => 1432)
+
+  (check
+      (foreign-call "ikrt_dummy_arg_4" 1 2 4 8)
+    => (+ 1000 1 2 4 8))
+
+  (check
+      (foreign-call "ikrt_dummy_arg_5" 1 2 4 8 16)
+    => (+ 1000 1 2 4 8 16))
+
+  (check
+      (foreign-call "ikrt_dummy_arg_6" 1 2 4 8 16 32)
+    => (+ 1000 1 2 4 8 16 32))
+
+  (check
+      (foreign-call "ikrt_dummy_arg_7" 1 2 4 8 16 32 64)
+    => (+ 1000 1 2 4 8 16 32 64))
+
+  (check
+      (foreign-call "ikrt_dummy_arg_8" 1 2 4 8 16 32 64 128)
+    => (+ 1000 1 2 4 8 16 32 64 128))
+
+  (check
+      (foreign-call "ikrt_dummy_arg_9" 1 2 4 8 16 32 64 128 256)
+    => (+ 1000 1 2 4 8 16 32 64 128 256))
 
   #t)
 

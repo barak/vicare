@@ -1640,6 +1640,7 @@ by this library.
 @deffnx {Auxiliary Syntax} let
 @deffnx {Auxiliary Syntax} quote
 @deffnx {Auxiliary Syntax} quasiquote
+@deffnx {Auxiliary Syntax} syntax
 @deffnx {Auxiliary Syntax} and
 @deffnx {Auxiliary Syntax} or
 @deffnx {Auxiliary Syntax} not
@@ -1859,6 +1860,47 @@ is equal to the input expression according to @func{equal?}.
     (`(3 ,X)    #\C)
     (else       #f)))
 @result{} #\B
+@end example
+
+@item (syntax @meta{pattern})
+@itemx (syntax @meta{pattern} (@meta{literal} @dots{}))
+A @func{syntax-case} pattern with optional literal identifiers; the
+matching code is built as follows:
+
+@example
+(syntax-case input-expr (@meta{literal} @dots{})
+  (@meta{pattern}
+   #;success)
+  (_
+   #;failure))
+@end example
+
+@noindent
+the body of the clause can access pattern variables in the same way they
+are accessed from the output expression of a @func{syntax-case} use.
+
+@example
+(match '(1 2 3)
+  ((syntax (1 2 3))
+   #t)
+  (else #f))
+@result{} #t
+
+;;match an identifier
+(let ((ciao #f))
+  (match #'ciao
+    ((syntax ciao (ciao))
+     #t)
+    (else #f)))
+@result{} #t
+
+;;match pattern variables
+(let ((ciao #f))
+  (match '(1 2 3)
+    ((syntax (a b c))
+     (syntax->datum #'b))
+    (else #f)))
+@result{} 2
 @end example
 
 @item ()
@@ -2317,21 +2359,6 @@ that the arguments have already been validated.  Expand to:
 
 The following bindings are exported by the library @library{vicare
 language-extensions syntaxes}.
-
-
-@defmac case-word-size ((32) . @meta{body-32}) ((64) . @meta{body-64})
-If the platform word size is 32-bit expand to @meta{body-32}, else
-expand to @meta{body-64}.
-@end defmac
-
-
-@deffn Macro case-endianness (@meta{who} @meta{endianness}) ((little) . @meta{lit-body}) ((big) . @meta{big-body})
-@deffnx Macro case-endianness (@meta{who} @meta{endianness}) ((big) . @meta{big-body}) ((little) . @meta{lit-body})
-@deffnx {Auxiliary Syntax} big
-@deffnx {Auxiliary Syntax} little
-If the platform endianness is little expand to @meta{lit-body}, else
-expand to @meta{big-body}.
-@end deffn
 
 
 @deffn Macro case-fixnums @meta{expr} ((@metao{fixnum} @meta{fixnum} ...) @metao{fx-body} @meta{fx-body} ...) ...

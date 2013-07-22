@@ -1281,6 +1281,13 @@ Succeed if @var{obj} is a generalised C string and @var{obj.len} its
 optional length.
 @end deffn
 
+
+@deffn {Validation Clause} general-c-string*/false @var{obj} @var{obj.len}
+Succeed if @var{obj} is a @false{} or a generalised C string and
+@var{obj.len} its optional length.  If @var{obj} is @false{}:
+@var{obj.len} must be false too.
+@end deffn
+
 @c page
 @node args predefined genbuffers
 @subsubsection Validating generalised C buffer arguments
@@ -1339,8 +1346,22 @@ optional length.
 
 
 @deffn {Validation Clause} general-c-sticky-buffer* @var{obj} @var{obj.len}
-Succeed if @var{obj} is a generalised C buffer and @var{obj.len} its
-optional length.
+Succeed if @var{obj} is a generalised C sticky buffer and @var{obj.len}
+its optional length.
+@end deffn
+
+
+@deffn {Validation Clause} general-c-buffer*/false @var{obj} @var{obj.len}
+Succeed if @var{obj} is a @false{} or a generalised C buffer and
+@var{obj.len} its optional length.  If @var{obj} is @false{}:
+@var{obj.len} must be false too.
+@end deffn
+
+
+@deffn {Validation Clause} general-c-sticky-buffer*/false @var{obj} @var{obj.len}
+Succeed if @var{obj} is a @false{} or a generalised C sticky buffer and
+@var{obj.len} its optional length.  If @var{obj} is @false{}:
+@var{obj.len} must be false too.
 @end deffn
 
 @c page
@@ -1491,10 +1512,34 @@ specific C language type.  The library @library{vicare platform words} implement
 such predicates and minimum/maximum range constants.
 
 @menu
+* words syntaxes::              Miscellaneous syntaxes.
 * words sizeof::                Knowing the size of C language types.
 * words predicates::            Verifying the range of integers.
 * words limits::                Exact integer range limits.
 @end menu
+
+@c page
+@node words syntaxes
+@subsection Miscellaneous syntaxes
+
+
+The following bindings are exported by the @library{vicare platform words}
+library.
+
+
+@deffn Syntax case-word-size ((32) . @meta{body-32}) ((64) . @meta{body-64})
+If the platform word size is 32-bit expand to @meta{body-32}, else
+expand to @meta{body-64}.
+@end deffn
+
+
+@deffn Syntax case-endianness (@meta{who} @meta{endianness}) ((little) . @meta{lit-body}) ((big) . @meta{big-body})
+@deffnx Syntax case-endianness (@meta{who} @meta{endianness}) ((big) . @meta{big-body}) ((little) . @meta{lit-body})
+@deffnx {Auxiliary Syntax} big
+@deffnx {Auxiliary Syntax} little
+If the platform endianness is little expand to @meta{lit-body}, else
+expand to @meta{big-body}.
+@end deffn
 
 @c page
 @node words sizeof
@@ -3921,9 +3966,9 @@ channels}.
 @defun channel-set-maximum-message-size! @var{chan} @var{maximum-message-size}
 Configure the maximum message size; return unspecified values.
 
-@var{maximum-message-size} must be a non--negative exact integer
-representing the inclusive maximum message size; if the size of the
-message exceeds this value: message delivery will fail.
+@var{maximum-message-size} must be a positive exact integer representing
+the inclusive maximum message size; if the size of the message exceeds
+this value: message delivery will fail.
 
 When not configured: the maximum message size defaults to @math{4096}.
 
@@ -3972,6 +4017,24 @@ terminators.  When not configured: the list of terminators defaults to:
 
 The terminators @strong{are not} reset when a message delivery is
 completed.
+@end defun
+
+
+@defun channel-set-maximum-message-portion-size! @var{chan} @var{max-portion-size}
+Configure the maximum message portion size; return unspecified values.
+
+@var{max-portion-size} must be a positive fixnum representing the
+inclusive maximum message portion size in octets or characters; when
+receiving a message portion: this value is used as second argument to
+@func{get-bytevector-n} or @func{get-string-n}.
+
+When not configured: the maximum portion size defaults to @math{4096}
+for binary channels and to @math{1024} for textual channels.  This value
+can be reconfigured any number of times, even between message portion
+receptions.
+
+The maximum message portion size @strong{is not} reset when a message
+delivery is completed.
 @end defun
 
 @c page
@@ -4131,9 +4194,15 @@ Receive a portion of input message from the given channel and accumulate
 it in the internal state; it is an error if the channel is not in the
 course of receiving a message.
 
+This function performs a @strong{single} read operation from the
+registered connection input port; for binary channels it uses
+@func{get-bytevector-n}, for textual channels it uses
+@func{get-string-n}.  When non--blocking mode is desired: the underlying
+input port must be configured in non--blocking mode.
+
 @itemize
 @item
-Return true if a configured message terminator is read from the input
+Return @true{} if a configured message terminator is read from the input
 port or if the channel already read a terminator in a previous
 operation.  If a message terminator is received: set @var{chan} to
 ``message terminated'' status.
@@ -4143,15 +4212,22 @@ Return the @eof{} object if @eof{} is read from the input port before a
 message terminator.
 
 @item
-Return false if neither a message terminator nor @eof{} is read; in this
-case we need to call this function again later to receive further
-message portions.
+Return the would--block object if a would--block condition is found in
+the input port before a message terminator.  In this case we need to
+call this function again later to receive further message portions; data
+is @strong{not} immediately available on the input port.
 
 @item
-If upon entering this function the message delivery timeout is expired
-or expires while receiving data: raise a non--continuable exception with
-compound condition object of types: @condition{who},
-@condition{message}, @condition{channel},
+Return @false{} if neither a message terminator, nor @eof{}, nor a
+would--block is read.  In this case we need to call this function again
+later to receive further message portions; data may be immediately
+available on the input port.
+
+@item
+If, upon entering this function, the message is not terminated and the
+delivery timeout is expired or expires while receiving data: raise a
+non--continuable exception with compound condition object of types:
+@condition{who}, @condition{message}, @condition{channel},
 @condition{delivery-timeout-expired}.
 
 @item
@@ -4161,12 +4237,6 @@ with compound condition object of types: @condition{who},
 @condition{message}, @condition{channel},
 @condition{maximum-message-size-exceeded}.
 @end itemize
-
-This function performs a single read operation from the registered
-connection port; for binary channels it uses @func{get-bytevector-n},
-for textual channels it uses @func{get-string-n}.  When non--blocking
-mode is desired: the underlying input port must be configured in
-non--blocking mode.
 @end defun
 
 @c ------------------------------------------------------------

@@ -14,9 +14,13 @@
 ;;;You should  have received  a copy of  the GNU General  Public License
 ;;;along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+
 (library (ikarus.fasl.write)
   (export fasl-write)
   (import (except (ikarus)
+		  fixnum-width
+		  greatest-fixnum
+		  least-fixnum
 		  fasl-write)
     (ikarus system $codes)
     (only (ikarus system $structs)
@@ -25,6 +29,8 @@
 	    procedure-annotation)
     (vicare language-extensions syntaxes)
     (vicare unsafe operations))
+
+  (include "ikarus.wordsize.scm")
 
 
 ;;;; arguments validation
@@ -40,16 +46,12 @@
 
 ;;;; helpers
 
-(module (wordsize)
-  (include "ikarus.config.ss" #t))
-
 (define who 'fasl-write)
 
 (define fxshift
-  (case wordsize
-    ((4) 2)
-    ((8) 3)
-    (else (error 'fxshift "invalid wordsize" wordsize))))
+  (boot.case-word-size
+   ((32)	2)
+   ((64)	3)))
 
 (define intbits (* wordsize 8))
 (define fxbits  (- intbits fxshift))
@@ -83,22 +85,35 @@
 
 (define (write-int32 x port)
   ;;Serialise  the  exact integer  X  to PORT  as  a  big endian  32-bit
-  ;;integer.
+  ;;integer.  If X is the integer:
+  ;;
+  ;;   X = #xAABBCCDD
+  ;;         ^      ^
+  ;;         |      least significant
+  ;;         most significant
+  ;;
+  ;;in the file it is serialised as:
+  ;;
+  ;;                    DD CC BB AA
+  ;;   head of file |--|--|--|--|--|--| tail of file
   ;;
   (write-byte (bitwise-and x          #xFF) port)
   (write-byte (bitwise-and (sra x 8)  #xFF) port)
   (write-byte (bitwise-and (sra x 16) #xFF) port)
   (write-byte (bitwise-and (sra x 24) #xFF) port))
 
-(define (write-int x p)
+(define (write-int x port)
   ;;Serialise the exact integer X to PORT: on 32-bit platforms, as a big
   ;;endian 32-bit integer; on 64-bit platforms, as a sequence of two big
   ;;endian 32-bit integers.
   ;;
   (assert (int? x))
-  (write-int32 x p)
-  (when ($fx= wordsize 8)
-    (write-int32 (sra x 32) p)))
+  (boot.case-word-size
+   ((32)
+    (write-int32 x port))
+   ((64)
+    (write-int32 x port)
+    (write-int32 (sra x 32) port))))
 
 (define MAX-ASCII-CHAR
   ($fixnum->char 127))
@@ -139,7 +154,10 @@
 	(put-tag #\I port)
 	(put-tag #\K port)
 	(put-tag #\0 port)
-	(put-tag (if ($fx= wordsize 4) #\1 #\2) port)
+	(put-tag (boot.case-word-size
+		  ((32)		#\1)
+		  ((64)		#\2))
+		 port)
 	(let ((next-mark (if foreign-libraries
 			     (let loop ((ls        foreign-libraries)
 					(next-mark 1))
