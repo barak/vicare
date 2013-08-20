@@ -122,6 +122,120 @@
   #t)
 
 
+(parametrise ((check-test-name	'networking))
+
+  (let ((host-address.class-A '#vu8(0 0 0 1))
+	(host-address.class-B '#vu8(128 0 0 1))
+	(host-address.class-C '#vu8(192 0 0 1)))
+
+    (check
+	(let ((addr (px.sockaddr_in.in_addr.number (px.make-sockaddr_in host-address.class-A 88))))
+	  (glibc.IN_CLASSA addr))
+      => #t)
+
+    (check
+    	(let ((addr (px.sockaddr_in.in_addr.number (px.make-sockaddr_in host-address.class-B 88))))
+    	  (glibc.IN_CLASSA addr))
+      => #f)
+
+    (check
+    	(let ((addr (px.sockaddr_in.in_addr.number (px.make-sockaddr_in host-address.class-C 88))))
+    	  (glibc.IN_CLASSA addr))
+      => #f)
+
+    ;;;
+
+    (check
+    	(let ((addr (px.sockaddr_in.in_addr.number (px.make-sockaddr_in host-address.class-A 88))))
+    	  (glibc.IN_CLASSB addr))
+      => #f)
+
+    (check
+    	(let ((addr (px.sockaddr_in.in_addr.number (px.make-sockaddr_in host-address.class-B 88))))
+    	  (glibc.IN_CLASSB addr))
+      => #t)
+
+    (check
+    	(let ((addr (px.sockaddr_in.in_addr.number (px.make-sockaddr_in host-address.class-C 88))))
+    	  (glibc.IN_CLASSB addr))
+      => #f)
+
+    ;;;
+
+    (check
+    	(let ((addr (px.sockaddr_in.in_addr.number (px.make-sockaddr_in host-address.class-A 88))))
+    	  (glibc.IN_CLASSC addr))
+      => #f)
+
+    (check
+    	(let ((addr (px.sockaddr_in.in_addr.number (px.make-sockaddr_in host-address.class-B 88))))
+    	  (glibc.IN_CLASSC addr))
+      => #f)
+
+    (check
+    	(let ((addr (px.sockaddr_in.in_addr.number (px.make-sockaddr_in host-address.class-C 88))))
+    	  (glibc.IN_CLASSC addr))
+      => #t)
+
+    ;;;
+
+    (check
+    	(let ((addr (px.sockaddr_in.in_addr.number (px.make-sockaddr_in host-address.class-A 88))))
+    	  (glibc.IN_CLASSD addr))
+      => #f)
+
+    (check
+    	(let ((addr (px.sockaddr_in.in_addr.number (px.make-sockaddr_in host-address.class-B 88))))
+    	  (glibc.IN_CLASSD addr))
+      => #f)
+
+    (check
+    	(let ((addr (px.sockaddr_in.in_addr.number (px.make-sockaddr_in host-address.class-C 88))))
+    	  (glibc.IN_CLASSD addr))
+      => #f)
+
+    ;;;
+
+    (check
+    	(let ((addr (px.sockaddr_in.in_addr.number (px.make-sockaddr_in host-address.class-A 88))))
+    	  (glibc.IN_MULTICAST addr))
+      => #f)
+
+    ;;;
+
+    (check
+    	(let ((addr (px.sockaddr_in.in_addr.number (px.make-sockaddr_in host-address.class-A 88))))
+    	  (glibc.IN_EXPERIMENTAL addr))
+      => #f)
+
+    ;;;
+
+    (check
+    	(let ((addr (px.sockaddr_in.in_addr.number (px.make-sockaddr_in host-address.class-A 88))))
+    	  (glibc.IN_BADCLASS addr))
+      => #f)
+
+    #f)
+
+;;; --------------------------------------------------------------------
+
+  (let ((host-address-1 '#vu16b(1 2 3 4 5 6 7 8)))
+
+    (check
+    	(let ((addr (px.sockaddr_in6.in6_addr (px.make-sockaddr_in6 host-address-1 88))))
+    	  (glibc.IN6_IS_ADDR_UNSPECIFIED addr))
+      => #f)
+
+    (check
+    	(let ((addr (px.sockaddr_in6.in6_addr (px.make-sockaddr_in6 host-address-1 88))))
+    	  (glibc.IN6_ARE_ADDR_EQUAL addr addr))
+      => #t)
+
+    #f)
+
+  #t)
+
+
 (parametrise ((check-test-name	'math))
 
   (define (almost= X Y)

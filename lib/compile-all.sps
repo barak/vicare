@@ -49,6 +49,8 @@
   (only (vicare language-extensions coroutines))
   (only (vicare language-extensions infix))
   (only (vicare language-extensions keywords))
+  (only (vicare language-extensions sentinels))
+  (only (vicare language-extensions namespaces))
   (only (vicare language-extensions custom-ports))
 
   (only (vicare numerics constants))
@@ -56,6 +58,8 @@
   (only (vicare numerics flonum-formatter))
 
   (only (vicare checks))
+
+  (only (vicare bytevectors))
 
   (only (vicare containers weak-hashtables))
   (only (vicare containers bytevector-compounds core))

@@ -697,7 +697,6 @@
 	(syntax-match sexp ()
 	  (((?vers* ...))
 	   (for-all library-version-number? (map syntax->datum ?vers*)) ;this is the fender
-	   #;(for-all library-version-number? ?vers*) ;this is the fender
 	   (values '() (map syntax->datum ?vers*)))
 
 	  ((?id . ?rest)
@@ -3288,8 +3287,7 @@
 		(%allowed-symbol-macro x '(none line block))))
 
 	     ((endianness)
-	      (lambda (x)
-		(%allowed-symbol-macro x '(big little))))
+	      endianness-macro)
 
 	     ((file-options)
 	      file-options-macro)
@@ -3583,45 +3581,59 @@
 	     ;;Code for protocol.
 	     (protocol-code	(get-protocol-code clause*)))
 	(bless
-	 `(begin
-	    (define ,foo-rtd ,foo-rtd-code)
-	    (define ,protocol ,protocol-code)
-	    (define ,foo-rcd ,foo-rcd-code)
-	    (define-syntax ,foo
-	      (list '$rtd (syntax ,foo-rtd) (syntax ,foo-rcd)))
-	    (define ,foo? (record-predicate ,foo-rtd))
-	    (define ,make-foo (record-constructor ,foo-rcd))
-	    ,@(map
-		  (lambda (foo-x idx)
-		    `(define ,foo-x (record-accessor ,foo-rtd ,idx)))
-		foo-x* idx*)
-	    ,@(map
-		  (lambda (set-foo-x! idx)
-		    `(define ,set-foo-x! (record-mutator ,foo-rtd ,idx)))
-		set-foo-x!* set-foo-idx*)
-	    ,@(map
-		  (lambda (unsafe-foo-x idx unsafe-foo-x-idx)
-		    `(begin
-		       (define ,unsafe-foo-x-idx
-			 ($fx+ ,idx ($struct-ref ,foo-rtd 3)))
-		       (define-syntax ,unsafe-foo-x
-			 (syntax-rules ()
-			   ((_ x)
-			    ($struct-ref x ,unsafe-foo-x-idx))))
-		       ))
-		unsafe-foo-x* idx* unsafe-foo-x-idx*)
-	    ,@(map
-		  (lambda (unsafe-set-foo-x! idx unsafe-set-foo-x!-idx)
-		    `(begin
-		       (define ,unsafe-set-foo-x!-idx
-			 ($fx+ ,idx ($struct-ref ,foo-rtd 3)))
-		       (define-syntax ,unsafe-set-foo-x!
-			 (syntax-rules ()
-			   ((_ x v)
-			    ($struct-set! x ,unsafe-set-foo-x!-idx v))))
-		       ))
-		unsafe-set-foo-x!* set-foo-idx* unsafe-set-foo-x!-idx*)
-	    ))))
+	 (append
+	  `(begin
+	     ;;Record type descriptor.
+	     (define ,foo-rtd ,foo-rtd-code)
+	     ;;Protocol function.
+	     (define ,protocol ,protocol-code)
+	     ;;Record constructor descriptor.
+	     (define ,foo-rcd ,foo-rcd-code)
+	     ;;Binding for record type name.  It is an anomalous binding
+	     ;;in the environment.
+	     (define-syntax ,foo
+	       (list '$rtd (syntax ,foo-rtd) (syntax ,foo-rcd)))
+	     ;;Record instance predicate.
+	     (define ,foo? (record-predicate ,foo-rtd))
+	     ;;Record instance constructor.
+	     (define ,make-foo (record-constructor ,foo-rcd))
+	     ;;Safe record fields accessors.
+	     ,@(map
+		   (lambda (foo-x idx)
+		     `(define ,foo-x (record-accessor ,foo-rtd ,idx)))
+		 foo-x* idx*)
+	     ;;Safe record fields mutators (if any).
+	     ,@(map
+		   (lambda (set-foo-x! idx)
+		     `(define ,set-foo-x! (record-mutator ,foo-rtd ,idx)))
+		 set-foo-x!* set-foo-idx*))
+	  (if (strict-r6rs)
+	      '()
+	    `( ;; Unsafe record fields accessors.
+	      ,@(map
+		    (lambda (unsafe-foo-x idx unsafe-foo-x-idx)
+		      `(begin
+			 (define ,unsafe-foo-x-idx
+			   ($fx+ ,idx ($struct-ref ,foo-rtd 3)))
+			 (define-syntax ,unsafe-foo-x
+			   (syntax-rules ()
+			     ((_ x)
+			      ($struct-ref x ,unsafe-foo-x-idx))))
+			 ))
+		  unsafe-foo-x* idx* unsafe-foo-x-idx*)
+	      ;; Unsafe record fields mutators.
+	      ,@(map
+		    (lambda (unsafe-set-foo-x! idx unsafe-set-foo-x!-idx)
+		      `(begin
+			 (define ,unsafe-set-foo-x!-idx
+			   ($fx+ ,idx ($struct-ref ,foo-rtd 3)))
+			 (define-syntax ,unsafe-set-foo-x!
+			   (syntax-rules ()
+			     ((_ x v)
+			      ($struct-set! x ,unsafe-set-foo-x!-idx v))))
+			 ))
+		  unsafe-set-foo-x!* set-foo-idx* unsafe-set-foo-x!-idx*)
+	      ))))))
     (define (verify-clauses x cls*)
       (define valid-kwds
 	(map bless
@@ -5161,6 +5173,22 @@
      (for-all valid-option? ?opt*)
      (bless `(make-file-options ',?opt*)))))
 
+(define (endianness-macro expr-stx)
+  ;;Transformer of  ENDIANNESS.  Support  the symbols:  "big", "little",
+  ;;"network", "native"; convert "network" to "big".
+  ;;
+  (syntax-match expr-stx ()
+    ((_ ?name)
+     (and (identifier? ?name)
+	  (memq (identifier->symbol ?name) '(big little network native)))
+     (case (identifier->symbol ?name)
+       ((network)
+	(bless '(quote big)))
+       ((native)
+	(bless '(native-endianness)))
+       ((big little)
+	(bless `(quote ,?name)))))))
+
 (define (%allowed-symbol-macro expr-stx allowed-symbol-set)
   ;;Helper  function used  to  implement the  transformer of:  EOL-STYLE
   ;;ERROR-HANDLING-MODE, BUFFER-MODE,  ENDIANNESS.  All of  these macros
@@ -5390,7 +5418,7 @@
     ;;identifier  representing a  R6RS record  type.  Return  a symbolic
     ;;expression evaluating to the record type descriptor.
     ;;
-    (define who 'record-type-descriptor-transformer)
+    (define who 'record-type-descriptor)
     (syntax-match expr-stx ()
       ((_ ?identifier)
        (identifier? ?identifier)

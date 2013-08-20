@@ -284,6 +284,7 @@
     posix-make-sockaddr_un		posix-sockaddr_un.pathname
     posix-make-sockaddr_in		posix-make-sockaddr_in6
     posix-sockaddr_in.in_addr		posix-sockaddr_in6.in6_addr
+    posix-sockaddr_in.in_addr.number
     posix-sockaddr_in.in_port		posix-sockaddr_in6.in6_port
     posix-in6addr_loopback		posix-in6addr_any
     posix-inet_aton			posix-inet_ntoa
@@ -309,6 +310,21 @@
     posix-setsockopt/int		posix-getsockopt/int
     posix-setsockopt/size_t		posix-getsockopt/size_t
     posix-setsockopt/linger		posix-getsockopt/linger
+
+    glibc-IN_CLASSA			glibc-IN_CLASSB
+    glibc-IN_CLASSC			glibc-IN_CLASSD
+    glibc-IN_MULTICAST			glibc-IN_EXPERIMENTAL
+    glibc-IN_BADCLASS
+
+    glibc-IN6_IS_ADDR_UNSPECIFIED	glibc-IN6_IS_ADDR_LOOPBACK
+    glibc-IN6_IS_ADDR_LINKLOCAL		glibc-IN6_IS_ADDR_SITELOCAL
+    glibc-IN6_IS_ADDR_V4MAPPED		glibc-IN6_IS_ADDR_V4COMPAT
+    glibc-IN6_IS_ADDR_MULTICAST		glibc-IN6_IS_ADDR_MC_NODELOCAL
+    glibc-IN6_IS_ADDR_MC_LINKLOCAL	glibc-IN6_IS_ADDR_MC_SITELOCAL
+    glibc-IN6_IS_ADDR_MC_ORGLOCAL	glibc-IN6_IS_ADDR_MC_GLOBAL
+    glibc-IN6_ARE_ADDR_EQUAL
+
+    glibc-bindresvport			glibc-bindresvport6
 
     ;; platform API for file descriptors and Scheme ports
     platform-open-input-fd		platform-open-output-fd
@@ -384,6 +400,12 @@
     ;; iconv
     glibc-iconv-open	glibc-iconv-close
     glibc-iconv
+
+    ;; Ethernet address manipulation routines
+    linux-ether_ntoa	linux-ether_aton
+    linux-ether_ntoa_r	linux-ether_aton_r
+    linux-ether_ntohost	linux-ether_hostton
+    linux-ether_line
     )
   (import (ikarus))
 
@@ -1601,6 +1623,9 @@
 (define-inline (posix-sockaddr_in.in_addr sockaddr)
   (foreign-call "ikrt_posix_sockaddr_in_in_addr" sockaddr))
 
+(define-inline (posix-sockaddr_in.in_addr.number sockaddr)
+  (foreign-call "ikrt_posix_sockaddr_in_in_addr_number" sockaddr))
+
 (define-inline (posix-sockaddr_in.in_port sockaddr)
   (foreign-call "ikrt_posix_sockaddr_in_in_port" sockaddr))
 
@@ -1778,6 +1803,78 @@
 
 (define-inline (posix-getsockopt/linger sock)
   (foreign-call "ikrt_posix_getsockopt_linger" sock))
+
+;;; --------------------------------------------------------------------
+
+(define-inline (glibc-IN_CLASSA addr)
+  (foreign-call "ikrt_glibc_IN_CLASSA" addr))
+
+(define-inline (glibc-IN_CLASSB addr)
+  (foreign-call "ikrt_glibc_IN_CLASSB" addr))
+
+(define-inline (glibc-IN_CLASSC addr)
+  (foreign-call "ikrt_glibc_IN_CLASSC" addr))
+
+(define-inline (glibc-IN_CLASSD addr)
+  (foreign-call "ikrt_glibc_IN_CLASSD" addr))
+
+(define-inline (glibc-IN_MULTICAST addr)
+  (foreign-call "ikrt_glibc_IN_MULTICAST" addr))
+
+(define-inline (glibc-IN_EXPERIMENTAL addr)
+  (foreign-call "ikrt_glibc_IN_EXPERIMENTAL" addr))
+
+(define-inline (glibc-IN_BADCLASS addr)
+  (foreign-call "ikrt_glibc_IN_BADCLASS" addr))
+
+;;; --------------------------------------------------------------------
+
+(define-inline (glibc-IN6_IS_ADDR_UNSPECIFIED addr)
+  (foreign-call "ikrt_glibc_IN6_IS_ADDR_UNSPECIFIED" addr))
+
+(define-inline (glibc-IN6_IS_ADDR_LOOPBACK addr)
+  (foreign-call "ikrt_glibc_IN6_IS_ADDR_LOOPBACK" addr))
+
+(define-inline (glibc-IN6_IS_ADDR_LINKLOCAL addr)
+  (foreign-call "ikrt_glibc_IN6_IS_ADDR_LINKLOCAL" addr))
+
+(define-inline (glibc-IN6_IS_ADDR_SITELOCAL addr)
+  (foreign-call "ikrt_glibc_IN6_IS_ADDR_SITELOCAL" addr))
+
+(define-inline (glibc-IN6_IS_ADDR_V4MAPPED addr)
+  (foreign-call "ikrt_glibc_IN6_IS_ADDR_V4MAPPED" addr))
+
+(define-inline (glibc-IN6_IS_ADDR_V4COMPAT addr)
+  (foreign-call "ikrt_glibc_IN6_IS_ADDR_V4COMPAT" addr))
+
+(define-inline (glibc-IN6_IS_ADDR_MULTICAST addr)
+  (foreign-call "ikrt_glibc_IN6_IS_ADDR_MULTICAST" addr))
+
+(define-inline (glibc-IN6_IS_ADDR_MC_NODELOCAL addr)
+  (foreign-call "ikrt_glibc_IN6_IS_ADDR_MC_NODELOCAL" addr))
+
+(define-inline (glibc-IN6_IS_ADDR_MC_LINKLOCAL addr)
+  (foreign-call "ikrt_glibc_IN6_IS_ADDR_MC_LINKLOCAL" addr))
+
+(define-inline (glibc-IN6_IS_ADDR_MC_SITELOCAL addr)
+  (foreign-call "ikrt_glibc_IN6_IS_ADDR_MC_SITELOCAL" addr))
+
+(define-inline (glibc-IN6_IS_ADDR_MC_ORGLOCAL addr)
+  (foreign-call "ikrt_glibc_IN6_IS_ADDR_MC_ORGLOCAL" addr))
+
+(define-inline (glibc-IN6_IS_ADDR_MC_GLOBAL addr)
+  (foreign-call "ikrt_glibc_IN6_IS_ADDR_MC_GLOBAL" addr))
+
+(define-inline (glibc-IN6_ARE_ADDR_EQUAL addr1 addr2)
+  (foreign-call "ikrt_glibc_IN6_ARE_ADDR_EQUAL" addr1 addr2))
+
+;;; --------------------------------------------------------------------
+
+(define-inline (glibc-bindresvport fd sockaddr)
+  (foreign-call "ikrt_glibc_bindresvport" fd sockaddr))
+
+(define-inline (glibc-bindresvport6 fd sockaddr)
+  (foreign-call "ikrt_glibc_bindresvport6" fd sockaddr))
 
 
 ;;;; platform API for file descriptors
@@ -2202,6 +2299,30 @@
   (foreign-call "ikrt_glibc_iconv" handle
 		input  input.start  input.past
 		output output.start output.past))
+
+
+;;;; Ethernet address manipulation routines
+
+(define-inline (linux-ether_ntoa ether-addr-bv)
+  (foreign-call "ikrt_linux_ether_ntoa" ether-addr-bv))
+
+(define-inline (linux-ether_aton addr-string.str addr-string.len)
+  (foreign-call "ikrt_linux_ether_aton" addr-string.str addr-string.len))
+
+(define-inline (linux-ether_ntoa_r ether-addr-bv)
+  (foreign-call "ikrt_linux_ether_ntoa_r" ether-addr-bv))
+
+(define-inline (linux-ether_aton_r addr-string.str addr-string.len)
+  (foreign-call "ikrt_linux_ether_aton_r" addr-string.str addr-string.len))
+
+(define-inline (linux-ether_ntohost ether-addr-bv)
+  (foreign-call "ikrt_linux_ether_ntohost" ether-addr-bv))
+
+(define-inline (linux-ether_hostton hostname.str hostname.len)
+  (foreign-call "ikrt_linux_ether_hostton" hostname.str hostname.len))
+
+(define-inline (linux-ether_line line.str line.len)
+  (foreign-call "ikrt_linux_ether_line" line.str line.len))
 
 
 ;;;; done

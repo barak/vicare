@@ -7,7 +7,7 @@
 
 	Interface to GNU C Library functions.
 
-  Copyright (C) 2011, 2012 Marco Maggi <marco.maggi-ipsu@poste.it>
+  Copyright (C) 2011, 2012, 2013 Marco Maggi <marco.maggi-ipsu@poste.it>
 
   This program is  free software: you can redistribute  it and/or modify
   it under the  terms of the GNU General Public  License as published by
@@ -62,7 +62,7 @@
 #endif
 
 /* Iconv usage has its own configuration option. */
-#ifdef HAVE_LIBICONV
+#ifdef HAVE_ICONV
 #  include <iconv.h>
 #endif
 
@@ -73,6 +73,12 @@ feature_failure_ (const char * funcname)
 }
 
 #define feature_failure(FN)     { feature_failure_(FN); return IK_VOID_OBJECT; }
+
+/* ------------------------------------------------------------------ */
+
+/* file descriptors */
+#define IK_FD_TO_NUM(fd)		IK_FIX(fd)
+#define IK_NUM_TO_FD(fd)		IK_UNFIX(fd)
 
 
 /** --------------------------------------------------------------------
@@ -246,6 +252,245 @@ ikrt_glibc_if_nameindex (ikpcb * pcb)
   }
   if_freenameindex(arry);
   return s_alist;
+#else
+  feature_failure(__func__);
+#endif
+}
+
+
+/** --------------------------------------------------------------------
+ ** Networking.
+ ** ----------------------------------------------------------------- */
+
+ikptr
+ikrt_glibc_IN_CLASSA (ikptr s_addr, ikpcb * pcb)
+{
+#ifdef HAVE_IN_CLASSA
+  uint32_t	addr = ik_integer_to_uint32(s_addr);
+  return IK_BOOLEAN_FROM_INT(IN_CLASSA(addr));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_IN_CLASSB (ikptr s_addr, ikpcb * pcb)
+{
+#ifdef HAVE_IN_CLASSB
+  uint32_t	addr = ik_integer_to_uint32(s_addr);
+  return IK_BOOLEAN_FROM_INT(IN_CLASSB(addr));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_IN_CLASSC (ikptr s_addr, ikpcb * pcb)
+{
+#ifdef HAVE_IN_CLASSC
+  uint32_t	addr = ik_integer_to_uint32(s_addr);
+  return IK_BOOLEAN_FROM_INT(IN_CLASSC(addr));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_IN_CLASSD (ikptr s_addr, ikpcb * pcb)
+{
+#ifdef HAVE_IN_CLASSD
+  uint32_t	addr = ik_integer_to_uint32(s_addr);
+  return IK_BOOLEAN_FROM_INT(IN_CLASSD(addr));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_IN_MULTICAST (ikptr s_addr, ikpcb * pcb)
+{
+#ifdef HAVE_IN_MULTICAST
+  uint32_t	addr = ik_integer_to_uint32(s_addr);
+  return IK_BOOLEAN_FROM_INT(IN_MULTICAST(addr));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_IN_EXPERIMENTAL (ikptr s_addr, ikpcb * pcb)
+{
+#ifdef HAVE_IN_EXPERIMENTAL
+  uint32_t	addr = ik_integer_to_uint32(s_addr);
+  return IK_BOOLEAN_FROM_INT(IN_EXPERIMENTAL(addr));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_IN_BADCLASS (ikptr s_addr, ikpcb * pcb)
+{
+#ifdef HAVE_IN_BADCLASS
+  uint32_t	addr = ik_integer_to_uint32(s_addr);
+  return IK_BOOLEAN_FROM_INT(IN_BADCLASS(addr));
+#else
+  feature_failure(__func__);
+#endif
+}
+
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_glibc_IN6_IS_ADDR_UNSPECIFIED (ikptr s_addr_bv, ikpcb * pcb)
+{
+#ifdef HAVE_IN6_IS_ADDR_UNSPECIFIED
+  struct in6_addr *	addr = IK_BYTEVECTOR_DATA_VOIDP(s_addr_bv);
+  return IK_BOOLEAN_FROM_INT(IN6_IS_ADDR_UNSPECIFIED(addr));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_IN6_IS_ADDR_LOOPBACK (ikptr s_addr_bv, ikpcb * pcb)
+{
+#ifdef HAVE_IN6_IS_ADDR_LOOPBACK
+  struct in6_addr *	addr = IK_BYTEVECTOR_DATA_VOIDP(s_addr_bv);
+  return IK_BOOLEAN_FROM_INT(IN6_IS_ADDR_LOOPBACK(addr));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_IN6_IS_ADDR_LINKLOCAL (ikptr s_addr_bv, ikpcb * pcb)
+{
+#ifdef HAVE_IN6_IS_ADDR_LINKLOCAL
+  struct in6_addr *	addr = IK_BYTEVECTOR_DATA_VOIDP(s_addr_bv);
+  return IK_BOOLEAN_FROM_INT(IN6_IS_ADDR_LINKLOCAL(addr));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_IN6_IS_ADDR_SITELOCAL (ikptr s_addr_bv, ikpcb * pcb)
+{
+#ifdef HAVE_IN6_IS_ADDR_SITELOCAL
+  struct in6_addr *	addr = IK_BYTEVECTOR_DATA_VOIDP(s_addr_bv);
+  return IK_BOOLEAN_FROM_INT(IN6_IS_ADDR_SITELOCAL(addr));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_IN6_IS_ADDR_V4MAPPED (ikptr s_addr_bv, ikpcb * pcb)
+{
+#ifdef HAVE_IN6_IS_ADDR_V4MAPPED
+  struct in6_addr *	addr = IK_BYTEVECTOR_DATA_VOIDP(s_addr_bv);
+  return IK_BOOLEAN_FROM_INT(IN6_IS_ADDR_V4MAPPED(addr));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_IN6_IS_ADDR_V4COMPAT (ikptr s_addr_bv, ikpcb * pcb)
+{
+#ifdef HAVE_IN6_IS_ADDR_V4COMPAT
+  struct in6_addr *	addr = IK_BYTEVECTOR_DATA_VOIDP(s_addr_bv);
+  return IK_BOOLEAN_FROM_INT(IN6_IS_ADDR_V4COMPAT(addr));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_IN6_IS_ADDR_MULTICAST (ikptr s_addr_bv, ikpcb * pcb)
+{
+#ifdef HAVE_IN6_IS_ADDR_MULTICAST
+  struct in6_addr *	addr = IK_BYTEVECTOR_DATA_VOIDP(s_addr_bv);
+  return IK_BOOLEAN_FROM_INT(IN6_IS_ADDR_MULTICAST(addr));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_IN6_IS_ADDR_MC_NODELOCAL (ikptr s_addr_bv, ikpcb * pcb)
+{
+#ifdef HAVE_IN6_IS_ADDR_MC_NODELOCAL
+  struct in6_addr *	addr = IK_BYTEVECTOR_DATA_VOIDP(s_addr_bv);
+  return IK_BOOLEAN_FROM_INT(IN6_IS_ADDR_MC_NODELOCAL(addr));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_IN6_IS_ADDR_MC_LINKLOCAL (ikptr s_addr_bv, ikpcb * pcb)
+{
+#ifdef HAVE_IN6_IS_ADDR_MC_LINKLOCAL
+  struct in6_addr *	addr = IK_BYTEVECTOR_DATA_VOIDP(s_addr_bv);
+  return IK_BOOLEAN_FROM_INT(IN6_IS_ADDR_MC_LINKLOCAL(addr));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_IN6_IS_ADDR_MC_SITELOCAL (ikptr s_addr_bv, ikpcb * pcb)
+{
+#ifdef HAVE_IN6_IS_ADDR_MC_SITELOCAL
+  struct in6_addr *	addr = IK_BYTEVECTOR_DATA_VOIDP(s_addr_bv);
+  return IK_BOOLEAN_FROM_INT(IN6_IS_ADDR_MC_SITELOCAL(addr));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_IN6_IS_ADDR_MC_ORGLOCAL (ikptr s_addr_bv, ikpcb * pcb)
+{
+#ifdef HAVE_IN6_IS_ADDR_MC_ORGLOCAL
+  struct in6_addr *	addr = IK_BYTEVECTOR_DATA_VOIDP(s_addr_bv);
+  return IK_BOOLEAN_FROM_INT(IN6_IS_ADDR_MC_ORGLOCAL(addr));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_IN6_IS_ADDR_MC_GLOBAL (ikptr s_addr_bv, ikpcb * pcb)
+{
+#ifdef HAVE_IN6_IS_ADDR_MC_GLOBAL
+  struct in6_addr *	addr = IK_BYTEVECTOR_DATA_VOIDP(s_addr_bv);
+  return IK_BOOLEAN_FROM_INT(IN6_IS_ADDR_MC_GLOBAL(addr));
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_IN6_ARE_ADDR_EQUAL (ikptr s_addr1_bv, ikptr s_addr2_bv, ikpcb * pcb)
+{
+#ifdef HAVE_IN6_ARE_ADDR_EQUAL
+  struct in6_addr *	addr1 = IK_BYTEVECTOR_DATA_VOIDP(s_addr1_bv);
+  struct in6_addr *	addr2 = IK_BYTEVECTOR_DATA_VOIDP(s_addr2_bv);
+  return IK_BOOLEAN_FROM_INT(IN6_ARE_ADDR_EQUAL(addr1, addr2));
+#else
+  feature_failure(__func__);
+#endif
+}
+
+/* ------------------------------------------------------------------ */
+
+ikptr
+ikrt_glibc_bindresvport (ikptr s_fd, ikptr s_sockaddr_in, ikpcb * pcb)
+{
+#ifdef HAVE_BINDRESVPORT
+  int			fd	= IK_NUM_TO_FD(s_fd);
+  struct sockaddr_in *	addr	= IK_BYTEVECTOR_DATA_VOIDP(s_sockaddr_in);
+  int			rv;
+  rv = bindresvport(fd, addr);
+  return (0 == rv)? IK_FALSE : ik_errno_to_code();
+#else
+  feature_failure(__func__);
+#endif
+}
+ikptr
+ikrt_glibc_bindresvport6 (ikptr s_fd, ikptr s_sockaddr_in, ikpcb * pcb)
+{
+#ifdef HAVE_BINDRESVPORT6
+  int			fd	= IK_NUM_TO_FD(s_fd);
+  struct sockaddr_in6 *	addr	= IK_BYTEVECTOR_DATA_VOIDP(s_sockaddr_in);
+  int			rv;
+  rv = bindresvport6(fd, addr);
+  return (0 == rv)? IK_FALSE : ik_errno_to_code();
 #else
   feature_failure(__func__);
 #endif
@@ -922,7 +1167,7 @@ ikrt_glibc_iconv_open (ikptr s_from_code, ikptr s_to_code, ikpcb * pcb)
    state structure; if  an error occurs: the return  value is an encoded
    "errno" value. */
 {
-#if ((defined HAVE_LIBICONV) && (defined (HAVE_ICONV_OPEN)))
+#ifdef HAVE_ICONV
   char *	to_code   = IK_BYTEVECTOR_DATA_CHARP(s_to_code);
   char *	from_code = IK_BYTEVECTOR_DATA_CHARP(s_from_code);
   /* Glibc documentation  states that we must not  assume anything about
@@ -951,7 +1196,7 @@ ikrt_glibc_iconv_close (ikptr s_handle)
    S_HANLE is mutated to hold the  NULL pointer; if an error occurs: the
    return value is an encoded "errno" value. */
 {
-#if ((defined HAVE_LIBICONV) && (defined (HAVE_ICONV_CLOSE)))
+#ifdef HAVE_ICONV
   iconv_t	handle = (iconv_t)IK_POINTER_DATA_VOIDP(s_handle);
   if (handle) {
     int		retval;
@@ -999,7 +1244,7 @@ ikrt_glibc_iconv (ikptr s_handle,
 		  ikptr s_out_bv, ikptr s_out_start, ikptr s_out_past,
 		  ikpcb * pcb)
 {
-#if ((defined HAVE_LIBICONV) && (defined (HAVE_ICONV)))
+#ifdef HAVE_ICONV
   iconv_t	handle = (iconv_t)IK_POINTER_DATA_VOIDP(s_handle);
   size_t	istart = IK_UNFIX(s_in_start);
   size_t	ipast  = (IK_FALSE_OBJECT == s_in_past)? \
