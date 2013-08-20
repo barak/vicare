@@ -468,9 +468,39 @@ main (int argc, const char *const argv[])
     HAVE_Y0\n\
     HAVE_Y1\n\
     HAVE_YN\n\
-    HAVE_fstat\n\
-    HAVE_ioctl\n\
-    RL_READLINE_VERSION)\n\
+    HAVE_FSTAT\n\
+    HAVE_IOCTL\n\
+    RL_READLINE_VERSION\n\
+    HAVE_IN_CLASSA\n\
+    HAVE_IN_CLASSB\n\
+    HAVE_IN_CLASSC\n\
+    HAVE_IN_CLASSD\n\
+    HAVE_IN_MULTICAST\n\
+    HAVE_IN_EXPERIMENTAL\n\
+    HAVE_IN_BADCLASS\n\
+    HAVE_IN6_IS_ADDR_UNSPECIFIED\n\
+    HAVE_IN6_IS_ADDR_LOOPBACK\n\
+    HAVE_IN6_IS_ADDR_LINKLOCAL\n\
+    HAVE_IN6_IS_ADDR_SITELOCAL\n\
+    HAVE_IN6_IS_ADDR_V4MAPPED\n\
+    HAVE_IN6_IS_ADDR_V4COMPAT\n\
+    HAVE_IN6_IS_ADDR_MULTICAST\n\
+    HAVE_IN6_IS_ADDR_MC_NODELOCAL\n\
+    HAVE_IN6_IS_ADDR_MC_LINKLOCAL\n\
+    HAVE_IN6_IS_ADDR_MC_SITELOCAL\n\
+    HAVE_IN6_IS_ADDR_MC_ORGLOCAL\n\
+    HAVE_IN6_IS_ADDR_MC_GLOBAL\n\
+    HAVE_IN6_ARE_ADDR_EQUAL\n\
+    HAVE_BINDRESVPORT\n\
+    HAVE_BINDRESVPORT6\n\
+    HAVE_ETHER_NTOA\n\
+    HAVE_ETHER_ATON\n\
+    HAVE_ETHER_NTOA_R\n\
+    HAVE_ETHER_ATON_R\n\
+    HAVE_ETHER_NTOHOST\n\
+    HAVE_ETHER_HOSTTON\n\
+    HAVE_ETHER_LINE\n\
+    )\n\
   (import (rnrs))\n\
 \n\
 ;;;; helpers\n\
@@ -3312,15 +3342,15 @@ printf("(define-inline-constant HAVE_YN %s)\n",
   "#f"
 #endif
   );
-printf("(define-inline-constant HAVE_fstat %s)\n",
-#ifdef HAVE_fstat
+printf("(define-inline-constant HAVE_FSTAT %s)\n",
+#ifdef HAVE_FSTAT
   "#t"
 #else
   "#f"
 #endif
   );
-printf("(define-inline-constant HAVE_ioctl %s)\n",
-#ifdef HAVE_ioctl
+printf("(define-inline-constant HAVE_IOCTL %s)\n",
+#ifdef HAVE_IOCTL
   "#t"
 #else
   "#f"
@@ -3328,6 +3358,225 @@ printf("(define-inline-constant HAVE_ioctl %s)\n",
   );
 printf("(define-inline-constant RL_READLINE_VERSION %s)\n",
 #ifdef RL_READLINE_VERSION
+  "#t"
+#else
+  "#f"
+#endif
+  );
+
+
+printf("(define-inline-constant HAVE_IN_CLASSA %s)\n",
+#ifdef HAVE_IN_CLASSA
+  "#t"
+#else
+  "#f"
+#endif
+  );
+printf("(define-inline-constant HAVE_IN_CLASSB %s)\n",
+#ifdef HAVE_IN_CLASSB
+  "#t"
+#else
+  "#f"
+#endif
+  );
+printf("(define-inline-constant HAVE_IN_CLASSC %s)\n",
+#ifdef HAVE_IN_CLASSC
+  "#t"
+#else
+  "#f"
+#endif
+  );
+printf("(define-inline-constant HAVE_IN_CLASSD %s)\n",
+#ifdef HAVE_IN_CLASSD
+  "#t"
+#else
+  "#f"
+#endif
+  );
+printf("(define-inline-constant HAVE_IN_MULTICAST %s)\n",
+#ifdef HAVE_IN_MULTICAST
+  "#t"
+#else
+  "#f"
+#endif
+  );
+printf("(define-inline-constant HAVE_IN_EXPERIMENTAL %s)\n",
+#ifdef HAVE_IN_EXPERIMENTAL
+  "#t"
+#else
+  "#f"
+#endif
+  );
+printf("(define-inline-constant HAVE_IN_BADCLASS %s)\n",
+#ifdef HAVE_IN_BADCLASS
+  "#t"
+#else
+  "#f"
+#endif
+  );
+
+/* ------------------------------------------------------------------ */
+
+printf("(define-inline-constant HAVE_IN6_IS_ADDR_UNSPECIFIED %s)\n",
+#ifdef HAVE_IN6_IS_ADDR_UNSPECIFIED
+  "#t"
+#else
+  "#f"
+#endif
+  );
+printf("(define-inline-constant HAVE_IN6_IS_ADDR_LOOPBACK %s)\n",
+#ifdef HAVE_IN6_IS_ADDR_LOOPBACK
+  "#t"
+#else
+  "#f"
+#endif
+  );
+printf("(define-inline-constant HAVE_IN6_IS_ADDR_LINKLOCAL %s)\n",
+#ifdef HAVE_IN6_IS_ADDR_LINKLOCAL
+  "#t"
+#else
+  "#f"
+#endif
+  );
+printf("(define-inline-constant HAVE_IN6_IS_ADDR_SITELOCAL %s)\n",
+#ifdef HAVE_IN6_IS_ADDR_SITELOCAL
+  "#t"
+#else
+  "#f"
+#endif
+  );
+printf("(define-inline-constant HAVE_IN6_IS_ADDR_V4MAPPED %s)\n",
+#ifdef HAVE_IN6_IS_ADDR_V4MAPPED
+  "#t"
+#else
+  "#f"
+#endif
+  );
+printf("(define-inline-constant HAVE_IN6_IS_ADDR_V4COMPAT %s)\n",
+#ifdef HAVE_IN6_IS_ADDR_V4COMPAT
+  "#t"
+#else
+  "#f"
+#endif
+  );
+printf("(define-inline-constant HAVE_IN6_IS_ADDR_MULTICAST %s)\n",
+#ifdef HAVE_IN6_IS_ADDR_MULTICAST
+  "#t"
+#else
+  "#f"
+#endif
+  );
+printf("(define-inline-constant HAVE_IN6_IS_ADDR_MC_NODELOCAL %s)\n",
+#ifdef HAVE_IN6_IS_ADDR_MC_NODELOCAL
+  "#t"
+#else
+  "#f"
+#endif
+  );
+printf("(define-inline-constant HAVE_IN6_IS_ADDR_MC_LINKLOCAL %s)\n",
+#ifdef HAVE_IN6_IS_ADDR_MC_LINKLOCAL
+  "#t"
+#else
+  "#f"
+#endif
+  );
+printf("(define-inline-constant HAVE_IN6_IS_ADDR_MC_SITELOCAL %s)\n",
+#ifdef HAVE_IN6_IS_ADDR_MC_SITELOCAL
+  "#t"
+#else
+  "#f"
+#endif
+  );
+printf("(define-inline-constant HAVE_IN6_IS_ADDR_MC_ORGLOCAL %s)\n",
+#ifdef HAVE_IN6_IS_ADDR_MC_ORGLOCAL
+  "#t"
+#else
+  "#f"
+#endif
+  );
+printf("(define-inline-constant HAVE_IN6_IS_ADDR_MC_GLOBAL %s)\n",
+#ifdef HAVE_IN6_IS_ADDR_MC_GLOBAL
+  "#t"
+#else
+  "#f"
+#endif
+  );
+printf("(define-inline-constant HAVE_IN6_ARE_ADDR_EQUAL %s)\n",
+#ifdef HAVE_IN6_ARE_ADDR_EQUAL
+  "#t"
+#else
+  "#f"
+#endif
+  );
+
+/* ------------------------------------------------------------------ */
+
+printf("(define-inline-constant HAVE_BINDRESVPORT %s)\n",
+#ifdef HAVE_BINDRESVPORT
+  "#t"
+#else
+  "#f"
+#endif
+  );
+printf("(define-inline-constant HAVE_BINDRESVPORT6 %s)\n",
+#ifdef HAVE_BINDRESVPORT6
+  "#t"
+#else
+  "#f"
+#endif
+  );
+
+
+printf("(define-inline-constant HAVE_ETHER_NTOA %s)\n",
+#ifdef HAVE_ETHER_NTOA
+  "#t"
+#else
+  "#f"
+#endif
+  );
+
+printf("(define-inline-constant HAVE_ETHER_ATON %s)\n",
+#ifdef HAVE_ETHER_ATON
+  "#t"
+#else
+  "#f"
+#endif
+  );
+
+printf("(define-inline-constant HAVE_ETHER_NTOA_R %s)\n",
+#ifdef HAVE_ETHER_NTOA_R
+  "#t"
+#else
+  "#f"
+#endif
+  );
+
+printf("(define-inline-constant HAVE_ETHER_ATON_R %s)\n",
+#ifdef HAVE_ETHER_ATON_R
+  "#t"
+#else
+  "#f"
+#endif
+  );
+
+printf("(define-inline-constant HAVE_ETHER_NTOHOST %s)\n",
+#ifdef HAVE_ETHER_NTOHOST
+  "#t"
+#else
+  "#f"
+#endif
+  );
+
+printf("(define-inline-constant HAVE_ETHER_HOSTTON %s)\n",
+#ifdef HAVE_ETHER_HOSTTON
+  "#t"
+#else
+  "#f"
+#endif
+  );
+
+printf("(define-inline-constant HAVE_ETHER_LINE %s)\n",
+#ifdef HAVE_ETHER_LINE
   "#t"
 #else
   "#f"

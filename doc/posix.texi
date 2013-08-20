@@ -2112,6 +2112,13 @@ the C level @posix{} @api{}, socket--related data structures are stored
 in bytevectors; such raw manipulation can cause the process to crash if
 we mishandle the values.
 
+For an introduction to the @ip{} and related protocols @api{}s, on
+@gnu{}+Linux system, we should read the manual pages: @manpage{ip(7),
+Linux socket interface}, @manpage{packet(7), Packet interface on device
+level}, @manpage{ip(7), @ip{} Protocol}, @manpage{tcp(7), @tcp{}
+Protocol}, @manpage{udp(7), @udp{} Protocol}, @manpage{icmp(7), @icmp{}
+Protocol}, @manpage{raw(7), Raw sockets}.
+
 @menu
 * posix socket addresses::      Network address structures.
 * posix socket hosts::          Network hosts database.
@@ -2230,15 +2237,42 @@ before storing the value in the data structure.
 
 
 @defun sockaddr_in.in_addr @var{socket-address}
+@defunx sockaddr_in.in_addr.number @var{socket-address}
 @defunx sockaddr_in.in_port @var{socket-address}
 Given a bytevector @var{socket-address} holding a @code{struct
 sockaddr_in}, extract the @code{in_addr} and @code{in_port} fields and
-return them as bytevector holding the corresponding @code{struct
-in_addr} and as fixnum.  If the data in @var{socket_address} is invalid:
-an exception is raised.
+return them.  If the data in @var{socket_address} is invalid: an
+exception is raised.
 
-Internally convert the port number to host byte order using
+@func{sockaddr_in.in_addr} returns @code{in_addr} as bytevector holding
+the corresponding @code{struct in_addr}.
+
+@example
+(let ((sockaddr (px.make-sockaddr_in '#vu8(127 0 0 1) 88)))
+  (px.sockaddr_in.in_addr sockaddr))
+@result{} #vu8(127 0 0 1)
+@end example
+
+@func{sockaddr_in.in_addr.number} returns @code{in_addr} as 32-bit
+unsigned exact integer; internally it converts the address number to
+host byte order using @cfunc{ntohl} after the extraction of the value
+from the data structure.
+
+@example
+(let ((sockaddr (px.make-sockaddr_in '#vu8(127 0 0 1) 88)))
+  (px.sockaddr_in.in_addr.number sockaddr))
+@result{} #x7f000001
+@end example
+
+@func{sockaddr_in.in_port} returns @code{in_port} as exact integer;
+internally it converts the port number to host byte order using
 @cfunc{ntohs} after the extraction of the value from the data structure.
+
+@example
+(let ((sockaddr (px.make-sockaddr_in '#vu8(127 0 0 1) 88)))
+  (px.sockaddr_in.in_port sockaddr))
+@result{} 88
+@end example
 @end defun
 
 @c page
@@ -2882,7 +2916,8 @@ raise an exception.
 Interface to the C function @cfunc{listen}, @glibcref{Listening,
 listen}.  Enable the socket @var{sock} to accept connections; the fixnum
 @var{pending_conns} specifies the maximum length of the pending
-connection requests queue.  If successful return unspecified values,
+connection requests queue, it can be at most equal to the platform
+constant @code{SOMAXCONN}.  If successful return unspecified values,
 else raise an exception.
 @end defun
 
@@ -2992,6 +3027,39 @@ exception.
 @end defun
 
 @c ------------------------------------------------------------
+
+The functions @func{getsockopt} and @func{setsockopt}, and their
+variants, can be used to configure a number of socket options.  To
+inspect the list of available options read the following manual pages
+(on @gnu{}+Linux) systems:
+
+@itemize
+@item
+For generic networking socket options: the @var{level} argument must be
+set to @code{SOL_SOCKET}.  @manpage{socket(7), Socket Options}.
+
+@item
+For packet interface on device level socket options: the @var{level}
+argument must be set to @code{SOL_PACKET}.  @manpage{packet(7), Socket
+Options}.
+
+@item
+For @ip{} specific options: the @var{level} argument must be set to
+@code{IPPROTO_IP}.  @manpage{ip(7), Socket Options}.
+
+@item
+For @tcp{} specific options: the @var{level} argument must be set to
+@code{IPPROTO_TCP}.  @manpage{tcp(7), Socket Options}.
+
+@item
+For @udp{} specific options: the @var{level} argument must be set to
+@code{IPPROTO_UDP}.  @manpage{udp(7), Socket Options},
+
+@item
+For raw socket options: the @var{level} argument must be set to
+@code{IPPROTO_RAW}.  @manpage{raw(7), Raw sockets}.
+@end itemize
+
 
 @defun getsockopt @var{sock} @var{level} @var{option} @var{optval}
 Interface to the C function @cfunc{getsockopt}, @glibcref{Socket Option
@@ -3119,6 +3187,15 @@ The following example will download the main page from
 
 (close-port p)
 @end example
+@end defun
+
+
+@defun tcp-connect/binary @var{hostname} @var{service}
+@defunx tcp-connect/binary @var{hostname} @var{service} @var{log-proc}
+Establish a client connection to the remote host identified by the
+string @var{hostname}, connecting to the port associated to the string
+or number @var{service}.  This function is similar to
+@func{tcp-connect}, but it returns a binary input output port.
 @end defun
 
 
@@ -5667,9 +5744,9 @@ posix}; this section lists some of them along with reasons for not
 interface them.  This is not the last word: if good reasons arise to
 interface some of the functions, they will.
 
-@table @cfunc
-@item popen
-@itemx pclose
+@table @asis
+@item @cfunc{popen}
+@itemx @cfunc{pclose}
 @findex popen
 @findex pclose
 There seems to be no real advantage (in a Scheme @api{}) to use these

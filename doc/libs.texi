@@ -10,13 +10,16 @@
 * platform::                    Hosting platform utilities.
 * words::                       Exact integer predicates and constants.
 * cbuffers::                    Generalised C buffers and strings.
+* bytevectors::                 Additional bytevector utilities.
 * readline::                    Extended interface to @gnu{} Readline.
 * parser logic::                Defining parsers logic.
 * gcc::                         A toy library interface to @gcc{}.
 * wtables::                     Weak hashtables.
 * flonum format::               Formatting flonums.
 * flonum parse::                Parsing flonums.
+* sentinels::                   Sentinel values.
 * debugging::                   Debugging facilities.
+* namespaces::                  Namespaces.
 * bytevector compounds::        Bytevector compounds.
 * net channels::                Interprocess connection channels.
 @end menu
@@ -764,6 +767,13 @@ than zero.
 
 @deffn {Validation Clause} list-of-strings @var{obj}
 Succeed if @var{obj} is null or a list of strings.
+@end deffn
+
+
+@deffn {Validation Clause} string-or-symbol @var{obj}
+@deffnx {Validation Clause} string-or-symbol-or-false @var{obj}
+Succeed if @var{obj} is a string or symbol; the second clause accepts
+also @false{}.
 @end deffn
 
 @c ------------------------------------------------------------
@@ -2347,6 +2357,463 @@ size; we can interface it as follows:
 @end example
 
 @c page
+@node bytevectors
+@section Additional bytevector utilities
+
+
+@cindex Library @library{vicare bytevectors}
+@cindex @library{vicare bytevectors}, library
+
+
+The library @library{vicare bytevectors} exports bindings for additional
+bytevector handling utilities.
+
+@menu
+* bytevectors setget::          Single--identifier setters and getters.
+* bytevectors scaled::          Scaled setters and getters.
+@end menu
+
+@c page
+@node bytevectors setget
+@subsection Single--identifier setters and getters
+
+
+The following syntaxes are wrappers for @func{bytevector-*-ref} and
+@func{bytevector-*-set!} specifying the endiannes in their name, without
+the need of an additional argument (useful in macros).  The following
+bindings are exported by the library @library{vicare bytevectors}.
+
+@c ------------------------------------------------------------
+
+@subsubheading Words of 8-bit
+
+
+The 8-bit setters and getters exist with the only purpose of having
+8-bit identifiers with the same naming scheme of the others; this is
+useful when building identifiers in macros.
+
+
+@deffn Syntax bytevector-u8-litend-set! @var{bv} @var{idx} @var{val}
+Setter for unsigned 8-bit words.  An alias for @func{bytevector-u8-set!}.
+@end deffn
+
+
+@deffn Syntax bytevector-u8-bigend-set! @var{bv} @var{idx} @var{val}
+Setter for unsigned 8-bit words.  An alias for @func{bytevector-u8-set!}.
+@end deffn
+
+
+@deffn Syntax bytevector-u8-litend-ref @var{bv} @var{idx} @var{val}
+Getter for unsigned 8-bit words.  An alias for @func{bytevector-u8-ref}.
+@end deffn
+
+
+@deffn Syntax bytevector-u8-bigend-ref @var{bv} @var{idx} @var{val}
+Getter for unsigned 8-bit words.  An alias for @func{bytevector-u8-ref}.
+@end deffn
+
+
+@deffn Syntax bytevector-s8-litend-set! @var{bv} @var{idx} @var{val}
+Setter for signed 8-bit words.  An alias for @func{bytevector-s8-set!}.
+@end deffn
+
+
+@deffn Syntax bytevector-s8-bigend-set! @var{bv} @var{idx} @var{val}
+Setter for signed 8-bit words.  An alias for @func{bytevector-s8-set!}.
+@end deffn
+
+
+@deffn Syntax bytevector-s8-litend-ref @var{bv} @var{idx} @var{val}
+Getter for signed 8-bit words.  An alias for @func{bytevector-s8-ref}.
+@end deffn
+
+
+@deffn Syntax bytevector-s8-bigend-ref @var{bv} @var{idx} @var{val}
+Getter for signed 8-bit words.  An alias for @func{bytevector-s8-ref}.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Words of 16-bit
+
+
+@deffn Syntax bytevector-u16-litend-set! @var{bv} @var{idx} @var{val}
+Setter for unsigned 16-bit little--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-u16-bigend-set! @var{bv} @var{idx} @var{val}
+Setter for unsigned 16-bit big--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-u16-litend-ref @var{bv} @var{idx} @var{val}
+Getter for unsigned 16-bit little--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-u16-bigend-ref @var{bv} @var{idx} @var{val}
+Getter for unsigned 16-bit big--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-s16-litend-set! @var{bv} @var{idx} @var{val}
+Setter for signed 16-bit little--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-s16-bigend-set! @var{bv} @var{idx} @var{val}
+Setter for signed 16-bit big--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-s16-litend-ref @var{bv} @var{idx} @var{val}
+Getter for signed 16-bit little--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-s16-bigend-ref @var{bv} @var{idx} @var{val}
+Getter for signed 16-bit big--endian words.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Words of 32-bit
+
+
+@deffn Syntax bytevector-u32-litend-set! @var{bv} @var{idx} @var{val}
+Setter for unsigned 32-bit little--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-u32-bigend-set! @var{bv} @var{idx} @var{val}
+Setter for unsigned 32-bit big--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-u32-litend-ref @var{bv} @var{idx} @var{val}
+Getter for unsigned 32-bit little--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-u32-bigend-ref @var{bv} @var{idx} @var{val}
+Getter for unsigned 32-bit big--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-s32-litend-set! @var{bv} @var{idx} @var{val}
+Setter for signed 32-bit little--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-s32-bigend-set! @var{bv} @var{idx} @var{val}
+Setter for signed 32-bit big--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-s32-litend-ref @var{bv} @var{idx} @var{val}
+Getter for signed 32-bit little--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-s32-bigend-ref @var{bv} @var{idx} @var{val}
+Getter for signed 32-bit big--endian words.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Words of 64-bit
+
+
+@deffn Syntax bytevector-u64-litend-set! @var{bv} @var{idx} @var{val}
+Setter for unsigned 64-bit little--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-u64-bigend-set! @var{bv} @var{idx} @var{val}
+Setter for unsigned 64-bit big--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-u64-litend-ref @var{bv} @var{idx} @var{val}
+Getter for unsigned 64-bit little--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-u64-bigend-ref @var{bv} @var{idx} @var{val}
+Getter for unsigned 64-bit big--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-s64-litend-set! @var{bv} @var{idx} @var{val}
+Setter for signed 64-bit little--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-s64-bigend-set! @var{bv} @var{idx} @var{val}
+Setter for signed 64-bit big--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-s64-litend-ref @var{bv} @var{idx} @var{val}
+Getter for signed 64-bit little--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-s64-bigend-ref @var{bv} @var{idx} @var{val}
+Getter for signed 64-bit big--endian words.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Single--precision floating--point numbers
+
+
+@deffn Syntax bytevector-ieee-single-litend-set! @var{bv} @var{idx} @var{val}
+Setter for single--precision floating--point little--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-ieee-single-bigend-set! @var{bv} @var{idx} @var{val}
+Setter for single--precision floating--point big--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-ieee-single-litend-ref @var{bv} @var{idx} @var{val}
+Getter for single--precision floating--point little--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-ieee-single-bigend-ref @var{bv} @var{idx} @var{val}
+Getter for single--precision floating--point big--endian words.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Double precision floating--point numbers
+
+
+@deffn Syntax bytevector-ieee-double-litend-set! @var{bv} @var{idx} @var{val}
+Setter for double--precision floating--point little--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-ieee-double-bigend-set! @var{bv} @var{idx} @var{val}
+Setter for double--precision floating--point big--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-ieee-double-litend-ref @var{bv} @var{idx} @var{val}
+Getter for double--precision floating--point little--endian words.
+@end deffn
+
+
+@deffn Syntax bytevector-ieee-double-bigend-ref @var{bv} @var{idx} @var{val}
+Getter for double--precision floating--point big--endian words.
+@end deffn
+
+@c page
+@node bytevectors scaled
+@subsection Scaled setters and getters
+
+
+The following syntaxes are wrappers for @func{bytevector-*-ref} and
+@func{bytevector-*-set!} specifying the endiannes in their name, without
+the need of an additional argument (useful in macros), and scaling the
+index with the size of the word.  The following bindings are exported by
+the library @library{vicare bytevectors}.
+
+@c ------------------------------------------------------------
+
+@subsubheading Unsigned words of 8-bit
+
+
+The 8-bit setters and getters exist with the only purpose of having
+8-bit identifiers with the same naming scheme of the others; this is
+useful when building identifiers in macros.
+
+
+@deffn Syntax bytevector-u8-litend-scaled-set! @var{bv} @var{idx} @var{val}
+@deffnx Syntax bytevector-u8-bigend-scaled-set! @var{bv} @var{idx} @var{val}
+@deffnx Syntax bytevector-u8-native-scaled-set! @var{bv} @var{idx} @var{val}
+Scaled setters.
+@end deffn
+
+
+@deffn Syntax bytevector-u8-litend-scaled-ref @var{bv} @var{idx}
+@deffnx Syntax bytevector-u8-bigend-scaled-ref @var{bv} @var{idx}
+@deffnx Syntax bytevector-u8-native-scaled-ref @var{bv} @var{idx}
+Scaled getters.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Signed words of 8-bit
+
+
+The 8-bit setters and getters exist with the only purpose of having
+8-bit identifiers with the same naming scheme of the others; this is
+useful when building identifiers in macros.
+
+
+@deffn Syntax bytevector-s8-litend-scaled-set! @var{bv} @var{idx} @var{val}
+@deffnx Syntax bytevector-s8-bigend-scaled-set! @var{bv} @var{idx} @var{val}
+@deffnx Syntax bytevector-s8-native-scaled-set! @var{bv} @var{idx} @var{val}
+Scaled setters.
+@end deffn
+
+
+@deffn Syntax bytevector-s8-litend-scaled-ref @var{bv} @var{idx}
+@deffnx Syntax bytevector-s8-bigend-scaled-ref @var{bv} @var{idx}
+@deffnx Syntax bytevector-s8-native-scaled-ref @var{bv} @var{idx}
+Scaled getters.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Unsigned words of 16-bit
+
+
+@deffn Syntax bytevector-u16-litend-scaled-set! @var{bv} @var{idx} @var{val}
+@deffnx Syntax bytevector-u16-bigend-scaled-set! @var{bv} @var{idx} @var{val}
+@deffnx Syntax bytevector-u16-native-scaled-set! @var{bv} @var{idx} @var{val}
+Scaled setters.
+@end deffn
+
+
+@deffn Syntax bytevector-u16-litend-scaled-ref @var{bv} @var{idx}
+@deffnx Syntax bytevector-u16-bigend-scaled-ref @var{bv} @var{idx}
+@deffnx Syntax bytevector-u16-native-scaled-ref @var{bv} @var{idx}
+Scaled getters.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Signed words of 16-bit
+
+
+@deffn Syntax bytevector-s16-litend-scaled-set! @var{bv} @var{idx} @var{val}
+@deffnx Syntax bytevector-s16-bigend-scaled-set! @var{bv} @var{idx} @var{val}
+@deffnx Syntax bytevector-s16-native-scaled-set! @var{bv} @var{idx} @var{val}
+Scaled setters.
+@end deffn
+
+
+@deffn Syntax bytevector-s16-litend-scaled-ref @var{bv} @var{idx}
+@deffnx Syntax bytevector-s16-bigend-scaled-ref @var{bv} @var{idx}
+@deffnx Syntax bytevector-s16-native-scaled-ref @var{bv} @var{idx}
+Scaled getters.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Unsigned words of 32-bit
+
+
+@deffn Syntax bytevector-u32-litend-scaled-set! @var{bv} @var{idx} @var{val}
+@deffnx Syntax bytevector-u32-bigend-scaled-set! @var{bv} @var{idx} @var{val}
+@deffnx Syntax bytevector-u32-native-scaled-set! @var{bv} @var{idx} @var{val}
+Scaled setters.
+@end deffn
+
+
+@deffn Syntax bytevector-u32-litend-scaled-ref @var{bv} @var{idx}
+@deffnx Syntax bytevector-u32-bigend-scaled-ref @var{bv} @var{idx}
+@deffnx Syntax bytevector-u32-native-scaled-ref @var{bv} @var{idx}
+Scaled getters.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Signed words of 32-bit
+
+
+@deffn Syntax bytevector-s32-litend-scaled-set! @var{bv} @var{idx} @var{val}
+@deffnx Syntax bytevector-s32-bigend-scaled-set! @var{bv} @var{idx} @var{val}
+@deffnx Syntax bytevector-s32-native-scaled-set! @var{bv} @var{idx} @var{val}
+Scaled setters.
+@end deffn
+
+
+@deffn Syntax bytevector-s32-litend-scaled-ref @var{bv} @var{idx}
+@deffnx Syntax bytevector-s32-bigend-scaled-ref @var{bv} @var{idx}
+@deffnx Syntax bytevector-s32-native-scaled-ref @var{bv} @var{idx}
+Scaled getters.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Unsigned words of 64-bit
+
+
+@deffn Syntax bytevector-u64-litend-scaled-set! @var{bv} @var{idx} @var{val}
+@deffnx Syntax bytevector-u64-bigend-scaled-set! @var{bv} @var{idx} @var{val}
+@deffnx Syntax bytevector-u64-native-scaled-set! @var{bv} @var{idx} @var{val}
+Scaled setters.
+@end deffn
+
+
+@deffn Syntax bytevector-u64-litend-scaled-ref @var{bv} @var{idx}
+@deffnx Syntax bytevector-u64-bigend-scaled-ref @var{bv} @var{idx}
+@deffnx Syntax bytevector-u64-native-scaled-ref @var{bv} @var{idx}
+Scaled getters.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Signed words of 64-bit
+
+
+@deffn Syntax bytevector-s64-litend-scaled-set! @var{bv} @var{idx} @var{val}
+@deffnx Syntax bytevector-s64-bigend-scaled-set! @var{bv} @var{idx} @var{val}
+@deffnx Syntax bytevector-s64-native-scaled-set! @var{bv} @var{idx} @var{val}
+Scaled setters.
+@end deffn
+
+
+@deffn Syntax bytevector-s64-litend-scaled-ref @var{bv} @var{idx}
+@deffnx Syntax bytevector-s64-bigend-scaled-ref @var{bv} @var{idx}
+@deffnx Syntax bytevector-s64-native-scaled-ref @var{bv} @var{idx}
+Scaled getters.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Single--precision floating--point words
+
+
+@deffn Syntax bytevector-ieee-single-litend-scaled-set! @var{bv} @var{idx} @var{val}
+@deffnx Syntax bytevector-ieee-single-bigend-scaled-set! @var{bv} @var{idx} @var{val}
+@deffnx Syntax bytevector-ieee-single-native-scaled-set! @var{bv} @var{idx} @var{val}
+Scaled setters.
+@end deffn
+
+
+@deffn Syntax bytevector-ieee-single-litend-scaled-ref @var{bv} @var{idx}
+@deffnx Syntax bytevector-ieee-single-bigend-scaled-ref @var{bv} @var{idx}
+@deffnx Syntax bytevector-ieee-single-native-scaled-ref @var{bv} @var{idx}
+Scaled getters.
+@end deffn
+
+@c ------------------------------------------------------------
+
+@subsubheading Double--precision floating--point words
+
+
+@deffn Syntax bytevector-ieee-double-litend-scaled-set! @var{bv} @var{idx} @var{val}
+@deffnx Syntax bytevector-ieee-double-bigend-scaled-set! @var{bv} @var{idx} @var{val}
+@deffnx Syntax bytevector-ieee-double-native-scaled-set! @var{bv} @var{idx} @var{val}
+Scaled setters.
+@end deffn
+
+
+@deffn Syntax bytevector-ieee-double-litend-scaled-ref @var{bv} @var{idx}
+@deffnx Syntax bytevector-ieee-double-bigend-scaled-ref @var{bv} @var{idx}
+@deffnx Syntax bytevector-ieee-double-native-scaled-ref @var{bv} @var{idx}
+Scaled getters.
+@end deffn
+
+@c page
 @node readline
 @section Extended interface to @gnu{} Readline
 
@@ -2901,8 +3368,8 @@ logic.
 
 The input arguments are:
 
-@table @meta
-@item definer
+@table @asis
+@item @meta{definer}
 It must be an identifier.  It is bound to the generated syntax
 definition; such syntax is used as follows:
 
@@ -2915,12 +3382,12 @@ where: @meta{device-logic} is the identifier bound to the device logic
 syntax; the @meta{operator-name} are identifiers among the public
 operator function names.
 
-@item ch
+@item @meta{ch}
 It must be an identifier.  When a character is successfully extracted
 from the input device, it is bound to this identifier and made available
 to the operator clauses.
 
-@item next
+@item @meta{next}
 It must be an identifier.  The device logic rule
 @code{:generate-end-of-input-or-char-tests} must bind it to a syntax;
 such syntax must expand to a tail--call to an operator processing the
@@ -2943,7 +3410,7 @@ where: @meta{device-arg} are the arguments representing the input device
 state; @meta{operator-arg} are the arguments representing the parser
 state as specified in the @meta{operator-spec}.
 
-@item fail
+@item @meta{fail}
 It must be an identifier.  The device logic rule
 @code{:generate-end-of-input-or-char-tests} must bind it to a syntax;
 such syntax is used to handle parsing errors detected by the operator
@@ -2959,8 +3426,8 @@ Each @meta{operator-spec} must have the form:
 @noindent
 where:
 
-@table @meta
-@item operator-name
+@table @asis
+@item @meta{operator-name}
 Must be an identifier.  It is bound to a generated operator function.
 
 There is no difference in the way public operators and private ones are
@@ -2968,11 +3435,11 @@ specified; the public operators names are listed in the concrete parser
 definition.  An operator can be public in a concrete parser and private
 in another concrete parser.
 
-@item operator-arg
+@item @meta{operator-arg}
 Must be identifiers bound to the formal arguments associated to the
 parser state.
 
-@item operator-clause
+@item @meta{operator-clause}
 Are symbolic expressions specifying the input accepted by the operator.
 @end table
 
@@ -3603,6 +4070,97 @@ Notice how the arguments handed to @var{real-func} match the argument of
 @end defun
 
 @c page
+@node sentinels
+@section Sentinel values
+
+
+@cindex @library{vicare language-extensions sentinels}, library
+@cindex Library @library{vicare language-extensions sentinels}
+
+
+The library @library{vicare language-extensions sentinels} defines
+unique values and predicates to test them.  Sentinel values can be used
+as terminators for sequences or as values for uninitialised storage
+locations.
+
+
+@defvr Constant sentinel
+The sentinel value.
+@end defvr
+
+
+As usage example, the following form makes use of the sentinel as
+terminator for a list:
+
+@example
+(let ((ell (list 1 2 3 4 5 sentinel)))
+  (let loop ((ell ell)
+             (res '()))
+    (if (sentinel? (car ell))
+        res
+      (loop (cdr ell) (cons (car ell) res)))))
+@result{} (5 4 3 2 1))
+@end example
+
+@noindent
+the following form defines an iterator closure using the sentinel to
+signal the end of the iteration:
+
+@example
+(let* ((ell  '(1 2 3 4 5))
+       (iter (lambda ()
+               (let ((ell ell))
+                 (if (null? ell)
+                     sentinel
+                   (begin
+                     (car ell)
+                     (set! ell (cdr ell))))))))
+  (let loop ((res '()))
+    (let ((v (iter)))
+      (if (sentinel? v)
+          res
+        (loop (cons v res))))))
+@result{} (5 4 3 2 1)
+@end example
+
+
+@defun make-sentinel
+Return a new sentinel value.  @func{sentinel?} will return @true{} when
+applied to such a value, but new sentinel values are meant to be checked
+with @func{eq?}.
+
+New sentinels can be used in situations where a unique terminator is
+needed: when we need to distinguish @samp{sentinel} from a temporary
+sentinel we need for a specific operation.
+@end defun
+
+
+@defun sentinel? @var{obj}
+Return @true{} if @var{obj} a sentinel value.
+@end defun
+
+
+@defvr Constant undefined
+The undefined value.
+@end defvr
+
+
+@defun undefined? @var{obj}
+Return true if @var{obj} is @func{eq?} to @code{undefined}.
+@end defun
+
+
+@defvr Constant unspecified
+The unspecified value.
+@end defvr
+
+
+@defun unspecified? @var{obj}
+Return true if @var{obj} is @func{eq?} to @code{unspecified}.
+@end defun
+
+@c end of file
+@c page
 @node debugging
 @section Debugging facilities
 
@@ -3622,6 +4180,134 @@ Notice how the arguments handed to @var{real-func} match the argument of
 
 The following bindings are exported by the library @library{vicare
 debugging compiler}.
+
+@c page
+@node namespaces
+@section Identifiers namespaces
+
+
+@cindex @library{vicare language-extensions namespaces}, library
+@cindex Library @library{vicare language-extensions namespaces}
+
+
+The library @library{vicare language-extensions namespaces} allows the
+definition of @dfn{namespaces}; Vicare's namespaces are similar to
+Vicare's modules, indeed a namespace definition expands into a module.
+In addition: namespaces are associated to a macro which can be used as
+``gate'' to access some of the bindings defined in, or visible from, the
+namespace.
+
+Here is a simple example of namespace:
+
+@example
+(import (vicare)
+  (vicare language-extensions namespaces))
+
+(define-namespace hellos
+  (export ciao salut)
+  (define (ciao)
+    'ciao)
+  (define-syntax salut
+    (syntax-rules ()
+      ((_)
+       'salut))))
+
+(hellos ciao)           @result{} ciao
+(hellos salut)          @result{} salut
+@end example
+
+@noindent
+namespaces can be nested:
+
+@example
+(import (vicare)
+  (vicare language-extensions namespaces))
+
+(define-namespace hellos
+  (export ciao salut japanese)
+  (define (ciao)
+    'ciao)
+  (define (salut)
+    'salut)
+  (define-namespace japanese
+    (export ohayo)
+    (define (ohayo)
+      'ohayo)))
+
+(hellos ciao)           @result{} ciao
+(hellos salut)          @result{} salut
+(hellos japanese ohayo) @result{} ohayo
+@end example
+
+@noindent
+the syntax @func{using} can ``import'' bindings from a namespace into
+the current lexical context:
+
+@example
+(import (vicare)
+  (vicare language-extensions namespaces))
+
+(define-namespace hellos
+  (export ciao salut)
+  (define (ciao)
+    'ciao)
+  (define-syntax salut
+    (syntax-rules ()
+      ((_)
+       'salut))))
+
+(using hellos)
+(ciao)          @result{} ciao
+(salut)         @result{} salut
+@end example
+
+The following bindings are exported by the library @library{vicare
+language-extensions namespaces}.
+
+
+@deffn Syntax define-namespace @meta{name} (export @meta{member} @dots{}) @meta{body} @dots{}
+@deffnx {Auxiliary Syntax} export
+Define a new namespace wrapping a module and a gate syntax bound to
+@meta{name}.  The identifier @func{export} is the one exported by
+@library{vicare}.  The forms @meta{body} are evaluated inside the
+module.
+
+The identifiers @meta{member} are ``public'': they can be accessed with
+the syntax:
+
+@example
+(@meta{name} @meta{member} @meta{arg} ...)
+@end example
+
+@noindent
+where the optional arguments @meta{arg} are handed to @meta{member}
+untouched; only the ``application'' syntax is available.  Notice that,
+while we cannot access variables from a namespace with the normal
+variable access syntax, we can export parameter functions and also
+define variable setter and getter syntaxes as follows:
+
+@example
+(define-syntax-rule (define-variable ?name ?init-value)
+  (define the-variable ?init-value)
+  (define-syntax ?name
+    (syntax-rules ()
+      ((_)
+       the-variable)
+      ((_ ?new-value)
+       (set! the-variable ?new-value)))))
+
+(define-variable blue 123)
+(blue)          @result{} 123
+(blue 456)
+(blue)          @result{} 456
+@end example
+@end deffn
+
+
+@deffn Syntax using @metao{name} @meta{name} @dots{}
+Import public bindings from one or more namespaces into the current
+lexical context.
+@end deffn
 
 @c page
 @node bytevector compounds

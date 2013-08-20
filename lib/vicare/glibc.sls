@@ -40,9 +40,23 @@
     sync			fsync
     fdatasync
 
-    ;; sockets
+    ;; sockets and networking
     if-nametoindex		if-indextoname
     if-nameindex
+    IN_CLASSA			IN_CLASSB
+    IN_CLASSC			IN_CLASSD
+    IN_MULTICAST		IN_EXPERIMENTAL
+    IN_BADCLASS
+
+    IN6_IS_ADDR_UNSPECIFIED	IN6_IS_ADDR_LOOPBACK
+    IN6_IS_ADDR_LINKLOCAL	IN6_IS_ADDR_SITELOCAL
+    IN6_IS_ADDR_V4MAPPED	IN6_IS_ADDR_V4COMPAT
+    IN6_IS_ADDR_MULTICAST	IN6_IS_ADDR_MC_NODELOCAL
+    IN6_IS_ADDR_MC_LINKLOCAL	IN6_IS_ADDR_MC_SITELOCAL
+    IN6_IS_ADDR_MC_ORGLOCAL	IN6_IS_ADDR_MC_GLOBAL
+    IN6_ARE_ADDR_EQUAL
+
+    bindresvport		bindresvport6
 
     ;; mathematics
     csin		ccos		ctan
@@ -82,6 +96,7 @@
 	    capi.)
     (prefix (vicare platform words)
 	    words.)
+    (vicare arguments validation)
     (vicare unsafe operations))
 
 
@@ -97,44 +112,6 @@
 
 
 ;;;; arguments validation
-
-(define-argument-validation (procedure who obj)
-  (procedure? obj)
-  (assertion-violation who "expected procedure as argument" obj))
-
-(define-argument-validation (boolean who obj)
-  (boolean? obj)
-  (assertion-violation who "expected boolean as argument" obj))
-
-(define-argument-validation (fixnum who obj)
-  (fixnum? obj)
-  (assertion-violation who "expected fixnum as argument" obj))
-
-(define-argument-validation (string who obj)
-  (string? obj)
-  (assertion-violation who "expected string as argument" obj))
-
-(define-argument-validation (symbol who obj)
-  (symbol? obj)
-  (assertion-violation who "expected symbol as argument" obj))
-
-(define-argument-validation (bytevector who obj)
-  (bytevector? obj)
-  (assertion-violation who "expected bytevector as argument" obj))
-
-(define-argument-validation (flonum who obj)
-  (flonum? obj)
-  (assertion-violation who "expected flonum as argument" obj))
-
-(define-argument-validation (cflonum who obj)
-  (cflonum? obj)
-  (assertion-violation who "expected complex flonum as argument" obj))
-
-(define-argument-validation (pointer who obj)
-  (pointer? obj)
-  (assertion-violation who "expected pointer as argument" obj))
-
-;;; --------------------------------------------------------------------
 
 (define-argument-validation (string/bytevector who obj)
   (or (string? obj) (bytevector? obj))
@@ -173,18 +150,6 @@
 (define-argument-validation (file-descriptor who obj)
   (and (fixnum? obj) ($fx<= 0 obj))
   (assertion-violation who "expected fixnum file descriptor as argument" obj))
-
-;;; --------------------------------------------------------------------
-
-(define-argument-validation (unsigned-int who obj)
-  (words.unsigned-int? obj)
-  (assertion-violation who
-    "expected exact integer representing a C language \"unsigned int\" as argument" obj))
-
-(define-argument-validation (signed-int who obj)
-  (words.signed-int? obj)
-  (assertion-violation who
-    "expected exact integer representing a C language \"signed int\" as argument" obj))
 
 
 ;;;; operating system environment variables
@@ -252,7 +217,7 @@
 	(raise-errno-error who rv fd)))))
 
 
-;;;; sockets
+;;;; sockets and networking
 
 (define (if-nametoindex name)
   (define who 'if-nametoindex)
@@ -272,6 +237,151 @@
     (map (lambda (entry)
 	   (cons (car entry) (utf8->string (cdr entry))))
       rv)))
+
+;;; --------------------------------------------------------------------
+
+(define (IN_CLASSA addr)
+  (define who 'IN_CLASSA)
+  (with-arguments-validation (who)
+      ((word-u32	addr))
+    (capi.glibc-IN_CLASSA addr)))
+
+(define (IN_CLASSB addr)
+  (define who 'IN_CLASSB)
+  (with-arguments-validation (who)
+      ((word-u32	addr))
+    (capi.glibc-IN_CLASSB addr)))
+
+(define (IN_CLASSC addr)
+  (define who 'IN_CLASSC)
+  (with-arguments-validation (who)
+      ((word-u32	addr))
+    (capi.glibc-IN_CLASSC addr)))
+
+(define (IN_CLASSD addr)
+  (define who 'IN_CLASSD)
+  (with-arguments-validation (who)
+      ((word-u32	addr))
+    (capi.glibc-IN_CLASSD addr)))
+
+(define (IN_MULTICAST addr)
+  (define who 'IN_MULTICAST)
+  (with-arguments-validation (who)
+      ((word-u32	addr))
+    (capi.glibc-IN_MULTICAST addr)))
+
+(define (IN_EXPERIMENTAL addr)
+  (define who 'IN_EXPERIMENTAL)
+  (with-arguments-validation (who)
+      ((word-u32	addr))
+    (capi.glibc-IN_EXPERIMENTAL addr)))
+
+(define (IN_BADCLASS addr)
+  (define who 'IN_BADCLASS)
+  (with-arguments-validation (who)
+      ((word-u32	addr))
+    (capi.glibc-IN_BADCLASS addr)))
+
+;;; --------------------------------------------------------------------
+
+(define (IN6_IS_ADDR_UNSPECIFIED addr)
+  (define who 'IN6_IS_ADDR_UNSPECIFIED)
+  (with-arguments-validation (who)
+      ((bytevector	addr))
+    (capi.glibc-IN6_IS_ADDR_UNSPECIFIED addr)))
+
+(define (IN6_IS_ADDR_LOOPBACK addr)
+  (define who 'IN6_IS_ADDR_LOOPBACK)
+  (with-arguments-validation (who)
+      ((bytevector	addr))
+    (capi.glibc-IN6_IS_ADDR_LOOPBACK addr)))
+
+(define (IN6_IS_ADDR_LINKLOCAL addr)
+  (define who 'IN6_IS_ADDR_LINKLOCAL)
+  (with-arguments-validation (who)
+      ((bytevector	addr))
+    (capi.glibc-IN6_IS_ADDR_LINKLOCAL addr)))
+
+(define (IN6_IS_ADDR_SITELOCAL addr)
+  (define who 'IN6_IS_ADDR_SITELOCAL)
+  (with-arguments-validation (who)
+      ((bytevector	addr))
+    (capi.glibc-IN6_IS_ADDR_SITELOCAL addr)))
+
+(define (IN6_IS_ADDR_V4MAPPED addr)
+  (define who 'IN6_IS_ADDR_V4MAPPED)
+  (with-arguments-validation (who)
+      ((bytevector	addr))
+    (capi.glibc-IN6_IS_ADDR_V4MAPPED addr)))
+
+(define (IN6_IS_ADDR_V4COMPAT addr)
+  (define who 'IN6_IS_ADDR_V4COMPAT)
+  (with-arguments-validation (who)
+      ((bytevector	addr))
+    (capi.glibc-IN6_IS_ADDR_V4COMPAT addr)))
+
+(define (IN6_IS_ADDR_MULTICAST addr)
+  (define who 'IN6_IS_ADDR_MULTICAST)
+  (with-arguments-validation (who)
+      ((bytevector	addr))
+    (capi.glibc-IN6_IS_ADDR_MULTICAST addr)))
+
+(define (IN6_IS_ADDR_MC_NODELOCAL addr)
+  (define who 'IN6_IS_ADDR_MC_NODELOCAL)
+  (with-arguments-validation (who)
+      ((bytevector	addr))
+    (capi.glibc-IN6_IS_ADDR_MC_NODELOCAL addr)))
+
+(define (IN6_IS_ADDR_MC_LINKLOCAL addr)
+  (define who 'IN6_IS_ADDR_MC_LINKLOCAL)
+  (with-arguments-validation (who)
+      ((bytevector	addr))
+    (capi.glibc-IN6_IS_ADDR_MC_LINKLOCAL addr)))
+
+(define (IN6_IS_ADDR_MC_SITELOCAL addr)
+  (define who 'IN6_IS_ADDR_MC_SITELOCAL)
+  (with-arguments-validation (who)
+      ((bytevector	addr))
+    (capi.glibc-IN6_IS_ADDR_MC_SITELOCAL addr)))
+
+(define (IN6_IS_ADDR_MC_ORGLOCAL addr)
+  (define who 'IN6_IS_ADDR_MC_ORGLOCAL)
+  (with-arguments-validation (who)
+      ((bytevector	addr))
+    (capi.glibc-IN6_IS_ADDR_MC_ORGLOCAL addr)))
+
+(define (IN6_IS_ADDR_MC_GLOBAL addr)
+  (define who 'IN6_IS_ADDR_MC_GLOBAL)
+  (with-arguments-validation (who)
+      ((bytevector	addr))
+    (capi.glibc-IN6_IS_ADDR_MC_GLOBAL addr)))
+
+(define (IN6_ARE_ADDR_EQUAL addr1 addr2)
+  (define who 'IN6_ARE_ADDR_EQUAL)
+  (with-arguments-validation (who)
+      ((bytevector	addr1)
+       (bytevector	addr2))
+    (capi.glibc-IN6_ARE_ADDR_EQUAL addr1 addr2)))
+
+;;; --------------------------------------------------------------------
+
+(define (bindresvport fd addr)
+  (define who 'bindresvport)
+  (with-arguments-validation (who)
+      ((file-descriptor	fd)
+       (bytevector	addr))
+    (let ((rv (capi.glibc-bindresvport fd addr)))
+      (when rv
+	(raise-errno-error who rv fd addr)))))
+
+(define (bindresvport6 fd addr)
+  (define who 'bindresvport6)
+  (with-arguments-validation (who)
+      ((file-descriptor	fd)
+       (bytevector	addr))
+    (let ((rv (capi.glibc-bindresvport6 fd addr)))
+      (when rv
+	(raise-errno-error who rv fd addr)))))
 
 
 ;;;; mathematics

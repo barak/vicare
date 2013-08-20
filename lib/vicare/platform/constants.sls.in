@@ -319,27 +319,63 @@
     MNT_FORCE
 
 ;;; sockets constants
+    PF_UNSPEC		PF_LOCAL	PF_UNIX
+    PF_FILE		PF_INET		PF_AX25
+    PF_IPX		PF_APPLETALK	PF_NETROM
+    PF_BRIDGE		PF_ATMPVC	PF_X25
+    PF_INET6		PF_ROSE		PF_DECnet
+    PF_NETBEUI		PF_SECURITY	PF_KEY
+    PF_NETLINK		PF_ROUTE	PF_PACKET
+    PF_ASH		PF_ECONET	PF_ATMSVC
+    PF_RDS		PF_SNA		PF_IRDA
+    PF_PPPOX		PF_WANPIPE	PF_LLC
+    PF_CAN		PF_TIPC		PF_BLUETOOTH
+    PF_IUCV		PF_RXRPC	PF_ISDN
+    PF_PHONET		PF_IEEE802154	PF_CAIF
+    PF_ALG		PF_NFC		PF_MAX
+
+    AF_UNSPEC		AF_LOCAL	AF_UNIX
+    AF_FILE		AF_INET		AF_AX25
+    AF_IPX		AF_APPLETALK	AF_NETROM
+    AF_BRIDGE		AF_ATMPVC	AF_X25
+    AF_INET6		AF_ROSE		AF_DECnet
+    AF_NETBEUI		AF_SECURITY	AF_KEY
+    AF_NETLINK		AF_ROUTE	AF_PACKET
+    AF_ASH		AF_ECONET	AF_ATMSVC
+    AF_RDS		AF_SNA		AF_IRDA
+    AF_PPPOX		AF_WANPIPE	AF_LLC
+    AF_CAN		AF_TIPC		AF_BLUETOOTH
+    AF_IUCV		AF_RXRPC	AF_ISDN
+    AF_PHONET		AF_IEEE802154	AF_CAIF
+    AF_ALG		AF_NFC		AF_MAX
+
     SOCK_STREAM		SOCK_DGRAM	SOCK_RAW
     SOCK_RDM		SOCK_SEQPACKET	SOCK_DCCP
     SOCK_PACKET		SOCK_CLOEXEC	SOCK_NONBLOCK
 
-    AF_LOCAL		PF_LOCAL
-    AF_UNIX		PF_UNIX
-    AF_FILE		PF_FILE
-    AF_INET		PF_INET
-    AF_INET6		PF_INET6
-    AF_UNSPEC		PF_UNSPEC
     SHUT_RD		SHUT_WR		SHUT_RDWR
     IPPORT_RESERVED	IPPORT_USERRESERVED
     IFNAMSIZ
 
     MSG_OOB		MSG_PEEK	MSG_DONTROUTE
+    MSG_TRYHARD		MSG_CTRUNC	MSG_PROXY
+    MSG_TRUNC		MSG_DONTWAIT	MSG_EOR
+    MSG_WAITALL		MSG_FIN		MSG_SYN
+    MSG_CONFIRM		MSG_RST		MSG_ERRQUEUE
+    MSG_NOSIGNAL	MSG_MORE	MSG_WAITFORONE
+    MSG_CMSG_CLOEXEC
 
-    SOL_SOCKET		SO_DEBUG	SO_REUSEADDR
+    SOL_SOCKET		SOL_RAW		SOL_DECNET
+    SOL_X25		SOL_PACKET	SOL_ATM
+    SOL_AAL		SOL_IRDA
+
+    SO_DEBUG		SO_REUSEADDR
     SO_KEEPALIVE	SO_DONTROUTE	SO_LINGER
     SO_BROADCAST	SO_OOBINLINE	SO_SNDBUF
     SO_RCVBUF		SO_TYPE		SO_STYLE
     SO_ERROR
+
+    SOMAXCONN
 
     INADDR_LOOPBACK	INADDR_ANY	INADDR_BROADCAST
     INADDR_NONE		INET_ADDRSTRLEN	INET6_ADDRSTRLEN
@@ -464,6 +500,81 @@
 
 ;;;; For "getrusage()".
     RUSAGE_SELF		RUSAGE_CHILDREN		RUSAGE_THREAD
+
+;;;; Constants from "netinet/in.h"
+    IPPROTO_IP		IPPROTO_HOPOPTS		IPPROTO_ICMP
+    IPPROTO_IGMP	IPPROTO_IPIP		IPPROTO_TCP
+    IPPROTO_EGP		IPPROTO_PUP		IPPROTO_UDP
+    IPPROTO_IDP		IPPROTO_TP		IPPROTO_DCCP
+    IPPROTO_IPV6	IPPROTO_ROUTING		IPPROTO_FRAGMENT
+    IPPROTO_RSVP	IPPROTO_GRE		IPPROTO_ESP
+    IPPROTO_AH		IPPROTO_ICMPV6		IPPROTO_NONE
+    IPPROTO_DSTOPTS	IPPROTO_MTP		IPPROTO_ENCAP
+    IPPROTO_PIM		IPPROTO_COMP		IPPROTO_SCTP
+    IPPROTO_UDPLITE	IPPROTO_RAW
+
+    IPPORT_ECHO		IPPORT_DISCARD		IPPORT_SYSTAT
+    IPPORT_DAYTIME	IPPORT_NETSTAT		IPPORT_FTP
+    IPPORT_TELNET	IPPORT_SMTP		IPPORT_TIMESERVER
+    IPPORT_NAMESERVER	IPPORT_WHOIS		IPPORT_MTP
+    IPPORT_TFTP		IPPORT_RJE		IPPORT_FINGER
+    IPPORT_TTYLINK	IPPORT_SUPDUP		IPPORT_EXECSERVER
+    IPPORT_LOGINSERVER	IPPORT_CMDSERVER	IPPORT_EFSSERVER
+    IPPORT_BIFFUDP	IPPORT_WHOSERVER	IPPORT_ROUTESERVER
+    ;;These have been already exported above.
+    #;IPPORT_RESERVED	#;IPPORT_USERRESERVED
+
+    IN_CLASSA_NET	IN_CLASSA_NSHIFT	IN_CLASSA_HOST		IN_CLASSA_MAX
+    IN_CLASSB_NET	IN_CLASSB_NSHIFT	IN_CLASSB_HOST		IN_CLASSB_MAX
+    IN_CLASSC_NET	IN_CLASSC_NSHIFT	IN_CLASSC_HOST
+
+;;;; Constants from "netinet/tcp.h"
+    TCP_NODELAY		TCP_MAXSEG		TCP_CORK
+    TCP_KEEPIDLE	TCP_KEEPINTVL		TCP_KEEPCNT
+    TCP_SYNCNT		TCP_LINGER2		TCP_DEFER_ACCEPT
+    TCP_WINDOW_CLAMP	TCP_INFO		TCP_QUICKACK
+    TCP_CONGESTION	TCP_MD5SIG		TCP_ESTABLISHED
+    TCP_SYN_SENT	TCP_SYN_RECV		TCP_FIN_WAIT1
+    TCP_FIN_WAIT2	TCP_TIME_WAIT		TCP_CLOSE
+    TCP_CLOSE_WAIT	TCP_LAST_ACK		TCP_LISTEN
+    TCP_CLOSING		TCPOPT_EOL		TCPOPT_NOP
+    TCPOPT_MAXSEG	TCPOLEN_MAXSEG		TCPOPT_WINDOW
+    TCPOLEN_WINDOW	TCPOPT_SACK_PERMITTED	TCPOLEN_SACK_PERMITTED
+    TCPOPT_SACK		TCPOPT_TIMESTAMP	TCPOLEN_TIMESTAMP
+    TCPOLEN_TSTAMP_APPA	TCPOPT_TSTAMP_HDR	TCP_MSS
+    TCP_MAXWIN		TCP_MAX_WINSHIFT	SOL_TCP
+    TCPI_OPT_TIMESTAMPS	TCPI_OPT_SACK		TCPI_OPT_WSCALE
+    TCPI_OPT_ECN	TCP_CA_Open		TCP_CA_Disorder
+    TCP_CA_CWR		TCP_CA_Recovery		TCP_CA_Loss
+    TCP_MD5SIG_MAXKEYLEN
+
+;;;; Constants from "netinet/udp.h"
+    UDP_CORK		UDP_ENCAP		UDP_ENCAP_ESPINUDP_NON_IKE
+    UDP_ENCAP_ESPINUDP	UDP_ENCAP_L2TPINUDP	SOL_UDP
+
+;;;; Constants from "linux/icmp.h"
+    ICMP_ECHOREPLY	ICMP_DEST_UNREACH	ICMP_SOURCE_QUENCH
+    ICMP_REDIRECT	ICMP_ECHO		ICMP_TIME_EXCEEDED
+    ICMP_PARAMETERPROB	ICMP_TIMESTAMP		ICMP_TIMESTAMPREPLY
+    ICMP_INFO_REQUEST	ICMP_INFO_REPLY		ICMP_ADDRESS
+    ICMP_ADDRESSREPLY	NR_ICMP_TYPES		ICMP_NET_UNREACH
+    ICMP_HOST_UNREACH	ICMP_PROT_UNREACH	ICMP_PORT_UNREACH
+    ICMP_FRAG_NEEDED	ICMP_SR_FAILED		ICMP_NET_UNKNOWN
+    ICMP_HOST_UNKNOWN	ICMP_HOST_ISOLATED	ICMP_NET_ANO
+    ICMP_HOST_ANO	ICMP_NET_UNR_TOS	ICMP_HOST_UNR_TOS
+    ICMP_PKT_FILTERED	ICMP_PREC_VIOLATION	ICMP_PREC_CUTOFF
+    NR_ICMP_UNREACH	ICMP_REDIR_NET		ICMP_REDIR_HOST
+    ICMP_REDIR_NETTOS	ICMP_REDIR_HOSTTOS	ICMP_EXC_TTL
+    ICMP_EXC_FRAGTIME	ICMP_FILTER
+
+;;;; Constants from "netinet/igmp.h"
+    IGMP_MINLEN			IGMP_MEMBERSHIP_QUERY		IGMP_V1_MEMBERSHIP_REPORT
+    IGMP_V2_MEMBERSHIP_REPORT	IGMP_V2_LEAVE_GROUP		IGMP_DVMRP
+    IGMP_PIM			IGMP_TRACE			IGMP_MTRACE_RESP
+    IGMP_MTRACE			IGMP_MAX_HOST_REPORT_DELAY	IGMP_TIMER_SCALE
+    IGMP_DELAYING_MEMBER	IGMP_IDLE_MEMBER		IGMP_LAZY_MEMBER
+    IGMP_SLEEPING_MEMBER	IGMP_AWAKENING_MEMBER		IGMP_v1_ROUTER
+    IGMP_v2_ROUTER
 
 ;;; --------------------------------------------------------------------
 
@@ -1195,7 +1306,7 @@
 
 (define-inline-constant MNT_FORCE		@VALUEOF_MNT_FORCE@)
 
-;; on the GNU C Library see /usr/include/bits/socket.h
+;; on the GNU C Library see bits/socket.h
 (define-inline-constant SOCK_STREAM		@VALUEOF_SOCK_STREAM@)
 (define-inline-constant SOCK_DGRAM		@VALUEOF_SOCK_DGRAM@)
 (define-inline-constant SOCK_RAW		@VALUEOF_SOCK_RAW@)
@@ -1206,19 +1317,93 @@
 (define-inline-constant SOCK_CLOEXEC		@VALUEOF_SOCK_CLOEXEC@)
 (define-inline-constant SOCK_NONBLOCK		@VALUEOF_SOCK_NONBLOCK@)
 
-;; on the GNU C Library see /usr/include/bits/socket.h
-(define-inline-constant AF_LOCAL		@VALUEOF_AF_LOCAL@)
-(define-inline-constant PF_LOCAL		@VALUEOF_PF_LOCAL@)
-(define-inline-constant AF_UNIX			@VALUEOF_AF_UNIX@)
-(define-inline-constant PF_UNIX			@VALUEOF_PF_UNIX@)
-(define-inline-constant AF_FILE			@VALUEOF_AF_FILE@)
-(define-inline-constant PF_FILE			@VALUEOF_PF_FILE@)
-(define-inline-constant AF_INET			@VALUEOF_AF_INET@)
-(define-inline-constant PF_INET			@VALUEOF_PF_INET@)
-(define-inline-constant AF_INET6		@VALUEOF_AF_INET6@)
-(define-inline-constant PF_INET6		@VALUEOF_PF_INET6@)
-(define-inline-constant AF_UNSPEC		@VALUEOF_AF_UNSPEC@)
+;; on the GNU C Library see bits/socket.h
 (define-inline-constant PF_UNSPEC		@VALUEOF_PF_UNSPEC@)
+(define-inline-constant PF_LOCAL		@VALUEOF_PF_LOCAL@)
+(define-inline-constant PF_UNIX			@VALUEOF_PF_UNIX@)
+(define-inline-constant PF_FILE			@VALUEOF_PF_FILE@)
+(define-inline-constant PF_INET			@VALUEOF_PF_INET@)
+(define-inline-constant PF_AX25			@VALUEOF_PF_AX25@)
+(define-inline-constant PF_IPX			@VALUEOF_PF_IPX@)
+(define-inline-constant PF_APPLETALK		@VALUEOF_PF_APPLETALK@)
+(define-inline-constant PF_NETROM		@VALUEOF_PF_NETROM@)
+(define-inline-constant PF_BRIDGE		@VALUEOF_PF_BRIDGE@)
+(define-inline-constant PF_ATMPVC		@VALUEOF_PF_ATMPVC@)
+(define-inline-constant PF_X25			@VALUEOF_PF_X25@)
+(define-inline-constant PF_INET6		@VALUEOF_PF_INET6@)
+(define-inline-constant PF_ROSE			@VALUEOF_PF_ROSE@)
+(define-inline-constant PF_DECnet		@VALUEOF_PF_DECnet@)
+(define-inline-constant PF_NETBEUI		@VALUEOF_PF_NETBEUI@)
+(define-inline-constant PF_SECURITY		@VALUEOF_PF_SECURITY@)
+(define-inline-constant PF_KEY			@VALUEOF_PF_KEY@)
+(define-inline-constant PF_NETLINK		@VALUEOF_PF_NETLINK@)
+(define-inline-constant PF_ROUTE		@VALUEOF_PF_ROUTE@)
+(define-inline-constant PF_PACKET		@VALUEOF_PF_PACKET@)
+(define-inline-constant PF_ASH			@VALUEOF_PF_ASH@)
+(define-inline-constant PF_ECONET		@VALUEOF_PF_ECONET@)
+(define-inline-constant PF_ATMSVC		@VALUEOF_PF_ATMSVC@)
+(define-inline-constant PF_RDS			@VALUEOF_PF_RDS@)
+(define-inline-constant PF_SNA			@VALUEOF_PF_SNA@)
+(define-inline-constant PF_IRDA			@VALUEOF_PF_IRDA@)
+(define-inline-constant PF_PPPOX		@VALUEOF_PF_PPPOX@)
+(define-inline-constant PF_WANPIPE		@VALUEOF_PF_WANPIPE@)
+(define-inline-constant PF_LLC			@VALUEOF_PF_LLC@)
+(define-inline-constant PF_CAN			@VALUEOF_PF_CAN@)
+(define-inline-constant PF_TIPC			@VALUEOF_PF_TIPC@)
+(define-inline-constant PF_BLUETOOTH		@VALUEOF_PF_BLUETOOTH@)
+(define-inline-constant PF_IUCV			@VALUEOF_PF_IUCV@)
+(define-inline-constant PF_RXRPC		@VALUEOF_PF_RXRPC@)
+(define-inline-constant PF_ISDN			@VALUEOF_PF_ISDN@)
+(define-inline-constant PF_PHONET		@VALUEOF_PF_PHONET@)
+(define-inline-constant PF_IEEE802154		@VALUEOF_PF_IEEE802154@)
+(define-inline-constant PF_CAIF			@VALUEOF_PF_CAIF@)
+(define-inline-constant PF_ALG			@VALUEOF_PF_ALG@)
+(define-inline-constant PF_NFC			@VALUEOF_PF_NFC@)
+(define-inline-constant PF_MAX			@VALUEOF_PF_MAX@)
+
+(define-inline-constant AF_UNSPEC		@VALUEOF_AF_UNSPEC@)
+(define-inline-constant AF_LOCAL		@VALUEOF_AF_LOCAL@)
+(define-inline-constant AF_UNIX			@VALUEOF_AF_UNIX@)
+(define-inline-constant AF_FILE			@VALUEOF_AF_FILE@)
+(define-inline-constant AF_INET			@VALUEOF_AF_INET@)
+(define-inline-constant AF_AX25			@VALUEOF_AF_AX25@)
+(define-inline-constant AF_IPX			@VALUEOF_AF_IPX@)
+(define-inline-constant AF_APPLETALK		@VALUEOF_AF_APPLETALK@)
+(define-inline-constant AF_NETROM		@VALUEOF_AF_NETROM@)
+(define-inline-constant AF_BRIDGE		@VALUEOF_AF_BRIDGE@)
+(define-inline-constant AF_ATMPVC		@VALUEOF_AF_ATMPVC@)
+(define-inline-constant AF_X25			@VALUEOF_AF_X25@)
+(define-inline-constant AF_INET6		@VALUEOF_AF_INET6@)
+(define-inline-constant AF_ROSE			@VALUEOF_AF_ROSE@)
+(define-inline-constant AF_DECnet		@VALUEOF_AF_DECnet@)
+(define-inline-constant AF_NETBEUI		@VALUEOF_AF_NETBEUI@)
+(define-inline-constant AF_SECURITY		@VALUEOF_AF_SECURITY@)
+(define-inline-constant AF_KEY			@VALUEOF_AF_KEY@)
+(define-inline-constant AF_NETLINK		@VALUEOF_AF_NETLINK@)
+(define-inline-constant AF_ROUTE		@VALUEOF_AF_ROUTE@)
+(define-inline-constant AF_PACKET		@VALUEOF_AF_PACKET@)
+(define-inline-constant AF_ASH			@VALUEOF_AF_ASH@)
+(define-inline-constant AF_ECONET		@VALUEOF_AF_ECONET@)
+(define-inline-constant AF_ATMSVC		@VALUEOF_AF_ATMSVC@)
+(define-inline-constant AF_RDS			@VALUEOF_AF_RDS@)
+(define-inline-constant AF_SNA			@VALUEOF_AF_SNA@)
+(define-inline-constant AF_IRDA			@VALUEOF_AF_IRDA@)
+(define-inline-constant AF_PPPOX		@VALUEOF_AF_PPPOX@)
+(define-inline-constant AF_WANPIPE		@VALUEOF_AF_WANPIPE@)
+(define-inline-constant AF_LLC			@VALUEOF_AF_LLC@)
+(define-inline-constant AF_CAN			@VALUEOF_AF_CAN@)
+(define-inline-constant AF_TIPC			@VALUEOF_AF_TIPC@)
+(define-inline-constant AF_BLUETOOTH		@VALUEOF_AF_BLUETOOTH@)
+(define-inline-constant AF_IUCV			@VALUEOF_AF_IUCV@)
+(define-inline-constant AF_RXRPC		@VALUEOF_AF_RXRPC@)
+(define-inline-constant AF_ISDN			@VALUEOF_AF_ISDN@)
+(define-inline-constant AF_PHONET		@VALUEOF_AF_PHONET@)
+(define-inline-constant AF_IEEE802154		@VALUEOF_AF_IEEE802154@)
+(define-inline-constant AF_CAIF			@VALUEOF_AF_CAIF@)
+(define-inline-constant AF_ALG			@VALUEOF_AF_ALG@)
+(define-inline-constant AF_NFC			@VALUEOF_AF_NFC@)
+(define-inline-constant AF_MAX			@VALUEOF_AF_MAX@)
+
 (define-inline-constant SHUT_RD			@VALUEOF_SHUT_RD@)
 (define-inline-constant SHUT_WR			@VALUEOF_SHUT_WR@)
 (define-inline-constant SHUT_RDWR		@VALUEOF_SHUT_RDWR@)
@@ -1226,13 +1411,37 @@
 (define-inline-constant IPPORT_USERRESERVED	@VALUEOF_IPPORT_USERRESERVED@)
 (define-inline-constant IFNAMSIZ		@VALUEOF_IFNAMSIZ@)
 
-;; on the GNU C Library see /usr/include/bits/socket.h
+;; on the GNU C Library see bits/socket.h
 (define-inline-constant MSG_OOB			@VALUEOF_MSG_OOB@)
 (define-inline-constant MSG_PEEK		@VALUEOF_MSG_PEEK@)
 (define-inline-constant MSG_DONTROUTE		@VALUEOF_MSG_DONTROUTE@)
+(define-inline-constant MSG_TRYHARD		@VALUEOF_MSG_TRYHARD@)
+(define-inline-constant MSG_CTRUNC		@VALUEOF_MSG_CTRUNC@)
+(define-inline-constant MSG_PROXY		@VALUEOF_MSG_PROXY@)
+(define-inline-constant MSG_TRUNC		@VALUEOF_MSG_TRUNC@)
+(define-inline-constant MSG_DONTWAIT		@VALUEOF_MSG_DONTWAIT@)
+(define-inline-constant MSG_EOR			@VALUEOF_MSG_EOR@)
+(define-inline-constant MSG_WAITALL		@VALUEOF_MSG_WAITALL@)
+(define-inline-constant MSG_FIN			@VALUEOF_MSG_FIN@)
+(define-inline-constant MSG_SYN			@VALUEOF_MSG_SYN@)
+(define-inline-constant MSG_CONFIRM		@VALUEOF_MSG_CONFIRM@)
+(define-inline-constant MSG_RST			@VALUEOF_MSG_RST@)
+(define-inline-constant MSG_ERRQUEUE		@VALUEOF_MSG_ERRQUEUE@)
+(define-inline-constant MSG_NOSIGNAL		@VALUEOF_MSG_NOSIGNAL@)
+(define-inline-constant MSG_MORE		@VALUEOF_MSG_MORE@)
+(define-inline-constant MSG_WAITFORONE		@VALUEOF_MSG_WAITFORONE@)
+(define-inline-constant MSG_CMSG_CLOEXEC	@VALUEOF_MSG_CMSG_CLOEXEC@)
 
-;; on the GNU C Library see /usr/include/bits/socket.h
+;; on the GNU C Library see bits/socket.h
 (define-inline-constant SOL_SOCKET		@VALUEOF_SOL_SOCKET@)
+(define-inline-constant SOL_RAW			@VALUEOF_SOL_RAW@)
+(define-inline-constant SOL_DECNET		@VALUEOF_SOL_DECNET@)
+(define-inline-constant SOL_X25			@VALUEOF_SOL_X25@)
+(define-inline-constant SOL_PACKET		@VALUEOF_SOL_PACKET@)
+(define-inline-constant SOL_ATM			@VALUEOF_SOL_ATM@)
+(define-inline-constant SOL_AAL			@VALUEOF_SOL_AAL@)
+(define-inline-constant SOL_IRDA		@VALUEOF_SOL_IRDA@)
+
 (define-inline-constant SO_DEBUG		@VALUEOF_SO_DEBUG@)
 (define-inline-constant SO_REUSEADDR		@VALUEOF_SO_REUSEADDR@)
 (define-inline-constant SO_KEEPALIVE		@VALUEOF_SO_KEEPALIVE@)
@@ -1245,6 +1454,8 @@
 (define-inline-constant SO_TYPE			@VALUEOF_SO_TYPE@)
 (define-inline-constant SO_STYLE		@VALUEOF_SO_STYLE@)
 (define-inline-constant SO_ERROR		@VALUEOF_SO_ERROR@)
+
+(define-inline-constant SOMAXCONN		@VALUEOF_SOMAXCONN@)
 
 (define-inline-constant INADDR_LOOPBACK		@VALUEOF_INADDR_LOOPBACK@)
 (define-inline-constant INADDR_ANY		@VALUEOF_INADDR_ANY@)
@@ -1497,6 +1708,203 @@
 (define-inline-constant RUSAGE_SELF		@VALUEOF_RUSAGE_SELF@)
 (define-inline-constant RUSAGE_CHILDREN		@VALUEOF_RUSAGE_CHILDREN@)
 (define-inline-constant RUSAGE_THREAD		@VALUEOF_RUSAGE_THREAD@)
+
+;;; Constants from "netinet/in.h"
+(define-inline-constant IPPROTO_IP		@VALUEOF_IPPROTO_IP@)
+(define-inline-constant IPPROTO_HOPOPTS		@VALUEOF_IPPROTO_HOPOPTS@)
+(define-inline-constant IPPROTO_ICMP		@VALUEOF_IPPROTO_ICMP@)
+(define-inline-constant IPPROTO_IGMP		@VALUEOF_IPPROTO_IGMP@)
+(define-inline-constant IPPROTO_IPIP		@VALUEOF_IPPROTO_IPIP@)
+(define-inline-constant IPPROTO_TCP		@VALUEOF_IPPROTO_TCP@)
+(define-inline-constant IPPROTO_EGP		@VALUEOF_IPPROTO_EGP@)
+(define-inline-constant IPPROTO_PUP		@VALUEOF_IPPROTO_PUP@)
+(define-inline-constant IPPROTO_UDP		@VALUEOF_IPPROTO_UDP@)
+(define-inline-constant IPPROTO_IDP		@VALUEOF_IPPROTO_IDP@)
+(define-inline-constant IPPROTO_TP		@VALUEOF_IPPROTO_TP@)
+(define-inline-constant IPPROTO_DCCP		@VALUEOF_IPPROTO_DCCP@)
+(define-inline-constant IPPROTO_IPV6		@VALUEOF_IPPROTO_IPV6@)
+(define-inline-constant IPPROTO_ROUTING		@VALUEOF_IPPROTO_ROUTING@)
+(define-inline-constant IPPROTO_FRAGMENT	@VALUEOF_IPPROTO_FRAGMENT@)
+(define-inline-constant IPPROTO_RSVP		@VALUEOF_IPPROTO_RSVP@)
+(define-inline-constant IPPROTO_GRE		@VALUEOF_IPPROTO_GRE@)
+(define-inline-constant IPPROTO_ESP		@VALUEOF_IPPROTO_ESP@)
+(define-inline-constant IPPROTO_AH		@VALUEOF_IPPROTO_AH@)
+(define-inline-constant IPPROTO_ICMPV6		@VALUEOF_IPPROTO_ICMPV6@)
+(define-inline-constant IPPROTO_NONE		@VALUEOF_IPPROTO_NONE@)
+(define-inline-constant IPPROTO_DSTOPTS		@VALUEOF_IPPROTO_DSTOPTS@)
+(define-inline-constant IPPROTO_MTP		@VALUEOF_IPPROTO_MTP@)
+(define-inline-constant IPPROTO_ENCAP		@VALUEOF_IPPROTO_ENCAP@)
+(define-inline-constant IPPROTO_PIM		@VALUEOF_IPPROTO_PIM@)
+(define-inline-constant IPPROTO_COMP		@VALUEOF_IPPROTO_COMP@)
+(define-inline-constant IPPROTO_SCTP		@VALUEOF_IPPROTO_SCTP@)
+(define-inline-constant IPPROTO_UDPLITE		@VALUEOF_IPPROTO_UDPLITE@)
+(define-inline-constant IPPROTO_RAW		@VALUEOF_IPPROTO_RAW@)
+
+;;; Constants from "netinet/in.h"
+(define-inline-constant IPPORT_ECHO		@VALUEOF_IPPORT_ECHO@)
+(define-inline-constant IPPORT_DISCARD		@VALUEOF_IPPORT_DISCARD@)
+(define-inline-constant IPPORT_SYSTAT		@VALUEOF_IPPORT_SYSTAT@)
+(define-inline-constant IPPORT_DAYTIME		@VALUEOF_IPPORT_DAYTIME@)
+(define-inline-constant IPPORT_NETSTAT		@VALUEOF_IPPORT_NETSTAT@)
+(define-inline-constant IPPORT_FTP		@VALUEOF_IPPORT_FTP@)
+(define-inline-constant IPPORT_TELNET		@VALUEOF_IPPORT_TELNET@)
+(define-inline-constant IPPORT_SMTP		@VALUEOF_IPPORT_SMTP@)
+(define-inline-constant IPPORT_TIMESERVER	@VALUEOF_IPPORT_TIMESERVER@)
+(define-inline-constant IPPORT_NAMESERVER	@VALUEOF_IPPORT_NAMESERVER@)
+(define-inline-constant IPPORT_WHOIS		@VALUEOF_IPPORT_WHOIS@)
+(define-inline-constant IPPORT_MTP		@VALUEOF_IPPORT_MTP@)
+(define-inline-constant IPPORT_TFTP		@VALUEOF_IPPORT_TFTP@)
+(define-inline-constant IPPORT_RJE		@VALUEOF_IPPORT_RJE@)
+(define-inline-constant IPPORT_FINGER		@VALUEOF_IPPORT_FINGER@)
+(define-inline-constant IPPORT_TTYLINK		@VALUEOF_IPPORT_TTYLINK@)
+(define-inline-constant IPPORT_SUPDUP		@VALUEOF_IPPORT_SUPDUP@)
+(define-inline-constant IPPORT_EXECSERVER	@VALUEOF_IPPORT_EXECSERVER@)
+(define-inline-constant IPPORT_LOGINSERVER	@VALUEOF_IPPORT_LOGINSERVER@)
+(define-inline-constant IPPORT_CMDSERVER	@VALUEOF_IPPORT_CMDSERVER@)
+(define-inline-constant IPPORT_EFSSERVER	@VALUEOF_IPPORT_EFSSERVER@)
+(define-inline-constant IPPORT_BIFFUDP		@VALUEOF_IPPORT_BIFFUDP@)
+(define-inline-constant IPPORT_WHOSERVER	@VALUEOF_IPPORT_WHOSERVER@)
+(define-inline-constant IPPORT_ROUTESERVER	@VALUEOF_IPPORT_ROUTESERVER@)
+;;These have been already defined above.
+;;
+;;(define-inline-constant IPPORT_RESERVED		@VALUEOF_IPPORT_RESERVED@)
+;;(define-inline-constant IPPORT_USERRESERVED	@VALUEOF_IPPORT_USERRESERVED@)
+
+;;; Constants from "netinet/in.h"
+(define-inline-constant IN_CLASSA_NET		@VALUEOF_IN_CLASSA_NET@)
+(define-inline-constant IN_CLASSA_NSHIFT	@VALUEOF_IN_CLASSA_NSHIFT@)
+(define-inline-constant IN_CLASSA_HOST		@VALUEOF_IN_CLASSA_HOST@)
+(define-inline-constant IN_CLASSA_MAX		@VALUEOF_IN_CLASSA_MAX@)
+(define-inline-constant IN_CLASSB_NET		@VALUEOF_IN_CLASSB_NET@)
+(define-inline-constant IN_CLASSB_NSHIFT	@VALUEOF_IN_CLASSB_NSHIFT@)
+(define-inline-constant IN_CLASSB_HOST		@VALUEOF_IN_CLASSB_HOST@)
+(define-inline-constant IN_CLASSB_MAX		@VALUEOF_IN_CLASSB_MAX@)
+(define-inline-constant IN_CLASSC_NET		@VALUEOF_IN_CLASSC_NET@)
+(define-inline-constant IN_CLASSC_NSHIFT	@VALUEOF_IN_CLASSC_NSHIFT@)
+(define-inline-constant IN_CLASSC_HOST		@VALUEOF_IN_CLASSC_HOST@)
+
+;;; Constants from "netinet/tcp.h"
+(define-inline-constant TCP_NODELAY		@VALUEOF_TCP_NODELAY@)
+(define-inline-constant TCP_MAXSEG		@VALUEOF_TCP_MAXSEG@)
+(define-inline-constant TCP_CORK		@VALUEOF_TCP_CORK@)
+(define-inline-constant TCP_KEEPIDLE		@VALUEOF_TCP_KEEPIDLE@)
+(define-inline-constant TCP_KEEPINTVL		@VALUEOF_TCP_KEEPINTVL@)
+(define-inline-constant TCP_KEEPCNT		@VALUEOF_TCP_KEEPCNT@)
+(define-inline-constant TCP_SYNCNT		@VALUEOF_TCP_SYNCNT@)
+(define-inline-constant TCP_LINGER2		@VALUEOF_TCP_LINGER2@)
+(define-inline-constant TCP_DEFER_ACCEPT	@VALUEOF_TCP_DEFER_ACCEPT@)
+(define-inline-constant TCP_WINDOW_CLAMP	@VALUEOF_TCP_WINDOW_CLAMP@)
+(define-inline-constant TCP_INFO		@VALUEOF_TCP_INFO@)
+(define-inline-constant TCP_QUICKACK		@VALUEOF_TCP_QUICKACK@)
+(define-inline-constant TCP_CONGESTION		@VALUEOF_TCP_CONGESTION@)
+(define-inline-constant TCP_MD5SIG		@VALUEOF_TCP_MD5SIG@)
+(define-inline-constant TCP_ESTABLISHED		@VALUEOF_TCP_ESTABLISHED@)
+(define-inline-constant TCP_SYN_SENT		@VALUEOF_TCP_SYN_SENT@)
+(define-inline-constant TCP_SYN_RECV		@VALUEOF_TCP_SYN_RECV@)
+(define-inline-constant TCP_FIN_WAIT1		@VALUEOF_TCP_FIN_WAIT1@)
+(define-inline-constant TCP_FIN_WAIT2		@VALUEOF_TCP_FIN_WAIT2@)
+(define-inline-constant TCP_TIME_WAIT		@VALUEOF_TCP_TIME_WAIT@)
+(define-inline-constant TCP_CLOSE		@VALUEOF_TCP_CLOSE@)
+(define-inline-constant TCP_CLOSE_WAIT		@VALUEOF_TCP_CLOSE_WAIT@)
+(define-inline-constant TCP_LAST_ACK		@VALUEOF_TCP_LAST_ACK@)
+(define-inline-constant TCP_LISTEN		@VALUEOF_TCP_LISTEN@)
+(define-inline-constant TCP_CLOSING		@VALUEOF_TCP_CLOSING@)
+(define-inline-constant TCPOPT_EOL		@VALUEOF_TCPOPT_EOL@)
+(define-inline-constant TCPOPT_NOP		@VALUEOF_TCPOPT_NOP@)
+(define-inline-constant TCPOPT_MAXSEG		@VALUEOF_TCPOPT_MAXSEG@)
+(define-inline-constant TCPOLEN_MAXSEG		@VALUEOF_TCPOLEN_MAXSEG@)
+(define-inline-constant TCPOPT_WINDOW		@VALUEOF_TCPOPT_WINDOW@)
+(define-inline-constant TCPOLEN_WINDOW		@VALUEOF_TCPOLEN_WINDOW@)
+(define-inline-constant TCPOPT_SACK_PERMITTED	@VALUEOF_TCPOPT_SACK_PERMITTED@)
+(define-inline-constant TCPOLEN_SACK_PERMITTED	@VALUEOF_TCPOLEN_SACK_PERMITTED@)
+(define-inline-constant TCPOPT_SACK		@VALUEOF_TCPOPT_SACK@)
+(define-inline-constant TCPOPT_TIMESTAMP	@VALUEOF_TCPOPT_TIMESTAMP@)
+(define-inline-constant TCPOLEN_TIMESTAMP	@VALUEOF_TCPOLEN_TIMESTAMP@)
+(define-inline-constant TCPOLEN_TSTAMP_APPA	@VALUEOF_TCPOLEN_TSTAMP_APPA@)
+(define-inline-constant TCPOPT_TSTAMP_HDR	@VALUEOF_TCPOPT_TSTAMP_HDR@)
+(define-inline-constant TCP_MSS			@VALUEOF_TCP_MSS@)
+(define-inline-constant TCP_MAXWIN		@VALUEOF_TCP_MAXWIN@)
+(define-inline-constant TCP_MAX_WINSHIFT	@VALUEOF_TCP_MAX_WINSHIFT@)
+(define-inline-constant SOL_TCP			@VALUEOF_SOL_TCP@)
+(define-inline-constant TCPI_OPT_TIMESTAMPS	@VALUEOF_TCPI_OPT_TIMESTAMPS@)
+(define-inline-constant TCPI_OPT_SACK		@VALUEOF_TCPI_OPT_SACK@)
+(define-inline-constant TCPI_OPT_WSCALE		@VALUEOF_TCPI_OPT_WSCALE@)
+(define-inline-constant TCPI_OPT_ECN		@VALUEOF_TCPI_OPT_ECN@)
+(define-inline-constant TCP_CA_Open		@VALUEOF_TCP_CA_Open@)
+(define-inline-constant TCP_CA_Disorder		@VALUEOF_TCP_CA_Disorder@)
+(define-inline-constant TCP_CA_CWR		@VALUEOF_TCP_CA_CWR@)
+(define-inline-constant TCP_CA_Recovery		@VALUEOF_TCP_CA_Recovery@)
+(define-inline-constant TCP_CA_Loss		@VALUEOF_TCP_CA_Loss@)
+(define-inline-constant TCP_MD5SIG_MAXKEYLEN	@VALUEOF_TCP_MD5SIG_MAXKEYLEN@)
+
+;;; Constants from "netinet/udp.h"
+(define-inline-constant UDP_CORK			@VALUEOF_UDP_CORK@)
+(define-inline-constant UDP_ENCAP			@VALUEOF_UDP_ENCAP@)
+(define-inline-constant UDP_ENCAP_ESPINUDP_NON_IKE	@VALUEOF_UDP_ENCAP_ESPINUDP_NON_IKE@)
+(define-inline-constant UDP_ENCAP_ESPINUDP		@VALUEOF_UDP_ENCAP_ESPINUDP@)
+(define-inline-constant UDP_ENCAP_L2TPINUDP		@VALUEOF_UDP_ENCAP_L2TPINUDP@)
+(define-inline-constant SOL_UDP				@VALUEOF_SOL_UDP@)
+
+;;; Constants from "linux/icmp.h"
+(define-inline-constant ICMP_ECHOREPLY			@VALUEOF_ICMP_ECHOREPLY@)
+(define-inline-constant ICMP_DEST_UNREACH		@VALUEOF_ICMP_DEST_UNREACH@)
+(define-inline-constant ICMP_SOURCE_QUENCH		@VALUEOF_ICMP_SOURCE_QUENCH@)
+(define-inline-constant ICMP_REDIRECT			@VALUEOF_ICMP_REDIRECT@)
+(define-inline-constant ICMP_ECHO			@VALUEOF_ICMP_ECHO@)
+(define-inline-constant ICMP_TIME_EXCEEDED		@VALUEOF_ICMP_TIME_EXCEEDED@)
+(define-inline-constant ICMP_PARAMETERPROB		@VALUEOF_ICMP_PARAMETERPROB@)
+(define-inline-constant ICMP_TIMESTAMP			@VALUEOF_ICMP_TIMESTAMP@)
+(define-inline-constant ICMP_TIMESTAMPREPLY		@VALUEOF_ICMP_TIMESTAMPREPLY@)
+(define-inline-constant ICMP_INFO_REQUEST		@VALUEOF_ICMP_INFO_REQUEST@)
+(define-inline-constant ICMP_INFO_REPLY			@VALUEOF_ICMP_INFO_REPLY@)
+(define-inline-constant ICMP_ADDRESS			@VALUEOF_ICMP_ADDRESS@)
+(define-inline-constant ICMP_ADDRESSREPLY		@VALUEOF_ICMP_ADDRESSREPLY@)
+(define-inline-constant NR_ICMP_TYPES			@VALUEOF_NR_ICMP_TYPES@)
+(define-inline-constant ICMP_NET_UNREACH		@VALUEOF_ICMP_NET_UNREACH@)
+(define-inline-constant ICMP_HOST_UNREACH		@VALUEOF_ICMP_HOST_UNREACH@)
+(define-inline-constant ICMP_PROT_UNREACH		@VALUEOF_ICMP_PROT_UNREACH@)
+(define-inline-constant ICMP_PORT_UNREACH		@VALUEOF_ICMP_PORT_UNREACH@)
+(define-inline-constant ICMP_FRAG_NEEDED		@VALUEOF_ICMP_FRAG_NEEDED@)
+(define-inline-constant ICMP_SR_FAILED			@VALUEOF_ICMP_SR_FAILED@)
+(define-inline-constant ICMP_NET_UNKNOWN		@VALUEOF_ICMP_NET_UNKNOWN@)
+(define-inline-constant ICMP_HOST_UNKNOWN		@VALUEOF_ICMP_HOST_UNKNOWN@)
+(define-inline-constant ICMP_HOST_ISOLATED		@VALUEOF_ICMP_HOST_ISOLATED@)
+(define-inline-constant ICMP_NET_ANO			@VALUEOF_ICMP_NET_ANO@)
+(define-inline-constant ICMP_HOST_ANO			@VALUEOF_ICMP_HOST_ANO@)
+(define-inline-constant ICMP_NET_UNR_TOS		@VALUEOF_ICMP_NET_UNR_TOS@)
+(define-inline-constant ICMP_HOST_UNR_TOS		@VALUEOF_ICMP_HOST_UNR_TOS@)
+(define-inline-constant ICMP_PKT_FILTERED		@VALUEOF_ICMP_PKT_FILTERED@)
+(define-inline-constant ICMP_PREC_VIOLATION		@VALUEOF_ICMP_PREC_VIOLATION@)
+(define-inline-constant ICMP_PREC_CUTOFF		@VALUEOF_ICMP_PREC_CUTOFF@)
+(define-inline-constant NR_ICMP_UNREACH			@VALUEOF_NR_ICMP_UNREACH@)
+(define-inline-constant ICMP_REDIR_NET			@VALUEOF_ICMP_REDIR_NET@)
+(define-inline-constant ICMP_REDIR_HOST			@VALUEOF_ICMP_REDIR_HOST@)
+(define-inline-constant ICMP_REDIR_NETTOS		@VALUEOF_ICMP_REDIR_NETTOS@)
+(define-inline-constant ICMP_REDIR_HOSTTOS		@VALUEOF_ICMP_REDIR_HOSTTOS@)
+(define-inline-constant ICMP_EXC_TTL			@VALUEOF_ICMP_EXC_TTL@)
+(define-inline-constant ICMP_EXC_FRAGTIME		@VALUEOF_ICMP_EXC_FRAGTIME@)
+(define-inline-constant ICMP_FILTER			@VALUEOF_ICMP_FILTER@)
+
+;;; Constants from "netinet/igmp.h"
+(define-inline-constant IGMP_MINLEN			@VALUEOF_IGMP_MINLEN@)
+(define-inline-constant IGMP_MEMBERSHIP_QUERY		@VALUEOF_IGMP_MEMBERSHIP_QUERY@)
+(define-inline-constant IGMP_V1_MEMBERSHIP_REPORT	@VALUEOF_IGMP_V1_MEMBERSHIP_REPORT@)
+(define-inline-constant IGMP_V2_MEMBERSHIP_REPORT	@VALUEOF_IGMP_V2_MEMBERSHIP_REPORT@)
+(define-inline-constant IGMP_V2_LEAVE_GROUP		@VALUEOF_IGMP_V2_LEAVE_GROUP@)
+(define-inline-constant IGMP_DVMRP			@VALUEOF_IGMP_DVMRP@)
+(define-inline-constant IGMP_PIM			@VALUEOF_IGMP_PIM@)
+(define-inline-constant IGMP_TRACE			@VALUEOF_IGMP_TRACE@)
+(define-inline-constant IGMP_MTRACE_RESP		@VALUEOF_IGMP_MTRACE_RESP@)
+(define-inline-constant IGMP_MTRACE			@VALUEOF_IGMP_MTRACE@)
+(define-inline-constant IGMP_MAX_HOST_REPORT_DELAY	@VALUEOF_IGMP_MAX_HOST_REPORT_DELAY@)
+(define-inline-constant IGMP_TIMER_SCALE		@VALUEOF_IGMP_TIMER_SCALE@)
+(define-inline-constant IGMP_DELAYING_MEMBER		@VALUEOF_IGMP_DELAYING_MEMBER@)
+(define-inline-constant IGMP_IDLE_MEMBER		@VALUEOF_IGMP_IDLE_MEMBER@)
+(define-inline-constant IGMP_LAZY_MEMBER		@VALUEOF_IGMP_LAZY_MEMBER@)
+(define-inline-constant IGMP_SLEEPING_MEMBER		@VALUEOF_IGMP_SLEEPING_MEMBER@)
+(define-inline-constant IGMP_AWAKENING_MEMBER		@VALUEOF_IGMP_AWAKENING_MEMBER@)
+(define-inline-constant IGMP_v1_ROUTER			@VALUEOF_IGMP_v1_ROUTER@)
+(define-inline-constant IGMP_v2_ROUTER			@VALUEOF_IGMP_v2_ROUTER@)
 
 
 ;;;; h_errno friendly interface

@@ -179,8 +179,10 @@ TESTS			=	\
 	test-vicare-library-utils.sps			\
 	test-vicare-lists.sps				\
 	test-vicare-log.sps				\
+	test-vicare-namespaces.sps			\
 	test-vicare-net-channels-binary.sps		\
 	test-vicare-net-channels-textual.sps		\
+	test-vicare-numerics-generic.sps		\
 	test-vicare-numerics-neg.sps			\
 	test-vicare-numerics-inv.sps			\
 	test-vicare-numerics-add.sps			\
@@ -226,10 +228,13 @@ TESTS			=	\
 	test-vicare-pointers.sps			\
 	test-vicare-promises.sps			\
 	test-vicare-time.sps				\
+	test-vicare-ratnums.sps				\
 	test-vicare-reader.sps				\
 	test-vicare-records-procedural.sps		\
 	test-vicare-records-syntactic.sps		\
 	test-vicare-round.sps				\
+	test-vicare-shared-memory.sps			\
+	test-vicare-sentinels.sps			\
 	test-vicare-simple-match.sps			\
 	test-vicare-string-to-number.sps		\
 	test-vicare-strings.sps				\
@@ -500,8 +505,10 @@ EXTRA_DIST = \
 	test-vicare-library-utils.sps			\
 	test-vicare-lists.sps				\
 	test-vicare-log.sps				\
+	test-vicare-namespaces.sps			\
 	test-vicare-net-channels-binary.sps		\
 	test-vicare-net-channels-textual.sps		\
+	test-vicare-numerics-generic.sps		\
 	test-vicare-numerics-neg.sps			\
 	test-vicare-numerics-inv.sps			\
 	test-vicare-numerics-add.sps			\
@@ -567,10 +574,12 @@ EXTRA_DIST = \
 	\
 	test-vicare-promises.sps			\
 	test-vicare-time.sps				\
+	test-vicare-ratnums.sps				\
 	test-vicare-reader.sps				\
 	test-vicare-records-procedural.sps		\
 	test-vicare-records-syntactic.sps		\
 	test-vicare-round.sps				\
+	test-vicare-sentinels.sps			\
 	test-vicare-shared-memory.sps			\
 	test-vicare-simple-match.sps			\
 	test-vicare-string-to-number.sps		\

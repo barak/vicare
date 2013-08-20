@@ -45,10 +45,18 @@ collection of R6 Scheme libraries:
 Notes for revision 0.3d1
 ------------------------
 
+* Miscellaneous error fixes.  A new demonic error revealed itself: issue
+  #49; the temporary  workaround is to turn off the  optimiser using the
+  command line option "-O0".
+
 * BACKWARDS    INCOMPATIBILITY   The    syntaxes   CASE-WORD-SIZE    and
   CASE-ENDIANNESS  are  now exported  by  the  library (vicare  platform
   words)  rather   than  by  the  library   (vicare  language-extensions
   syntaxes).
+
+* BACKWARDS INCOMPATIBILITY  The unsafe  accessors and mutators  of R6RS
+  records are generated  by default by DEFINE-RECORD-TYPE,  but they are
+  no more created when the command line option "--strict-r6rs" is used.
 
 * Added arguments validation clauses to (vicare arguments validation):
 
@@ -71,6 +79,90 @@ Notes for revision 0.3d1
 * The MATCH  syntax from  (vicare language-extensions  simple-match) now
   accepts a  SYNTAX pattern  which works  almost like  the pattern  of a
   SYNTAX-CASE use.
+
+* Fixed bug preventing loading of  libraries with version numbers in the
+  name.
+
+* The  syntax ENDIANNESS  now  accepts also  the  symbols "network"  and
+  "native"; the former  is automatically converted to  "big", the latter
+  to the return value of "(native-endianness)".
+
+* Added functions to (vicare):
+
+     NON-NEGATIVE?
+     NON-POSITIVE?
+
+  and unsafe operations to (vicare system $fx):
+
+     $fxnonpositive?
+     $fxnonnegative?
+
+  to (vicare system $flonums):
+
+     $flnonpositive?
+     $flnonnegative?
+
+  to (vicare system $ratnums):
+
+     $ratnum-positive?
+     $ratnum-negative?
+     $ratnum-non-positive?
+     $ratnum-non-negative?
+
+  to (vicare system bignums):
+
+     $bignum-non-positive?
+     $bignum-non-negative?
+
+* Added functions to (vicare):
+
+     string-or-symbol->string
+     string-or-symbol->symbol
+
+* Added constants definitions to library (vicare platform constants):
+
+  - from "/usr/include/netinet/in.h": IPPROTO_*, IPPORT_*
+  - from "/usr/include/netinet/tcp.h": *TCP*
+  - from "/usr/include/netinet/udp.h": *UDP*
+
+  and others related to networking.
+
+* Added the following bindings to (vicare posix):
+
+     sockaddr_in.in_addr.number
+     tcp-connect/binary
+
+* Added the following bindings to (vicare glibc):
+
+     IN_CLASSA				IN_CLASSB
+     IN_CLASSC				IN_CLASSD
+     IN_MULTICAST			IN_EXPERIMENTAL
+     IN_BADCLASS
+     IN6_IS_ADDR_UNSPECIFIED		IN6_IS_ADDR_LOOPBACK
+     IN6_IS_ADDR_LINKLOCAL		IN6_IS_ADDR_SITELOCAL
+     IN6_IS_ADDR_V4MAPPED		IN6_IS_ADDR_V4COMPAT
+     IN6_IS_ADDR_MULTICAST		IN6_IS_ADDR_MC_NODELOCAL
+     IN6_IS_ADDR_MC_LINKLOCAL		IN6_IS_ADDR_MC_SITELOCAL
+     IN6_IS_ADDR_MC_ORGLOCAL		IN6_IS_ADDR_MC_GLOBAL
+     IN6_ARE_ADDR_EQUAL
+     bindresvport			bindresvport6
+
+* Added Ethernet address manipulation routines to (vicare linux):
+
+    ether-ntoa                  ether-aton              ether-ntoa/string
+    ether-ntoa-r                ether-aton-r            ether-ntoa-r/string
+    ether-ntohost               ether-hostton           ether-ntohost/string
+    ether-line                  ether-line/string
+
+* Added library (vicare bytevectors).
+
+* Added library (vicare language-extensions sentinels).
+
+* Added library (vicare language-extensions namespaces).
+
+* Texinfo  files  representing  the  revised  R6RS  standard  have  been
+  imported   from  Nausicaa/Scheme   and   are  now   included  in   the
+  documentation.
 
 
 Notes for revision 0.3d0
