@@ -1,0 +1,714 @@
+@node srfi basic-socket
+@section @ansrfi{106} basic socket interface
+
+
+@cindex @ansrfi{106} basic socket interface
+@cindex @library{srfi :106}, library
+@cindex @library{srfi :106 socket}, library
+@cindex Library @library{srfi :106}
+@cindex Library @library{srfi :106 socket}
+
+
+The library @library{srfi :106} is by Takashi Kato as the reference
+implementation for @ansrfi{106}; see:
+
+@center @url{http://srfi.schemers.org/srfi-106/srfi-106.html}
+
+@noindent
+for more details.
+
+@menu
+* srfi basic-socket abstract::  Abstract.
+* srfi basic-socket rationale:: Rationale.
+* srfi basic-socket spec::      Specification.
+* srfi basic-socket examples::  Examples.
+* srfi basic-socket refs::      References.
+* srfi basic-socket copyright:: Copyright.
+@end menu
+
+@c page
+@node srfi basic-socket abstract
+@subsection Abstract
+
+
+This document specifies basic socket interfaces.
+
+@c page
+@node srfi basic-socket rationale
+@subsection Rationale
+
+
+Many Scheme implementations have their own socket @api{}s however there
+are no portable way to write socket programs.  Therefore programmers
+need to provide implementation dependent layers for their programs.
+
+This document specifies high and middle range of socket interfaces which
+are commonly used for socket programming.  It should make it easier to
+write portable programs that need to send or receive data from their
+socket.
+
+@c page
+@node srfi basic-socket spec
+@subsection Specification
+
+
+@menu
+* srfi basic-socket spec intro::        Introduction.
+* srfi basic-socket spec cons::         Constructors and predicates.
+* srfi basic-socket spec ops::          Socket operations.
+* srfi basic-socket spec port::         Port conversion.
+* srfi basic-socket spec control::      Control features.
+* srfi basic-socket spec flag::         Flag operations.
+* srfi basic-socket spec const::        Constants.
+@end menu
+
+@c page
+@node srfi basic-socket spec intro
+@subsubsection Introduction
+
+
+All procedures defined in this @srfi{} may raise an error when the
+procedure fails because of a connection problem or other socket related
+problems.  This document does not specify which condition should be
+raised.
+
+Names defined in this document:
+
+@table @strong
+@item Constructors and predicates
+@example
+make-client-socket              make-server-socket
+socket?
+@end example
+
+@item Socket operations
+@example
+socket-accept
+socket-send                     socket-recv
+socket-shutdown                 socket-close
+@end example
+
+@item Port conversion
+@example
+socket-input-port
+socket-output-port
+@end example
+
+@item Control feature
+@example
+call-with-socket
+@end example
+
+@item Flag operations
+@example
+address-family                  address-info
+socket-domain                   ip-protocol
+message-type                    shutdown-method
+socket-merge-flags              socket-purge-flags
+@end example
+
+@item Constant values
+@example
+*af-unspec*             *af-inet*               *af-inet6*
+*sock-stream            *sock-dgram*
+*ai-canonname*          *ai-numerichost*
+*ai-v4mapped*           *ai-all*                *ai-addrconfig*
+*ipproto-ip*            *ipproto-tcp*           *ipproto-udp*
+*msg-peek*              *msg-oob*               *msg-waitall*
+*shut-rd*               *shut-wr*               *shut-rdwr*
+@end example
+@end table
+
+The procedure description uses following notation:
+
+@table @var
+@item socket
+A socket object.
+
+@item bv
+A bytevector.
+
+@item obj
+Any value.
+@end table
+
+@c page
+@node srfi basic-socket spec cons
+@subsubsection Constructors and predicates
+
+
+The following bindings are exported by the libraries @library{srfi :106}
+and @library{srfi :106 socket}.
+
+
+@defun make-client-socket @var{node} @var{service}
+@defunx make-client-socket @var{node} @var{service} @var{ai-family}
+@defunx make-client-socket @var{node} @var{service} @var{ai-family} @var{ai-socktype}
+@defunx make-client-socket @var{node} @var{service} @var{ai-family} @var{ai-socktype} @var{ai-flags}
+@defunx make-client-socket @var{node} @var{service} @var{ai-family} @var{ai-socktype} @var{ai-flags} @var{ai-protocol}
+Return a client socket connected to an Internet address.
+
+The Internet address is identified by @var{node} and @var{service}.
+@var{node} and @var{service} must be strings.  Example values for
+@var{node}: @samp{"localhost"}, @samp{127.0.0.1}.  Example values for
+@var{service}: @samp{"http"}, @samp{"80"}.
+
+The optional arguments may specify the created socket's behaviour.  If
+the optional arguments are omitted, then the following value should be
+used as default:
+
+@table @var
+@item ai-family
+Defaults to: @code{*af-inet*}.
+
+@item ai-socktype
+Defaults to: @code{*sock-stream*}.
+
+@item ai-flags
+Defaults to: @code{(socket-merge-flags *ai-v4mapped* *ai-addrconfig*)}.
+
+@item ai-protocol
+Defaults to: @code{*ipproto-ip*}.
+@end table
+
+The returned socket may not be closed automatically so it is the users'
+responsibility to close it explicitly.
+@end defun
+
+
+@defun make-server-socket @var{service}
+@defunx make-server-socket @var{service} @var{ai-family}
+@defunx make-server-socket @var{service} @var{ai-family} @var{ai-socktype}
+@defunx make-server-socket @var{service} @var{ai-family} @var{ai-socktype} @var{ai-protocol}
+Return a server socket waiting for connection.
+
+The @var{node} argument is the same as the one of
+@func{make-client-socket}.  The optional arguments may specify the
+created socket's behaviour.  If the optional arguments are omitted, then
+the following value should be used as default:
+
+@table @var
+@item ai-family
+Defaults to: @code{*af-inet*}.
+
+@item @var{ai-socktype}
+Defaults to: @code{*sock-stream*}.
+
+@item @var{ai-protocol}
+Defaults to: @code{*ipproto-ip*}.
+@end table
+
+The returned socket may not be closed automatically so it is the users'
+responsibility to close it explicitly.
+@end defun
+
+
+@defun socket? @var{obj}
+Return @true{} if @var{obj} is a socket object, @false{} otherwise.
+@end defun
+
+@c page
+@node srfi basic-socket spec ops
+@subsubsection Socket operations
+
+
+The following bindings are exported by the libraries @library{srfi :106}
+and @library{srfi :106 socket}.
+
+
+@defun socket-accept @var{socket}
+Wait for an incoming connection request, and return a fresh connected
+client socket.
+@end defun
+
+
+@defun socket-send @var{socket} @var{bv}
+@defunx socket-send @var{socket} @var{bv} @var{flags}
+Send a binary data block to a socket and return the sent data size.
+
+@var{flags} may specify the procedure's behaviour.  If @var{flags} is
+omitted: the default value must be the result of evaluating the form:
+
+@example
+(message-type none)
+@end example
+@end defun
+
+
+@defun socket-recv @var{socket} @var{size}
+@defunx socket-recv @var{socket} @var{size} @var{flags}
+Receive a binary data block from a socket.  If a zero--length bytevector
+is returned: it means the peer connection is closed.
+
+@var{flags} may specify the procedure's behaviour.  If @var{flags} is
+omitted, the default value must be the result of evaluating the form:
+
+@example
+(message-type none)
+@end example
+@end defun
+
+
+@defun socket-shutdown @var{socket} @var{how}
+Shutdown a socket.  @var{how} must be one of the following constants:
+@code{*shut-rd*}, @code{*shut-wr*}, @code{*shut-rdwr*}.
+@end defun
+
+
+@defun socket-close @var{socket}
+Close a socket.  The procedure should not shutdown the given socket: to
+shutdown a socket @func{socket-shutdown} should be called explicitly.
+@end defun
+
+@c page
+@node srfi basic-socket spec port
+@subsubsection Port conversion
+
+
+The following bindings are exported by the libraries @library{srfi :106}
+and @library{srfi :106 socket}.
+
+
+@defun socket-input-port @var{socket}
+@defunx socket-output-port @var{socket}
+Return a fresh binary input or output port associated with a
+@var{socket}, respectively.  Whenever the returned port is closed: the
+associated socket must @strong{not} be closed along.
+
+@quotation
+@strong{For Vicare:} it is fine to use @func{transcoded-port} from
+@rsixlibrary{io ports} to put a textual port on top of the returned
+binary ports.  Example:
+
+@example
+(import (vicare)
+  (prefix (srfi :106) srfi.))
+
+(with-compensations
+  (define socket
+    (compensate
+        (srfi.make-client-socket "reddit.com" "http")
+      (with
+       (srfi.socket-shutdown socket
+         (srfi.shutdown-method read write))
+       (srfi.socket-close socket))))
+
+  (define in-port
+    (compensate
+        (transcoded-port (srfi.socket-input-port socket)
+                         (native-transcoder))
+      (with
+       (close-port in-port))))
+
+  (define ou-port
+    (compensate
+        (transcoded-port (srfi.socket-output-port socket)
+                         (native-transcoder))
+      (with
+       (close-port ou-port))))
+
+  ---)
+@end example
+
+It is also fine to use the returned ports as @var{port} argument to the
+functions @func{select-port}, @func{select-port-readable?},
+@func{select-port-writable?}, @func{select-port-exceptional?}.
+@end quotation
+@end defun
+
+@c page
+@node srfi basic-socket spec control
+@subsubsection Control features
+
+
+The following bindings are exported by the libraries @library{srfi :106}
+and @library{srfi :106 socket}.
+
+
+@defun call-with-socket @var{socket} @var{proc}
+Call a given procedure with a given socket as an argument.  If
+@var{proc} returns: @func{call-with-socket} returns the result of
+@var{proc} and @var{socket} is automatically closed.  If @var{proc} does
+not return: then @var{socket} is not closed automatically.
+@end defun
+
+@c page
+@node srfi basic-socket spec flag
+@subsubsection Flag operations
+
+
+The following bindings must be implemented as macros:
+@code{address-family}, @code{address-info}, @code{socket-domain},
+@code{ip-protocol}, @code{message-type} and @code{shutdown-method}.
+
+The following bindings are exported by the libraries @library{srfi :106}
+and @library{srfi :106 socket}.
+
+
+@deffn Syntax address-family @meta{name}
+Return a proper address family from the given @meta{name}.
+Implementations must support at least following names and must have the
+described behaviour.
+
+@table @code
+@item inet
+Returns @code{*af-inet*}.
+
+@item inet6
+Returns @code{*af-inet6*}.
+
+@item unspec
+Returns @code{*af-unspec*}.
+@end table
+
+Implementations may support more names such as @code{unix} or
+@code{local} or other names.
+@end deffn
+
+
+@deffn Syntax address-info @meta{name} @dots{}
+Return merged address info flags from given @meta{name}.
+Implementations must support at least following names and must have the
+described behaviour.
+
+@table @code
+@item canoname
+@itemx canonname
+Returns @code{*ai-canonname*}.
+
+@item numerichost
+Returns @code{*ai-numerichost*}.
+
+@item v4mapped
+Returns @code{*ai-v4mapped*}.
+
+@item all
+Returns @code{*ai-all*}.
+
+@item addrconfig
+Returns @code{*ai-addrconfig*}.
+@end table
+
+Implementations may support more names.
+@end deffn
+
+
+@deffn Syntax socket-domain @meta{name}
+Return socket domain flags from the given @meta{name}.  Implementations
+must support at least following names and must have the described
+behaviour.
+
+@table @code
+@item stream
+Returns @code{*sock-stream*}.
+
+@item datagram
+Returns @code{*sock-dgram*}.
+@end table
+
+Implementations may support more names.
+@end deffn
+
+
+@deffn Syntax ip-protocol @meta{name}
+Return ip-protocol flag from given @meta{name}.  Implementations must
+support at least following names and must have the described behaviour.
+
+@table @code
+@item ip
+Returns @code{*ipproto-ip*}.
+
+@item tcp
+Returns @code{*ipproto-tcp*}.
+
+@item udp
+Returns @code{*ipproto-udp*}.
+@end table
+
+Implementations may support more names.
+@end deffn
+
+
+@deffn Syntax message-type @meta{name} @dots{}
+Return message type flag from given @var{name}.  The flag can be used
+both by @func{socket-recv} and @func{socket-send}.  Implementations must
+support at least following names and must have the described behaviour.
+
+@table @code
+@item none
+Returns no flag.
+
+@item peek
+Returns @code{*msg-peek*}.
+
+@item oob
+Returns @code{*msg-oob*}.
+
+@item wait-all
+Returns @code{*msg-waitall*}.
+@end table
+
+Implementations may support more names.
+@end deffn
+
+
+@deffn Syntax shutdown-method @meta{name} @dots{}
+Return shutdown method flags from given @meta{names}.  Implementations
+must support at least following names and must have the described
+behaviour.
+
+@table @code
+@item read
+Returns @code{*shut-rd*}.
+
+@item write
+Returns @code{*shut-wr*}.
+@end table
+
+If @func{shutdown-method} is given both @code{read} and @code{write},
+then it must return @code{*shut-rdwr*}.
+@end deffn
+
+
+@deffn Syntax socket-merge-flags @meta{flags} @dots{}
+Merge given @meta{flags} and returns a new flag.
+@end deffn
+
+
+@deffn Syntax socket-purge-flags @meta{base-flag} @meta{flag} @dots{}
+Remove @meta{flag} from @meta{base-flag} if it exists and return a new
+flag.
+@end deffn
+
+@c page
+@node srfi basic-socket spec const
+@subsubsection Constants
+
+
+Implementations must support following constant variables.  All constant
+variable must be consistent with @posix{}'s[1] definition.  The
+following bindings are exported by the libraries @library{srfi :106} and
+@library{srfi :106 socket}.
+
+@c ------------------------------------------------------------
+
+@subsubheading Address family
+
+@table @code
+@item *af-inet*
+Internet domain sockets for use with IPv4 addresses.  This must behave
+the same as @posix{}'s @code{AF_INET}.
+
+@item *af-inet6*
+Internet domain sockets for use with IPv6 addresses.  This must behave
+the same as @posix{}'s @code{AF_INET6}.
+
+@item *af-unspec*
+Unspecified.  This must behave the same as @posix{}'s @code{AF_UNSPEC}.
+@end table
+
+@c ------------------------------------------------------------
+
+@subsubheading Socket domain
+
+@table @code
+@item *sock-stream*
+Byte--stream socket.  This must behave the same as @posix{}'s
+@code{SOCK_STREAM}.
+
+@item *sock-dgram*
+Datagram socket.  This must behave the same as @posix{}'s
+@code{SOCK_DGRAM}.
+@end table
+
+@c ------------------------------------------------------------
+
+@subsubheading Address info
+
+@table @code
+@item *ai-canonname*
+This must behave the same as @posix{}'s @code{AI_CANONNAME}.
+
+@item *ai-numerichost*
+This must behave the same as @posix{}'s @code{AI_NUMERICHOST}.
+
+@item *ai-v4mapped*
+This must behave the same as @posix{}'s @code{AI_V4MAPPED}.
+
+@item *ai-all*
+This must behave the same as @posix{}'s @code{AI_ALL}.
+
+@item *ai-addrconfig*
+This must behave the same as @posix{}'s @code{AI_ADDRCONFIG}.
+@end table
+
+@c ------------------------------------------------------------
+
+@subsubheading IP protocol
+
+@table @code
+@item *ipproto-ip*
+Internet protocol.  This must behave the same as @posix{}'s
+@code{IPPROTO_IP}.
+
+@item *ipproto-tcp*
+Transmission control protocol.  This must behave the same as @posix{}'s
+@code{IPPROTO_TCP}.
+
+@item *ipproto-udp*
+User datagram protocol.  This must behave the same as @posix{}'s
+@code{IPPROTO_UDP}.
+@end table
+
+@c ------------------------------------------------------------
+
+@subsubheading Message type
+
+@table @code
+@item *msg-peek*
+For @code{socket-recv}.  Peeks at an incoming message.  The data is
+treated as unread and the next @code{socket-recv} shall still return
+this data.  This must behave the same as @posix{}'s @code{MSG_PEEK}.
+
+@item *msg-oob*
+For both @code{socket-recv} and @code{socket-send}.  Requests/sends
+out--of--band data.  This must behave the same as @posix{}'s
+@code{MSG_OOB}.
+
+@item *msg-waitall*
+For @code{socket-recv}.  On sockets created with @code{*sock-stream*}
+flag, this requests the procedure block until the full amount of data
+ban be returned.  This must behave the same as @posix{}'s
+@code{MSG_WAITALL}.
+@end table
+
+@c ------------------------------------------------------------
+
+@subsubheading Shutdown method
+
+@table @code
+@item *shut-rd*
+Disables further receive operation.  This must behave the same as
+@posix{}'s @code{SHUT_RD}.
+
+@item *shut-wr*
+Disables further send operations.  This must behave the same as
+@posix{}'s @code{SHUT_WR}.
+
+@item *shut-rdwr*
+Disables further send and receive operations.  This must behave the same
+as @posix{}'s @code{SHUT_RDWR}.
+@end table
+
+@c page
+@node srfi basic-socket examples
+@subsection Examples
+
+
+Simple echo server:
+
+@example
+(import (vicare)
+  (prefix (srfi :106 socket)
+          srfi.))
+
+(define (server-run master-socket)
+  ;;Handle the first pending connection.  If an
+  ;;exception is raised ignore it.
+  (guard (E (else
+             (debug-print (condition-message E))))
+    (srfi.call-with-socket
+        (srfi.socket-accept master-socket)
+      (lambda (server-socket)
+        (with-compensations
+          (define in
+            (compensate
+                (transcoded-port
+                 (srfi.socket-input-port  server-socket)
+                 (native-transcoder))
+              (with
+               (close-port in))))
+          (define ou
+            (compensate
+                (transcoded-port
+                 (srfi.socket-output-port server-socket)
+                 (native-transcoder))
+              (with
+               (close-port ou))))
+          (push-compensation
+           (srfi.socket-shutdown server-socket)
+           (srfi.socket-close    server-socket))
+          (let loop ((line (read-line in)))
+            (unless (eof-object? line)
+              (put-string ou (string-append line "\r\n"))
+              (flush-output-port ou)
+              (loop (read-line in))))))))
+  ;;Handle next pending connection.
+  (server-run master-socket))
+
+(define echo-master-socket
+  (srfi.make-server-socket "8080"))
+
+(server-run echo-master-socket)
+@end example
+
+Simple echo client:
+
+@example
+(import (rnrs)
+  (prefix (srfi :106 socket)
+          srfi.))
+
+(define client-socket
+  (srfi.make-client-socket "localhost" "8080"
+    (srfi.address-family inet)
+    (srfi.socket-domain stream)
+    (srfi.address-info v4mapped addrconfig)
+    (srfi.ip-protocol ip)))
+
+(srfi.socket-send client-socket (string->utf8 "hello\r\n"))
+(display (utf8->string
+          (srfi.socket-recv client-socket
+                            (string-length "hello\r\n"))))
+(flush-output-port (current-output-port))
+(srfi.socket-shutdown client-socket
+                      (srfi.shutdown-method read write))
+(srfi.socket-close client-socket)
+@end example
+
+@c page
+@node srfi basic-socket refs
+@subsection References
+
+
+[1] The Open Group Base Specifications Issue 7:
+
+@center @url{http://pubs.opengroup.org/onlinepubs/9699919799/nframe.html}
+
+@c page
+@node srfi basic-socket copyright
+@subsection Copyright
+
+
+Copyright @copyright{} Takashi Kato (2012) @email{ktakashi@@ymail.com}.@*
+All Rights Reserved.
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the
+``Software''), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be included
+in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED ``AS IS'', WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
