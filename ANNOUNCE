@@ -1,4 +1,4 @@
-Subject: [announce] Vicare Scheme revision 0.3d2
+Subject: [announce] Vicare Scheme revision 0.3d3
 
                              Vicare Scheme
                              =============
@@ -40,6 +40,96 @@ this project has a mailing list:
 collection of R6 Scheme libraries:
 
 	      <http://marcomaggi.github.com/nausicaa.html>
+
+
+Notes for revision 0.3d3
+------------------------
+
+* Added to (vicare) functions to inspect configuration time options:
+
+    vicare-built-with-srfi-enabled
+    vicare-built-with-ffi-enabled
+    vicare-built-with-iconv-enabled
+    vicare-built-with-posix-enabled
+    vicare-built-with-glibc-enabled
+    vicare-built-with-linux-enabled
+
+  and to (srfi :0) the associated COND-EXPAND clauses:
+
+    srfi-enabled
+    ffi-enabled
+    iconv-enabled
+    posix-enabled
+    glibc-enabled
+    linux-enabled
+
+* Added  utility functions  for macro  authoring, see  the documentation
+  node "iklib expander utils".
+
+* Added miscellaneous functions to (vicare):
+
+     char-in-ascii-range?
+     fixnum-in-character-range?
+
+* Fixed (vicare language-extensions infix) exporting its own binding for
+  XOR; it now reexports the binding from (vicare).
+
+* Added libraries:
+
+    (srfi :111)
+    (srfi :111 boxes)
+
+* SRFI 106:  added function  SOCKET-DESCRIPTOR; added  garbage collector
+  destructor to the socket object.
+
+* BACKWARDS INCOMPATIBILITY  The library  (vicare bytevectors)  has been
+  renamed to (vicare containers bytevectors).
+
+* Fixed error in weak hashtables not handling correctly already interned
+  keys.
+
+* Imported IrRegex from Nausicaa as (vicare irregex).
+
+* Imported Pregexp from Nausicaa as (vicare pregexp).
+
+* Imported    variables    library     from    Nausicaa    as    (vicare
+  language-extensions variables).
+
+* Imported lists library from Nausicaa as (vicare containers lists).
+
+* Imported vectors library from Nausicaa as (vicare containers vectors).
+
+* Imported strings library from Nausicaa as (vicare containers strings).
+
+* Imported  char-sets  library  from   Nausicaa  as  (vicare  containers
+  char-sets).
+
+* Imported   KMP   library   from   Nausicaa   as   (vicare   containers
+  knuth-morris-pratt).
+
+* Imported  Levenshtein  Distance  library   from  Nausicaa  as  (vicare
+  containers levenshtein).
+
+* Imported streams library from  Nausicaa as (vicare language-extensions
+  streams).
+
+* Imported loops  library from  Nausicaa as  (vicare language-extensions
+  loops).
+
+* Imported   ASCII    chars   library    from   Nausicaa    as   (vicare
+  language-extensions ascii-chars).
+
+* Imported    comparisons    library    from   Nausicaa    as    (vicare
+  language-extensions comparisons).
+
+* Imported  randomisations libraries  from  Nausicaa  as (vicare  crypto
+  randomisations ---).
+
+* Imported object-properties library from Nausicaa as (vicare containers
+  object-properties).
+
+* Imported hooks  library from  Nausicaa as  (vicare language-extensions
+  hooks).
 
 
 Notes for revision 0.3d2

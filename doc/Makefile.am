@@ -30,6 +30,21 @@ vicare_scheme_TEXINFOS	= \
 	machinery.texi			\
 	compiler.texi			\
 	\
+	knuth-morris-pratt.texi		\
+	lists.texi			\
+	vectors.texi			\
+	strings.texi			\
+	char-sets.texi			\
+	levenshtein.texi		\
+	streams.texi			\
+	loops.texi			\
+	comparisons.texi		\
+	randomisations.texi		\
+	object-properties.texi		\
+	\
+	irregex.texi			\
+	pregexp.texi			\
+	\
 	missing.texi			\
 	building.texi			\
 	credits.texi			\
@@ -46,6 +61,7 @@ vicare_scheme_TEXINFOS	= \
 	srfi-args-fold.texi			\
 	srfi-basic-format.texi			\
 	srfi-basic-socket-interface.texi	\
+	srfi-boxes.texi				\
 	srfi-case-lambda.texi			\
 	srfi-char-sets.texi			\
 	srfi-compare-procedures.texi		\

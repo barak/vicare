@@ -22,6 +22,7 @@ nobase_dist_libvicare_DATA	= \
 	vicare/language-extensions/cond-expand/feature-cond.sls		\
 	vicare/language-extensions/cond-expand/helpers.sls		\
 	vicare/language-extensions/cond-expand/platform-features.sls	\
+	vicare/language-extensions/cond-expand/configuration-features.sls \
 	vicare/language-extensions/cond-expand/registry.sls		\
 	\
 	vicare/arguments/general-c-buffers.sls				\
@@ -36,23 +37,60 @@ nobase_dist_libvicare_DATA	= \
 	vicare/language-extensions/custom-ports.sls			\
 	vicare/language-extensions/sentinels.sls			\
 	vicare/language-extensions/namespaces.sls			\
+	vicare/language-extensions/variables.sls			\
+	vicare/language-extensions/streams.sls				\
+	vicare/language-extensions/loops.sls				\
+	vicare/language-extensions/ascii-chars.sls			\
+	vicare/language-extensions/comparisons.sls			\
+	vicare/language-extensions/hooks.sls				\
+	\
+	vicare/crypto/randomisations/low.sls				\
+	vicare/crypto/randomisations.sls				\
+	vicare/crypto/randomisations/blum-blum-shub.sls			\
+	vicare/crypto/randomisations/borosh.sls				\
+	vicare/crypto/randomisations/cmrg.sls				\
+	vicare/crypto/randomisations/distributions.sls			\
+	vicare/crypto/randomisations/lists.sls				\
+	vicare/crypto/randomisations/marsaglia.sls			\
+	vicare/crypto/randomisations/mersenne.sls			\
+	vicare/crypto/randomisations/strings.sls			\
+	vicare/crypto/randomisations/vectors.sls			\
 	\
 	vicare/numerics/constants.sls					\
 	vicare/numerics/flonum-formatter.sls				\
 	vicare/numerics/flonum-parser.sls				\
 	\
+	vicare/containers/auxiliary-syntaxes.sls			\
+	vicare/containers/bytevectors.sls				\
 	vicare/containers/bytevector-compounds.sls			\
 	vicare/containers/bytevector-compounds/core.sls			\
 	vicare/containers/bytevector-compounds/unsafe.sls		\
 	vicare/containers/weak-hashtables.sls				\
+	vicare/containers/object-properties.sls				\
+	vicare/containers/lists/stx.sls					\
+	vicare/containers/lists/low.sls					\
+	vicare/containers/lists.sls					\
+	vicare/containers/vectors/low.sls				\
+	vicare/containers/vectors.sls					\
+	vicare/containers/strings/low.sls				\
+	vicare/containers/strings.sls					\
+	vicare/containers/strings/rabin-karp.sls			\
+	vicare/containers/knuth-morris-pratt.sls			\
+	vicare/containers/char-sets.sls					\
+	vicare/containers/char-sets/blocks.sls				\
+	vicare/containers/char-sets/categories.sls			\
+	vicare/containers/levenshtein.sls				\
 	\
 	vicare/assembler/inspection.sls					\
 	vicare/checks.sls						\
 	vicare/debugging/compiler.sls					\
 	vicare/parser-logic.sls						\
-	vicare/bytevectors.sls						\
 	\
-	vicare/net/channels.sls
+	vicare/net/channels.sls						\
+	\
+	vicare/irregex.sls						\
+	vicare/irregex/compat.vicare.sls				\
+	vicare/pregexp.sls
 
 nobase_nodist_libvicare_DATA	= \
 	vicare/platform/configuration.sls	\
@@ -172,7 +210,11 @@ nobase_dist_libvicare_DATA	+= \
 	srfi/%3a101/random-access-lists.sls		\
 	srfi/%3a101/random-access-lists/procedures.sls	\
 	srfi/%3a101/random-access-lists/syntax.sls	\
-	srfi/%3a101/random-access-lists/equal.sls
+	srfi/%3a101/random-access-lists/equal.sls	\
+	\
+	srfi/%3a111.sls					\
+	srfi/%3a111/boxes.sls
+
 dist_pkglibexec_SCRIPTS		+= compile-srfi.sps
 endif
 

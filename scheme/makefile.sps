@@ -311,6 +311,7 @@
     "ikarus.command-line.sls"
 ;;; "ikarus.trace.sls"
     "ikarus.debugger.sls"
+    "ikarus.syntax-utilities.sls"
     "ikarus.main.sls"
     ))
 
@@ -351,6 +352,7 @@
     (with-syntax			(macro . with-syntax))
     (identifier-syntax			(macro . identifier-syntax))
     (parameterize			(macro . parameterize))
+    (parameterise			(macro . parameterize))
     (parametrise			(macro . parameterize))
     (when				(macro . when))
     (unless				(macro . unless))
@@ -409,6 +411,7 @@
     (begin0				(macro . begin0))
     (xor				(macro . xor))
     (unwind-protect			(macro . unwind-protect))
+    (with-implicits			(macro . with-implicits))
     (include				(macro . include))
 ;;;
     (return				($fluid . return))
@@ -620,6 +623,7 @@
     (foreign-call				i v $language)
     (type-descriptor				i v $language)
     (parameterize				i v $language parameters)
+    (parameterise				i v $language parameters)
     (parametrise				i v $language parameters)
     (define-struct				i v $language)
     (stale-when					i v $language)
@@ -1185,6 +1189,9 @@
     (append					i v r ba se)
     (apply					i v r ba se)
     (assert					i v r ba)
+    ;;FIXME SYNTAX-ERROR  is to be removed  from the export list  at the
+    ;;next boot image rotation.  (Marco Maggi; Sat Aug 31, 2013)
+    (syntax-error				i v $language)
     (assertion-error) ;empty?!?
     (assertion-violation			i v r ba)
     (boolean=?					i v r ba)
@@ -1223,6 +1230,7 @@
     (call/cc					i v r ba)
     (call-with-values				i v r ba se)
     (ceiling					i v r ba se)
+;;
     (char->integer				i v r ba se)
     (char<=?					i v r ba se)
     (char<?					i v r ba se)
@@ -1230,6 +1238,9 @@
     (char>=?					i v r ba se)
     (char>?					i v r ba se)
     (char?					i v r ba se)
+    (char-in-ascii-range?			i v $language)
+    (fixnum-in-character-range?			i v $language)
+;;
     (complex?					i v r ba se)
     (cons					i v r ba se)
     (cos					i v r ba se)
@@ -2076,7 +2087,6 @@
     (module					i v $language cm)
     (library					i v $language)
     (syntax-dispatch				)
-    (syntax-error				i v $language)
     ($transcoder->data				$transc $vicare-transc)
     ($data->transcoder				$transc $vicare-transc)
     (make-file-options				i v $language)
@@ -2094,6 +2104,7 @@
     (begin0					i v $language)
     (xor					i v $language)
     (unwind-protect				i v $language)
+    (with-implicits				i v $language)
     (include					i v $language)
 ;;;
     (return					i v $language)
@@ -2219,6 +2230,16 @@
     (&interrupted-rcd)
     (&source-rtd)
     (&source-rcd)
+
+;;; --------------------------------------------------------------------
+;;; configuration options
+
+    (vicare-built-with-ffi-enabled		i v $language)
+    (vicare-built-with-iconv-enabled		i v $language)
+    (vicare-built-with-posix-enabled		i v $language)
+    (vicare-built-with-glibc-enabled		i v $language)
+    (vicare-built-with-linux-enabled		i v $language)
+    (vicare-built-with-srfi-enabled		i v $language)
 
 ;;; --------------------------------------------------------------------
 ;;; POSIX functions
@@ -2476,6 +2497,64 @@
     (keyword?					i v $language)
     (keyword=?					i v $language)
     (keyword-hash				i v $language)
+
+;;; --------------------------------------------------------------------
+;;; syntax utilities
+
+    (identifier->string				i v $language)
+    (string->identifier				i v $language)
+    (identifier-prefix				i v $language)
+    (identifier-suffix				i v $language)
+    (identifier-append				i v $language)
+    (identifier-format				i v $language)
+    (duplicate-identifiers?			i v $language)
+    (delete-duplicate-identifiers		i v $language)
+    (identifier-memq				i v $language)
+
+    (identifier-record-constructor		i v $language)
+    (identifier-record-predicate		i v $language)
+    (identifier-record-field-accessor		i v $language)
+    (identifier-record-field-mutator		i v $language)
+
+    (identifier-struct-constructor		i v $language)
+    (identifier-struct-predicate		i v $language)
+    (identifier-struct-field-accessor		i v $language)
+    (identifier-struct-field-mutator		i v $language)
+
+    (syntax-car					i v $language)
+    (syntax-cdr					i v $language)
+    (syntax->list				i v $language)
+    (identifiers->list				i v $language)
+    (all-identifiers?				i v $language)
+
+    (syntax->vector				i v $language)
+    (syntax-unwrap				i v $language)
+    (syntax=?					i v $language)
+    #;(quoted-syntax-object?			i v $language)
+
+    (syntax-clauses-unwrap			i v $language)
+    (syntax-clauses-filter			i v $language)
+    (syntax-clauses-remove			i v $language)
+    (syntax-clauses-partition			i v $language)
+    (syntax-clauses-collapse			i v $language)
+    (syntax-clauses-verify-at-least-once	i v $language)
+    (syntax-clauses-verify-at-most-once		i v $language)
+    (syntax-clauses-verify-exactly-once		i v $language)
+    (syntax-clauses-verify-mutually-inclusive	i v $language)
+    (syntax-clauses-verify-mutually-exclusive	i v $language)
+
+    ;; clause specification structs
+    (make-syntax-clause-spec			i v $language)
+    (syntax-clause-spec?			i v $language)
+    (syntax-clause-spec-keyword			i v $language)
+    (syntax-clause-spec-min-number-of-occurrences i v $language)
+    (syntax-clause-spec-max-number-of-occurrences i v $language)
+    (syntax-clause-spec-min-number-of-arguments	i v $language)
+    (syntax-clause-spec-max-number-of-arguments	i v $language)
+    (syntax-clause-spec-mutually-inclusive	i v $language)
+    (syntax-clause-spec-mutually-exclusive	i v $language)
+    (syntax-clauses-single-spec			i v $language)
+    (syntax-clauses-fold-specs			i v $language)
 
 ;;; --------------------------------------------------------------------
 ;;; library names

@@ -52,6 +52,24 @@
   (only (vicare language-extensions sentinels))
   (only (vicare language-extensions namespaces))
   (only (vicare language-extensions custom-ports))
+  (only (vicare language-extensions variables))
+  (only (vicare language-extensions streams))
+  (only (vicare language-extensions loops))
+  (only (vicare language-extensions ascii-chars))
+  (only (vicare language-extensions comparisons))
+  (only (vicare language-extensions hooks))
+
+  (only (vicare crypto randomisations low))
+  (only (vicare crypto randomisations))
+  (only (vicare crypto randomisations blum-blum-shub))
+  (only (vicare crypto randomisations borosh))
+  (only (vicare crypto randomisations cmrg))
+  (only (vicare crypto randomisations distributions))
+  (only (vicare crypto randomisations lists))
+  (only (vicare crypto randomisations marsaglia))
+  (only (vicare crypto randomisations mersenne))
+  (only (vicare crypto randomisations strings))
+  (only (vicare crypto randomisations vectors))
 
   (only (vicare numerics constants))
   (only (vicare numerics flonum-parser))
@@ -59,17 +77,36 @@
 
   (only (vicare checks))
 
-  (only (vicare bytevectors))
-
+  (only (vicare containers bytevectors))
+  (only (vicare containers auxiliary-syntaxes))
   (only (vicare containers weak-hashtables))
+  (only (vicare containers object-properties))
+  (only (vicare containers knuth-morris-pratt))
   (only (vicare containers bytevector-compounds core))
   (only (vicare containers bytevector-compounds))
   (only (vicare containers bytevector-compounds unsafe))
+  (only (vicare containers char-sets))
+  (only (vicare containers char-sets blocks))
+  (only (vicare containers char-sets categories))
+  (only (vicare containers lists stx))
+  (only (vicare containers lists low))
+  (only (vicare containers lists))
+  (only (vicare containers vectors low))
+  (only (vicare containers vectors))
+  (only (vicare containers strings low))
+  (only (vicare containers strings))
+  (only (vicare containers strings rabin-karp))
+  (only (vicare containers levenshtein))
 
   (only (vicare net channels))
 
   (only (vicare assembler inspection))
   (only (vicare debugging compiler))
+
+
+  (only (vicare irregex))
+  (only (vicare pregexp))
+
   )
 
 ;;; end of file

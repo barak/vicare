@@ -51,11 +51,13 @@ VICARE_SCHEME_CORE_TESTS	= \
 	\
 	test-vicare-amb.sps				\
 	test-vicare-arguments-validation.sps		\
+	test-vicare-ascii-chars.sps			\
 	test-vicare-bignums.sps				\
 	test-vicare-bytevectors.sps			\
 	test-vicare-bytevector-compounds.sps		\
 	test-vicare-chars.sps				\
 	test-vicare-collect.sps				\
+	test-vicare-comparisons.sps			\
 	test-vicare-compensations.sps			\
 	test-vicare-cond-expand.sps			\
 	test-vicare-coroutines.sps			\
@@ -71,6 +73,7 @@ VICARE_SCHEME_CORE_TESTS	= \
 	test-vicare-flonum-formatter.sps		\
 	test-vicare-flonum-parser.sps			\
 	test-vicare-general-c-buffers.sps		\
+	test-vicare-hooks.sps				\
 	test-vicare-keywords.sps			\
 	test-vicare-infix.sps				\
 	test-vicare-io.sps				\
@@ -79,6 +82,7 @@ VICARE_SCHEME_CORE_TESTS	= \
 	test-vicare-library-utils.sps			\
 	test-vicare-lists.sps				\
 	test-vicare-log.sps				\
+	test-vicare-loops.sps				\
 	test-vicare-namespaces.sps			\
 	test-vicare-net-channels-binary.sps		\
 	test-vicare-net-channels-textual.sps		\
@@ -123,12 +127,14 @@ VICARE_SCHEME_CORE_TESTS	= \
 	test-vicare-numerics-complex-numbers.sps	\
 	test-vicare-numerics-sqrt.sps			\
 	test-vicare-numerics-bitwise.sps		\
+	test-vicare-object-properties.sps		\
 	test-vicare-parameters.sps			\
 	test-vicare-parser-logic.sps			\
 	test-vicare-platform.sps			\
 	test-vicare-pointers.sps			\
 	test-vicare-promises.sps			\
 	test-vicare-time.sps				\
+	test-vicare-randomisations.sps			\
 	test-vicare-ratnums.sps				\
 	test-vicare-reader.sps				\
 	test-vicare-records-procedural.sps		\
@@ -137,12 +143,15 @@ VICARE_SCHEME_CORE_TESTS	= \
 	test-vicare-shared-memory.sps			\
 	test-vicare-sentinels.sps			\
 	test-vicare-simple-match.sps			\
+	test-vicare-streams.sps				\
 	test-vicare-string-to-number.sps		\
 	test-vicare-strings.sps				\
 	test-vicare-structs.sps				\
 	test-vicare-symbols.sps				\
 	test-vicare-syntactic-extensions.sps		\
+	test-vicare-syntax-utilities.sps		\
 	test-vicare-system.sps				\
+	test-vicare-variables.sps			\
 	test-vicare-vectors.sps				\
 	test-vicare-weak-tables.sps			\
 	test-vicare-words.sps				\
@@ -163,7 +172,21 @@ VICARE_SCHEME_CORE_TESTS	= \
 	test-issue-022.sps				\
 	test-issue-023.sps				\
 	test-issue-024.sps				\
-	test-issue-025-sign-in-exact-rationals.sps
+	test-issue-025-sign-in-exact-rationals.sps	\
+	\
+	test-vicare-containers-kmp.sps			\
+	test-vicare-containers-lists-fun.sps		\
+	test-vicare-containers-lists-low.sps		\
+	test-vicare-containers-lists-stx.sps		\
+	test-vicare-containers-vectors-high.sps		\
+	test-vicare-containers-char-sets.sps		\
+	test-vicare-containers-strings-low.sps		\
+	test-vicare-containers-strings-high.sps		\
+	test-vicare-containers-strings-rabin-karp.sps	\
+	test-vicare-containers-levenshtein.sps		\
+	\
+	test-irregex.sps				\
+	test-pregexp.sps
 
 VICARE_SCHEME_LONG_TESTS	= \
 	long-test-r6rs-run.sps				\
@@ -201,7 +224,8 @@ VICARE_SCHEME_SRFI_TESTS	= \
 	test-srfi-69-basic-hash-tables.sps		\
 	test-srfi-78-lightweight-testing.sps		\
 	test-srfi-98-os-environment-variables.sps	\
-	test-srfi-101-functional-pairs.sps
+	test-srfi-101-functional-pairs.sps		\
+	test-srfi-111-boxes.sps
 
 VICARE_SCHEME_SRFI_POSIX_TESTS	= \
 	test-srfi-106-socket.sps
