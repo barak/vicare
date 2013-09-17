@@ -22,6 +22,7 @@
 * namespaces::                  Namespaces.
 * bytevector compounds::        Bytevector compounds.
 * net channels::                Interprocess connection channels.
+* variables::                   Defining storage locations.
 @end menu
 
 @c page
@@ -735,6 +736,13 @@ arguments validation}.
 Succeed if @var{obj} is a character.
 @end deffn
 
+
+@deffn {Validation Clause} char-in-ascii-range @var{obj}
+@deffnx {Validation Clause} char-in-ascii-range/false @var{obj}
+Succeed if @var{obj} is a character and its Unicode code point is in the
+range @math{[0, 127]}.  The second form accepts also @false{} as value.
+@end deffn
+
 @c page
 @node args predefined strings
 @subsubsection Validating string and related arguments
@@ -1048,6 +1056,16 @@ Succeed if @var{obj} is @false{} or a pointer.
 @deffn {Validation Clause} non-null-pointer @var{obj}
 Succeed if @var{obj} is a pointer and it does @strong{not} represent
 @cnull{}.
+@end deffn
+
+
+@deffn {Validation Clause} c-callback @var{obj}
+Succeed if @var{obj} is a pointer object.
+@end deffn
+
+
+@deffn {Validation Clause} c-callback/false @var{obj}
+Succeed if @var{obj} is @false{} or a pointer object.
 @end deffn
 
 @c page
@@ -2361,12 +2379,12 @@ size; we can interface it as follows:
 @section Additional bytevector utilities
 
 
-@cindex Library @library{vicare bytevectors}
-@cindex @library{vicare bytevectors}, library
+@cindex Library @library{vicare containers bytevectors}
+@cindex @library{vicare containers bytevectors}, library
 
 
-The library @library{vicare bytevectors} exports bindings for additional
-bytevector handling utilities.
+The library @library{vicare containers bytevectors} exports bindings for
+additional bytevector handling utilities.
 
 @menu
 * bytevectors setget::          Single--identifier setters and getters.
@@ -2381,7 +2399,8 @@ bytevector handling utilities.
 The following syntaxes are wrappers for @func{bytevector-*-ref} and
 @func{bytevector-*-set!} specifying the endiannes in their name, without
 the need of an additional argument (useful in macros).  The following
-bindings are exported by the library @library{vicare bytevectors}.
+bindings are exported by the library @library{vicare containers
+bytevectors}.
 
 @c ------------------------------------------------------------
 
@@ -2621,7 +2640,7 @@ The following syntaxes are wrappers for @func{bytevector-*-ref} and
 @func{bytevector-*-set!} specifying the endiannes in their name, without
 the need of an additional argument (useful in macros), and scaling the
 index with the size of the word.  The following bindings are exported by
-the library @library{vicare bytevectors}.
+the library @library{vicare containers bytevectors}.
 
 @c ------------------------------------------------------------
 
@@ -3823,10 +3842,11 @@ initialised to nil.
 
 
 Weak hashtables are associative containers whose keys are held by weak
-references; registering a key into a weak hashtable does not prevent its
-garbage collection.  A weak hashtable is a vector holding nulls or
-alists; each vector location is called @dfn{bucket}.  Alists have the
-spine composed of strong pairs, while the entries are weak pairs:
+references: registering a key into a weak hashtable does not prevent its
+garbage collection.  A weak hashtable is a Scheme vector holding nulls
+or associative lists; each vector slot is called @dfn{bucket}; the
+associative lists have the spine composed of strong pairs, while the
+entries are weak pairs:
 
 @example
 |-----|-----|-----|-----|-----| vector of buckets
@@ -3844,16 +3864,16 @@ spine composed of strong pairs, while the entries are weak pairs:
 
 Whenever a key in a weak hashtable is garbage collected: the
 corresponding location in the weak pair is set to the @acronym{BWP}
-object; whenever a bucket is accessed, it is first cleared of weak pairs
-holding @acronym{BWP} in key position.  Notice that fixnums, characters
-and the other values that fit in a single machine word are never
-collected from the point of view of a weak hashtable.
+object (a special unique object that has this exact purpose); whenever a
+bucket is accessed, it is first cleared of weak pairs holding
+@acronym{BWP} in key position.
 
 @quotation
-@strong{NOTE} Immediate values (@true{}, @false{}, nil, fixnums, etc.)
-used as weak hashtable keys are @strong{never} garbage collected; so the
-associated entries will never be removed from the table unless we
-explicitly do it with @func{weak-hashtable-delete!} or
+@strong{NOTE} Immediate values (those that fit into a single machine
+word: @true{}, @false{}, nil, fixnums, characters, etc.)@: and interned
+symbols are @strong{never} garbage collected.  If we use them as weak
+hashtable keys: the associated entries will never be removed from the
+table unless we explicitly do it with @func{weak-hashtable-delete!}  or
 @func{weak-hashtable-clear!}.
 @end quotation
 
@@ -3862,7 +3882,7 @@ When the number of collected objects equals the number of buckets
 the number of buckets; the table is @strong{never} restricted by
 reducing the number of buckets.
 
-Weak hashtables are subjected to the following constraints:
+At present, weak hashtables are subjected to the following constraints:
 
 @itemize
 @item
@@ -3876,8 +3896,8 @@ The maximum number of entries is the value of @code{(greatest-fixnum)}.
 @end itemize
 
 The @api{} of weak hashtables is similar to the @api{} of @rnrs{6}
-hashtables.  The following bindings are exported by the @library{vicare
-containers weak-hashtables} library.
+hashtables.  The following bindings are exported by the library
+@library{vicare containers weak-hashtables}.
 
 
 @defun make-weak-hashtable @var{hash-function} @var{equiv-function}
@@ -3890,9 +3910,16 @@ initial number of buckets; when not used it defaults to @math{16}.
 
 
 @defun weak-hashtable? @var{obj}
-Return true if @var{obj} is a weak hashtable.  Weak hashtables are
-disjoint values.
+Return @true{} if @var{obj} is a weak hashtable, otherwise @false{}.
+Weak hashtables are disjoint values.
 @end defun
+
+
+@deffn {Validation Clause} weak-hashtable @var{obj}
+Validation clause to be used with the facilities of the library
+@library{vicare arguments validation}.  Succeed if @var{obj} is an
+instance of @code{weak-hashtable}.
+@end deffn
 
 
 @defun weak-hashtable-set! @var{table} @var{key} @var{value}
@@ -3948,8 +3975,8 @@ If no entry exists for @var{key} in @var{table}: create a new entry
 associating @var{key} to the result of applying @var{proc} to
 @var{default}.
 
-If an entry exists for @var{key} in @var{table}: replace the its value
-with the result of applying @var{proc} to the old value.
+If an entry exists for @var{key} in @var{table}: replace its value with
+the result of applying @var{proc} to the old value.
 @end defun
 
 @c page
@@ -5084,5 +5111,59 @@ Return @true{} if @var{obj} is a condition object of type
 @condition{maximum-message-size-exceeded} or a compound condition object
 with a component of type @condition{maximum-message-size-exceeded}.
 @end defun
+
+@c page
+@node variables
+@section Defining storage locations
+
+
+@cindex @library{vicare language-extensions variables}, library
+@cindex Library @library{vicare language-extensions variables}
+
+
+The library @library{vicare language-extensions variables} provides a
+way to define simple storage locations similar to the variables used in
+many languages.  The @dfn{variable} type of value is disjoint from the
+other types.
+
+
+@defun make-variable
+@defunx make-variable @var{obj}
+Build and return a new variable object.  The variable is initialised to
+@var{obj}, which defaults to the return value of @code{(void)}.
+@end defun
+
+
+@defun variable? @var{obj}
+Return @true{} if @var{obj} is a variable object, else return @false{}.
+@end defun
+
+
+@defun variable-set! @var{variable} @var{obj}
+@defunx variable-ref @var{variable}
+Setter and getter for the value of variable objects.
+@end defun
+
+
+@deffn Syntax define-variable @meta{name}
+@deffnx Syntax define-variable @meta{name} @var{obj}
+@deffnx Syntax define-variable (@meta{name} . @meta{formals}) @meta{body}
+Like @func{define}, but store the value in a newly built variable object
+which is then bound to @meta{name}.  Example:
+
+@example
+(import (vicare)
+  (vicare language-extensions variables))
+
+(define-variable v 123)
+v @result{} 123
+(set! v 456)
+v @result{} 456
+@end example
+
+While @func{define} defines a binding which, when exported by a library,
+cannot be modified, @func{define-variable} allocates a storage location,
+so the value bound to @meta{name} can be modified at will.
+@end deffn
 
 @c end of file

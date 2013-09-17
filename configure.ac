@@ -2,7 +2,7 @@ dnl @configure_input@
 dnl
 
 AC_PREREQ([2.68])
-AC_INIT([Vicare Scheme],[0.3d2],[marco.maggi-ipsu@poste.it],
+AC_INIT([Vicare Scheme],[0.3d3],[marco.maggi-ipsu@poste.it],
   [vicare-scheme],[http://marcomaggi.github.com/vicare.html])
 AC_CONFIG_SRCDIR([src])
 AC_CONFIG_MACRO_DIR([autotools])
@@ -90,20 +90,36 @@ VICARE_ENABLE_OPTION([SRFI],[srfi],[yes],
   [enable installation of SRFI libraries])
 AM_CONDITIONAL([WANT_SRFI],[test "x$vicare_enable_SRFI" = xyes])
 
+AM_COND_IF([WANT_SRFI],
+  [AC_DEFINE([VICARE_BUILT_WITH_SRFI_ENABLED],[1],
+     [defined if SRFI libraries were requested at configuration time])])
+
 VICARE_ENABLE_OPTION([POSIX],[posix],[yes],
   [whether POSIX features are enabled],
   [enable POSIX features])
 AM_CONDITIONAL([WANT_POSIX],[test "x$vicare_enable_POSIX" = xyes])
+
+AM_COND_IF([WANT_POSIX],
+  [AC_DEFINE([VICARE_BUILT_WITH_POSIX_ENABLED],[1],
+     [defined if POSIX features were requested at configuration time])])
 
 VICARE_ENABLE_OPTION([GLIBC],[glibc],[yes],
   [whether GNU C Library features are enabled],
   [enable GNU C Library features])
 AM_CONDITIONAL([WANT_GLIBC],[test "x$vicare_enable_GLIBC" = xyes])
 
+AM_COND_IF([WANT_GLIBC],
+  [AC_DEFINE([VICARE_BUILT_WITH_GLIBC_ENABLED],[1],
+     [defined if GLIBC features were requested at configuration time])])
+
 VICARE_ENABLE_OPTION([LINUX],[linux],[yes],
   [whether Linux features are enabled],
   [enable Linux features])
 AM_CONDITIONAL([WANT_LINUX],[test "x$vicare_enable_LINUX" = xyes])
+
+AM_COND_IF([WANT_LINUX],
+  [AC_DEFINE([VICARE_BUILT_WITH_LINUX_ENABLED],[1],
+     [defined if LINUX features were requested at configuration time])])
 
 dnl --------------------------------------------------------------------
 
@@ -1531,6 +1547,10 @@ VICARE_WITH_LIBRARY([LIBFFI],[libffi],[check],
   [ffi.h],[ffi],[ffi_call])
 AM_CONDITIONAL([WANT_LIBFFI],[test "x$vicare_with_LIBFFI" = xyes])
 
+AM_COND_IF([WANT_LIBFFI],
+  [AC_DEFINE([VICARE_BUILT_WITH_FFI_ENABLED],[1],
+     [defined if Libffi support is enabled])])
+
 dnl --------------------------------------------------------------------
 dnl Check for Libiconv (optional)
 
@@ -1565,6 +1585,10 @@ AS_IF([test "x$with_libiconv" != xno],
   [AC_MSG_NOTICE([libiconv was not requested])])
 dnl
 AM_CONDITIONAL([WANT_LIBICONV],[test "x$vicare_with_LIBICONV" = xyes])
+
+AM_COND_IF([WANT_LIBICONV],
+  [AC_DEFINE([VICARE_BUILT_WITH_ICONV_ENABLED],[1],
+     [defined if Libiconv support is enabled])])
 
 dnl --------------------------------------------------------------------
 dnl Optional binding for GNU Readline or compatible library

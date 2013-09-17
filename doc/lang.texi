@@ -12,6 +12,11 @@
 * simple-match::                Simple destructuring match syntax.
 * syntaxes::                    Language syntactic extensions.
 * custom-ports::                Custom ports.
+* asciis::                      Utilities for @ascii{} characters.
+* hooks::                       Running lists of functions.
+* streams::                     Streams.
+* loops::                       Loop constructs.
+* comparisons::                 Comparison functions.
 @end menu
 
 @c page
@@ -59,7 +64,7 @@ list of arguments and options.
 @func{let-keywords} expands into a @func{let} syntax,
 @func{let*-keywords} expands into a @func{let*} syntax,
 @func{letrec-keywords} expands into a @func{letrec} syntax,
-@func{let-keywords} expands into a @func{let} syntax.
+@func{letrec*-keywords} expands into a @func{letrec*} syntax.
 
 @meta{input} must be an expression evaluating to a list of values and
 keywords; keywords must be compliant to the specification in
@@ -95,8 +100,7 @@ itself.
 
 @item
 The @func{without-argument} specification describes an optional keyword
-argument with mandatory value, which must @strong{not} be a keyword
-itself.
+argument without value.
 
 @item
 @meta{name} must be an identifier which will become the name of a
@@ -2559,5 +2563,137 @@ input/output the second.  Such ports are connected together so that data
 written to one port is read from the other port.
 @end defun
 
+@c page
+@node asciis
+@section Utilities for @ascii{} characters
+
+
+@cindex @library{vicare language-extensions ascii-chars}, library
+@cindex Library @library{vicare language-extensions ascii-chars}
+
+
+The library @library{vicare language-extensions ascii-chars} provides a
+small number of functions dealing with fixnums representing characters
+in @ascii{} encoding range.  The identifiers whose name is prefixed with
+@samp{$} are bound to unsafe operations: they do @strong{not} validate
+the arguments and applying them to invalid arguments leads to undefined
+behaviour.
+
+
+@defun fixnum-in-ascii-range? @var{obj}
+Return @true{} if @var{obj} is a fixnum representing a character in
+@ascii{} encoding.
+@end defun
+
+
+@defun ascii-upper-case? @var{fx}
+@defunx ascii-lower-case? @var{fx}
+@defunx ascii-title-case? @var{fx}
+@defunx $ascii-upper-case? @var{fx}
+@defunx $ascii-lower-case? @var{fx}
+@defunx $ascii-title-case? @var{fx}
+Return @true{} if @var{fx} represents an upper case or lower case letter
+character, otherwise return @false{}.
+@end defun
+
+
+@defun ascii-cased? @var{fx}
+@defunx $ascii-cased? @var{fx}
+Return @true{} if @var{fx} represents a letter character, which can be
+converted to upper or lower case, otherwise return @false{}.
+@end defun
+
+
+@defun ascii-alphabetic? @var{fx}
+@defunx $ascii-alphabetic? @var{fx}
+Return @true{} if @var{fx} represents a letter character, otherwise
+return @false{}.
+@end defun
+
+
+@defun ascii-numeric? @var{fx}
+@defunx $ascii-numeric? @var{fx}
+Return @true{} if @var{fx} represents a decimal digit character,
+otherwise return @false{}.
+@end defun
+
+
+@defun ascii-upcase @var{fx}
+@defunx ascii-downcase @var{fx}
+@defunx ascii-titlecase @var{fx}
+@defunx $ascii-upcase @var{fx}
+@defunx $ascii-downcase @var{fx}
+@defunx $ascii-titlecase @var{fx}
+Return a fixnum representing the upper case or lower case version of
+@var{fx}; return @var{fx} itself if it represents an uncased character.
+@end defun
+
+@c page
+@node hooks
+@section Running lists of functions
+
+
+@cindex @library{vicare language-extensions hooks}, library
+@cindex Library @library{vicare language-extensions hooks}
+
+
+The library @library{vicare language-extensions hooks} exports an @api{}
+defining @dfn{hooks}: opaque Scheme objects, disjoint from other types,
+referencing a list of functions which can be applied to arguments at a
+specified point in a program.  @value{PACKAGE} hooks are somewhat
+similar to @gnu{} Guile hooks.
+
+
+@defun make-hook
+Build and return a new hook object.
+@end defun
+
+
+@defun hook? @var{obj}
+Return @true{} if @var{obj} is a hook object, otherwise @false{}.
+@end defun
+
+
+@defun hook-empty? @var{hook}
+Return @true{} if @var{hook} is a hook object and it is empty, otherwise
+@false{}.
+@end defun
+
+
+@defun add-hook! @var{hook} @var{proc}
+@defunx add-hook! @var{hook} @var{proc} @var{last?}
+Register @var{proc} as hook function; return unspecified values.  If
+@var{last?} is @false{} or not used: the new function is registered as
+first, else it is registered as last.
+@end defun
+
+
+@defun remove-hook! @var{hook} @var{proc}
+Remove a previously registered hook function.  Return unspecified
+values.
+@end defun
+
+
+@defun reset-hook! @var{hook}
+Remove all the previously registered hooks.
+@end defun
+
+
+@defun hook->list @var{hook}
+Return the list of registered functions.
+@end defun
+
+
+@defun run-hook @var{hook} @var{arg} @dots{}
+Run all the hook functions applying them to the given arguments.  Return
+unspecified values.
+@end defun
+
+@c end of file
+@c page
+
+@include streams.texi
+@include loops.texi
+@include comparisons.texi
 
 @c end of file
