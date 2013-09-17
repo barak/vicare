@@ -39,6 +39,7 @@
     with-bytevectors		with-bytevectors/or-false
     callet			callet*
     define-exact-integer->symbol-function
+    set-cons!
 
     ;; arguments validation
     define-argument-validation
@@ -52,6 +53,7 @@
     case-symbols		$case-symbols
     case-chars			$case-chars
     case-strings		$case-strings
+    case-identifiers
 
     ;; miscellaneous dispatching
     cond-numeric-operand	cond-real-numeric-operand
@@ -67,7 +69,8 @@
 	  with-dangerous-arguments-validation
 	  arguments-validation-forms
 	  exact-integer.vicare-arguments-validation)
-    (vicare unsafe operations))
+    (vicare unsafe operations)
+    (vicare language-extensions define-record-extended))
 
 
 ;;;; some defining syntaxes
@@ -157,150 +160,6 @@
 	   ))))))
 
 
-;;;; extended struct definition
-
-(define-syntax define-struct-extended
-  ;;Like DEFINE-STRUCT but define  also argument validators, an optional
-  ;;printer and an optional destructor.
-  ;;
-  (lambda (stx)
-    (define (main stx)
-      (syntax-case stx ()
-	((?kwd ?type-id (?field-id ...))
-	 #'(?kwd ?type-id (?field-id ...) #f #f))
-	((_ ?type-id (?field-id ...) ?printer ?destructor)
-	 (and (identifier? #'?type-id)
-	      (for-all identifier? (syntax->list #'(?field-id ...))))
-	 (let* ((type-id	#'?type-id)
-		(type-str	(%id->string type-id)))
-	   (with-syntax
-	       ((TYPE-PRED
-		 (%id->id type-id (lambda (type-str)
-				    (string-append type-str "?"))))
-		(TYPE-VALIDATOR
-		 type-id)
-		(TYPE-VALIDATOR-MESSAGE
-		 (string-append "expected struct instance of type \""
-				type-str
-				"\" as argument"))
-		(FALSE-OR-TYPE-VALIDATOR
-		 (%id->id type-id (lambda (type-str)
-				    (string-append "false-or-" type-str))))
-		(FALSE-OR-TYPE-VALIDATOR-MESSAGE
-		 (string-append "expected false or struct instance of type \""
-				type-str
-				"\" as argument"))
-		((PRINTER-REGISTRATION ...)
-		 (if (identifier? #'?printer)
-		     #'((module ()
-			  (set-rtd-printer! (type-descriptor ?type-id)
-					    ?printer)))
-		   #'()))
-		((DESTRUCTOR-REGISTRATION ...)
-		 (if (identifier? #'?destructor)
-		     #'((module ()
-			  (set-rtd-destructor! (type-descriptor ?type-id)
-					       ?destructor)))
-		   #'())))
-	     #'(begin
-		 (define-struct ?type-id
-		   (?field-id ...))
-
-		 (define-argument-validation (TYPE-VALIDATOR who obj)
-		   (TYPE-PRED obj)
-		   (assertion-violation who TYPE-VALIDATOR-MESSAGE obj))
-
-		 (define-argument-validation (FALSE-OR-TYPE-VALIDATOR who obj)
-		   (or (not obj) (TYPE-PRED obj))
-		   (assertion-violation who FALSE-OR-TYPE-VALIDATOR-MESSAGE obj))
-		 PRINTER-REGISTRATION ...
-		 DESTRUCTOR-REGISTRATION ...
-		 ))))
-	))
-
-    (define (%id->id src-id string-maker)
-      (datum->syntax src-id (string->symbol (string-maker (%id->string src-id)))))
-
-    (define (%id->string id)
-      (symbol->string (syntax->datum id)))
-
-    (define (syntax->list stx)
-      (syntax-case stx ()
-	((?car . ?cdr)
-	 (cons #'?car (syntax->list #'?cdr)))
-	(() '())))
-
-    (let ((out (main stx)))
-      #;(pretty-print (syntax->datum out) (current-error-port))
-      out)))
-
-
-;;;; extended R6RS record type definition
-
-(define-syntax define-record-type-extended
-  ;;Like DEFINE-RECORD-TYPE but define also argument validators.
-  ;;
-  (lambda (stx)
-    (define (main stx)
-      (syntax-case stx ()
-	((_ ?type-id . ?body)
-	 (identifier? #'?type-id)
-	 (output #'?type-id #'?type-id #'?body))
-
-	((_ (?name ?constructor ?predicate) . ?body)
-	 (and (identifier? #'?name)
-	      (identifier? #'?constructor)
-	      (identifier? #'?predicate))
-	 (output #'?name #'(?name ?constructor ?predicate) #'?body))))
-
-    (define (output type-id type-spec-stx body-stx)
-      (let ((type-str (%id->string type-id)))
-	(with-syntax
-	    ((TYPE-PRED
-	      (%id->id type-id (lambda (type-str)
-				 (string-append type-str "?"))))
-	     (TYPE-VALIDATOR
-	      type-id)
-	     (TYPE-VALIDATOR-MESSAGE
-	      (string-append "expected struct instance of type \""
-			     type-str
-			     "\" as argument"))
-	     (FALSE-OR-TYPE-VALIDATOR
-	      (%id->id type-id (lambda (type-str)
-				 (string-append "false-or-" type-str))))
-	     (FALSE-OR-TYPE-VALIDATOR-MESSAGE
-	      (string-append "expected false or struct instance of type \""
-			     type-str
-			     "\" as argument")))
-	  #`(begin
-	      (define-record-type #,type-spec-stx
-		. #,body-stx)
-	      (define-argument-validation (TYPE-VALIDATOR who obj)
-		(TYPE-PRED obj)
-		(assertion-violation who TYPE-VALIDATOR-MESSAGE obj))
-	      (define-argument-validation (FALSE-OR-TYPE-VALIDATOR who obj)
-		(or (not obj) (TYPE-PRED obj))
-		(assertion-violation who FALSE-OR-TYPE-VALIDATOR-MESSAGE obj))
-	      ))))
-
-
-    (define (%id->id src-id string-maker)
-      (datum->syntax src-id (string->symbol (string-maker (%id->string src-id)))))
-
-    (define (%id->string id)
-      (symbol->string (syntax->datum id)))
-
-    (define (syntax->list stx)
-      (syntax-case stx ()
-	((?car . ?cdr)
-	 (cons #'?car (syntax->list #'?cdr)))
-	(() '())))
-
-    (let ((out (main stx)))
-      #;(pretty-print (syntax->datum out) (current-error-port))
-      out)))
-
-
 ;;;; other syntaxes
 
 (define-syntax debug-assert
@@ -357,6 +216,9 @@
 			      (else V))))
 	   ...)
        . ?body))))
+
+(define-syntax-rule (set-cons! ?ell ?obj)
+  (set! ?ell (cons ?obj ?ell)))
 
 
 ;;;; specialised CASE
@@ -539,6 +401,53 @@
 		  ...)
 	      ?datum-body0 ?datum-body ...)
 	     ...)))
+    ))
+
+;;; --------------------------------------------------------------------
+
+;;There is no unsafe version possible for identifiers.
+;;
+(define-syntax (case-identifiers stx)
+  (define who 'case-identifiers)
+  (define (%assert-all-datums LL)
+    (for-each (lambda (L)
+		(for-each (lambda (S)
+			    (unless (symbol? S)
+			      (syntax-violation who
+				(string-append "expected identifier as datum")
+				L S)))
+		  L))
+      (syntax->datum LL)))
+  (syntax-case stx (else)
+    ((_ ?expr
+	((?datum0 ?datum ...)
+	 ?datum-body0 ?datum-body ...)
+	...
+	(else
+	 ?else-body0 ?else-body ...))
+     (begin
+       (%assert-all-datums #'((?datum0 ?datum ...) ...))
+       #'(let ((key ?expr))
+	   (cond ((or (free-identifier=? #'?datum0 key)
+		      (free-identifier=? #'?datum  key)
+		      ...)
+		  ?datum-body0 ?datum-body ...)
+		 ...
+		 (else
+		  ?else-body0 ?else-body ...)))))
+
+    ((_ ?expr
+	((?datum0 ?datum ...)
+	 ?datum-body0 ?datum-body ...)
+	...)
+     (begin
+       (%assert-all-datums #'((?datum0 ?datum ...) ...))
+       #'(let ((key ?expr))
+	   (cond ((or (free-identifier=? #'?datum0 key)
+		      (free-identifier=? #'?datum  key)
+		      ...)
+		  ?datum-body0 ?datum-body ...)
+		 ...))))
     ))
 
 

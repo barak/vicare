@@ -170,6 +170,10 @@ Shinn.  All rights reserved.
 The documentation of Pregexp is Copyright @copyright{} 1999-2005 Dorai
 Sitaram.  All rights reserved.
 
+The documentation of the library @library{vicare formations} is derived
+from the documentation of Guile.  Copyright @copyright{} 1996-2005,
+2009-2013 Free Software Foundation.
+
 @quotation
 This program is free software: you can redistribute it and/or modify it
 under the terms of the @gnu{} General Public License version 3 as
@@ -250,15 +254,18 @@ Container libraries
 * vectors::                     Vector library.
 * strings::                     String library.
 * char-sets::                   Character sets.
+* bytevectors::                 Bytevectors.
 * kmp::                         Knuth-Morris-Pratt searching.
 * levenshtein::                 Levenshtein distance metric.
 * object-properties::           Object properties.
+* one-dimension::               One dimensional extended ranges.
 
 Adapted libraries
 
 * random::                      Sources of random bits.
 * irregex::                     IrRegular expressions.
 * pregexp::                     Portable regular expressions for Scheme.
+* formations::                  Formatting strings.
 
 Internals
 
@@ -318,14 +325,17 @@ External documents
 @include vectors.texi
 @include strings.texi
 @include char-sets.texi
+@include bytevectors.texi
 @include knuth-morris-pratt.texi
 @include levenshtein.texi
 @include object-properties.texi
+@include one-dimension.texi
 
 @include randomisations.texi
 
 @include irregex.texi
 @include pregexp.texi
+@include formations.texi
 
 @include objects.texi
 @include debug.texi

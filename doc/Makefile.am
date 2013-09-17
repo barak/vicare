@@ -30,20 +30,23 @@ vicare_scheme_TEXINFOS	= \
 	machinery.texi			\
 	compiler.texi			\
 	\
-	knuth-morris-pratt.texi		\
-	lists.texi			\
-	vectors.texi			\
-	strings.texi			\
+	bytevectors.texi		\
 	char-sets.texi			\
-	levenshtein.texi		\
-	streams.texi			\
-	loops.texi			\
 	comparisons.texi		\
-	randomisations.texi		\
+	knuth-morris-pratt.texi		\
+	levenshtein.texi		\
+	lists.texi			\
+	loops.texi			\
 	object-properties.texi		\
+	one-dimension.texi		\
+	randomisations.texi		\
+	streams.texi			\
+	strings.texi			\
+	vectors.texi			\
 	\
 	irregex.texi			\
 	pregexp.texi			\
+	formations.texi			\
 	\
 	missing.texi			\
 	building.texi			\
@@ -68,6 +71,7 @@ vicare_scheme_TEXINFOS	= \
 	srfi-cond-expand.texi			\
 	srfi-eager-comp.texi			\
 	srfi-environment-variables.texi		\
+	srfi-environment-inquiry.texi		\
 	srfi-err5rs-records.texi		\
 	srfi-error-reporting.texi		\
 	srfi-general-cond.texi			\

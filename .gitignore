@@ -52,5 +52,6 @@ autotools/
 /meta/slackware/doinst.sh
 /scheme/ikarus.config.ss
 /scheme/vicare.boot
+/src/vicare-platform.h
 /src/bootfileloc.h
 /src/vicare
