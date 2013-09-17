@@ -58,6 +58,9 @@
   (only (vicare language-extensions ascii-chars))
   (only (vicare language-extensions comparisons))
   (only (vicare language-extensions hooks))
+  (only (vicare language-extensions callables))
+  (only (vicare language-extensions define-record-extended))
+  (only (vicare language-extensions c-enumerations))
 
   (only (vicare crypto randomisations low))
   (only (vicare crypto randomisations))
@@ -97,6 +100,10 @@
   (only (vicare containers strings))
   (only (vicare containers strings rabin-karp))
   (only (vicare containers levenshtein))
+  (only (vicare containers one-dimension-co))
+  (only (vicare containers one-dimension-cc))
+  (only (vicare containers bytevectors u8))
+  (only (vicare containers bytevectors s8))
 
   (only (vicare net channels))
 
@@ -106,6 +113,8 @@
 
   (only (vicare irregex))
   (only (vicare pregexp))
+  (only (vicare getopts))
+  (only (vicare formations))
 
   )
 

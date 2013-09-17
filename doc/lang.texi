@@ -14,6 +14,8 @@
 * custom-ports::                Custom ports.
 * asciis::                      Utilities for @ascii{} characters.
 * hooks::                       Running lists of functions.
+* callables::                   Callable objects.
+* c-enums::                     C language flags and flags combinations.
 * streams::                     Streams.
 * loops::                       Loop constructs.
 * comparisons::                 Comparison functions.
@@ -2425,6 +2427,19 @@ datums.  @func{else} must be the binding exported by @library{rnrs} and
 behaviour is undefined.
 @end deffn
 
+
+@deffn Macro case-identifiers @meta{expr} ((@metao{identifier} @meta{identifier} ...) @metao{sym-body} @meta{sym-body} ...) ...
+@deffnx Macro case-identifiers @meta{expr} ((@metao{identifier} @meta{identifier} ...) @metao{sym-body} @meta{sym-body} ...) ... (else @metao{else-body} @meta{else-body} ...)
+@deffnx {Auxiliary Syntax} else
+Special implementation of @func{case} expecting only identifiers as
+datums; identifiers are compared with @func{free-identifier=?}.
+@func{else} must be the binding exported by @library{rnrs} and
+@library{vicare}.
+
+@meta{expr} must be an expression evaluating to an identifier, else the
+behaviour is undefined.
+@end deffn
+
 @c page
 @node syntaxes args
 @subsection Arguments validation
@@ -2487,6 +2502,15 @@ Like @func{callet}, but define local @func{let*} bindings for the
       (printf string arg))
 @end example
 @end defmac
+
+
+@deffn Syntax set-cons! @meta{who} @meta{obj}
+Expand to:
+
+@example
+(set! @meta{who} (cons @meta{obj} @meta{who}))
+@end example
+@end deffn
 
 @c page
 @node custom-ports
@@ -2689,7 +2713,204 @@ Run all the hook functions applying them to the given arguments.  Return
 unspecified values.
 @end defun
 
+@c page
+@node callables
+@section Callable objects
+
+
+@cindex @library{vicare language-extensions callables}, library
+@cindex Library @library{vicare language-extensions callables}
+
+
+The library @library{vicare language-extensions callables} allows the
+definition of @dfn{callable objects}: closure objects associated to an
+object used as first argument in every call.  Here is an example of
+callable object:
+
+@example
+(import (vicare)
+  (vicare language-extensions callables))
+
+(define C
+  (callable 123 (lambda (self delta)
+                  (+ delta self))))
+
+(callable? C)           @result{} #t
+(callable-object C)     @result{} 123
+(C 9000)                @result{} 9123
+@end example
+
+
+@deffn Syntax callable @meta{object} @meta{function}
+Build and return a new callable object associated to @meta{object} and
+having @meta{function} as callable procedure.
+@end deffn
+
+
+@defun callable? @meta{obj}
+Return @true{} if @meta{obj} is a callable object, otherwise return
+@false{}.  Notice that a callable object satisfies @func{procedure?}.
+@end defun
+
+
+@deffn {Validation Clause} callable @var{obj}
+@deffnx {Validation Clause} callable/false @var{obj}
+Validation clause to be used with the facilities of the library
+@library{vicare arguments validation}.  Succeed if @var{obj} is a
+callable object; the second clause also accepts @false{}.
+@end deffn
+
+
+@defun callable-object @var{callable}
+@defunx $callable-object @var{callable}
+Return the object associated to the callable object @var{callable}.
+@func{$callable-data} is the unsafe version which does not validate its
+argument prior to accessing its internal fields.
+@end defun
+
+@c page
+@node c-enums
+@section C language flags and flags combinations
+
+
+@cindex @library{vicare language-extensions c-enumerations}, library
+@cindex Library @library{vicare language-extensions c-enumerations}
+
+
+The following bindings are exported by the library @library{vicare
+language-extensions c-enumerations}.
+
+
+@deffn Syntax define-c-flags @meta{name} (@metao{flag} @meta{flag} ...) (@metao{symbol} @meta{symbol} ...)
+Define a new enumeration type and a couple of functions to convert
+between enumeration sets of this type and other objects.  Usage example:
+
+@example
+(define A 1)
+(define B 2)
+(define C 3)
+
+(define-c-flags things
+  (A B C)
+  (a b c))
+
+(things->value (things a)) @result{} 1
+(things->value (things b)) @result{} 2
+(things->value (things c)) @result{} 3
+
+(value->things 1) @result{} (things a)
+(value->things 2) @result{} (things b)
+(value->things 3) @result{} (things c)
+@end example
+
+@noindent
+when used in a library, we can do the following to export the interface:
+
+@example
+(library (things)
+  (export things things->value value->things)
+  (import (rnrs))
+  (define A 1)
+  (define B 2)
+  (define C 3)
+  (define-c-flags things
+    (A B C)
+    (a b c)))
+@end example
+
+The typical use of this syntax is to define an interface for C language
+foreign constants.
+
+@meta{name} must be an identifier to which an enumeration set
+constructor syntax is bound; the syntax accepts only a single symbol as
+argument and it expands to an enumeration set with that symbol as
+element.
+
+The enumeration type is @code{enum-@meta{name}} and the original
+constructor syntax accepting any number of arguments is
+@code{%@meta{name}}.
+
+The @meta{flag} arguments are meant to be identifiers bound to any
+Scheme value, but they can be any value.  The @meta{symbol} arguments
+must be Scheme symbols which are used to define (in the given order) the
+universe of the enumeration.
+
+The function which converts from an enumeration set (holding a single
+argument) to the corresponding value is bound to
+@code{@meta{name}->value}.  The function which converts from a value to
+the enumeration set (holding a single argument) is bound to
+@code{value->@meta{name}}.
+@end deffn
+
+
+@deffn Syntax define-c-ior-flags @meta{name} (@metao{flag} @meta{flag} ...) (@metao{symbol} @meta{symbol} ...)
+Define a new enumeration type and a couple of functions to convert
+between enumeration sets of this type and a bitwise, inclusive, OR
+combination of exact integers.  Usage example:
+
+@example
+(define A (bitwise-arithmetic-shift-left 1 0))
+(define B (bitwise-arithmetic-shift-left 1 1))
+(define C (bitwise-arithmetic-shift-left 1 2))
+
+(define-c-ior-flags things
+  (A B C)
+  (a b c))
+
+(things->value (things a))      @result{} 1
+(things->value (things b))      @result{} 2
+(things->value (things a b))    @result{} 3
+(things->value (things c))      @result{} 4
+(things->value (things a c))    @result{} 5
+(things->value (things b c))    @result{} 6
+(things->value (things a b c))  @result{} 7
+
+(value->things 1) @result{} (things a)
+(value->things 2) @result{} (things b)
+(value->things 5) @result{} (things a c)
+@end example
+
+@noindent
+when used in a library, we can do the following to export the interface:
+
+@example
+(library (things)
+  (export things things->value value->things)
+  (import (rnrs))
+  (define A (bitwise-arithmetic-shift-left 1 0))
+  (define B (bitwise-arithmetic-shift-left 1 1))
+  (define C (bitwise-arithmetic-shift-left 1 2))
+  (define-c-ior-flags things
+    (A B C)
+    (a b c)))
+@end example
+
+The typical use of this syntax is to define an interface for C language
+foreign constants used as flags in inclusive OR combinations.
+
+@meta{name} must be an identifier to which an enumeration set
+constructor syntax is bound; the syntax accepts any number of symbols as
+arguments and it expands to an enumeration set with that symbols as
+elements.  The enumeration type is @code{enum-@meta{name}}.
+
+The @meta{flag} arguments must be identifiers bound to exact integers.
+The @meta{symbol} arguments must be Scheme symbols which are used to
+define (in the given order) the universe of the enumeration.
+
+The function which converts from an enumeration set to the corresponding
+bitwise, inclusive OR combination is bound to
+@code{@meta{name}->value}.  An assertion violation is raised if this
+function is applied to an enumeration set of the wrong type.
+
+The function which converts from a bitwise, inclusive OR combination to
+the enumeration set is bound to @code{value->@meta{name}}.  If this
+function is applied to an integer holding bits outside the ones coded in
+the definition of the enumeration, no error is raised.
+@end deffn
+
 @c end of file
+
+
 @c page
 
 @include streams.texi

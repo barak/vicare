@@ -29,23 +29,26 @@ nobase_dist_libvicare_DATA	= \
 	vicare/arguments/validation.sls					\
 	\
 	vicare/language-extensions/amb.sls				\
-	vicare/language-extensions/simple-match.sls			\
-	vicare/language-extensions/syntaxes.sls				\
+	vicare/language-extensions/ascii-chars.sls			\
+	vicare/language-extensions/c-enumerations.sls			\
+	vicare/language-extensions/callables.sls			\
+	vicare/language-extensions/comparisons.sls			\
 	vicare/language-extensions/coroutines.sls			\
+	vicare/language-extensions/custom-ports.sls			\
+	vicare/language-extensions/define-record-extended.sls		\
+	vicare/language-extensions/hooks.sls				\
 	vicare/language-extensions/infix.sls				\
 	vicare/language-extensions/keywords.sls				\
-	vicare/language-extensions/custom-ports.sls			\
-	vicare/language-extensions/sentinels.sls			\
-	vicare/language-extensions/namespaces.sls			\
-	vicare/language-extensions/variables.sls			\
-	vicare/language-extensions/streams.sls				\
 	vicare/language-extensions/loops.sls				\
-	vicare/language-extensions/ascii-chars.sls			\
-	vicare/language-extensions/comparisons.sls			\
-	vicare/language-extensions/hooks.sls				\
+	vicare/language-extensions/namespaces.sls			\
+	vicare/language-extensions/sentinels.sls			\
+	vicare/language-extensions/simple-match.sls			\
+	vicare/language-extensions/streams.sls				\
+	vicare/language-extensions/syntaxes.sls				\
+	vicare/language-extensions/variables.sls			\
 	\
-	vicare/crypto/randomisations/low.sls				\
 	vicare/crypto/randomisations.sls				\
+	vicare/crypto/randomisations/low.sls				\
 	vicare/crypto/randomisations/blum-blum-shub.sls			\
 	vicare/crypto/randomisations/borosh.sls				\
 	vicare/crypto/randomisations/cmrg.sls				\
@@ -80,6 +83,14 @@ nobase_dist_libvicare_DATA	= \
 	vicare/containers/char-sets/blocks.sls				\
 	vicare/containers/char-sets/categories.sls			\
 	vicare/containers/levenshtein.sls				\
+	vicare/containers/one-dimension-co.sls				\
+	vicare/containers/one-dimension-cc.sls				\
+	vicare/containers/bytevectors/generic-low.sls			\
+	vicare/containers/bytevectors/generic.sls			\
+	vicare/containers/bytevectors/s8.sls				\
+	vicare/containers/bytevectors/s8low.sls				\
+	vicare/containers/bytevectors/u8.sls				\
+	vicare/containers/bytevectors/u8low.sls				\
 	\
 	vicare/assembler/inspection.sls					\
 	vicare/checks.sls						\
@@ -90,7 +101,9 @@ nobase_dist_libvicare_DATA	= \
 	\
 	vicare/irregex.sls						\
 	vicare/irregex/compat.vicare.sls				\
-	vicare/pregexp.sls
+	vicare/pregexp.sls						\
+	vicare/getopts.sls						\
+	vicare/formations.sls
 
 nobase_nodist_libvicare_DATA	= \
 	vicare/platform/configuration.sls	\
@@ -213,7 +226,10 @@ nobase_dist_libvicare_DATA	+= \
 	srfi/%3a101/random-access-lists/equal.sls	\
 	\
 	srfi/%3a111.sls					\
-	srfi/%3a111/boxes.sls
+	srfi/%3a111/boxes.sls				\
+	\
+	srfi/%3a112.sls					\
+	srfi/%3a112/environment-inquiry.sls
 
 dist_pkglibexec_SCRIPTS		+= compile-srfi.sps
 endif

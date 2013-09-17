@@ -2,7 +2,7 @@ dnl @configure_input@
 dnl
 
 AC_PREREQ([2.68])
-AC_INIT([Vicare Scheme],[0.3d3],[marco.maggi-ipsu@poste.it],
+AC_INIT([Vicare Scheme],[0.3d4],[marco.maggi-ipsu@poste.it],
   [vicare-scheme],[http://marcomaggi.github.com/vicare.html])
 AC_CONFIG_SRCDIR([src])
 AC_CONFIG_MACRO_DIR([autotools])
@@ -199,8 +199,9 @@ AC_CHECK_HEADERS([assert.h dlfcn.h errno.h fcntl.h signal.h     \
                   stdint.h stdlib.h string.h strings.h stdarg.h \
                   errno.h stddef.h                              \
                   sys/mman.h sys/resource.h sys/stat.h          \
-                  sys/time.h sys/types.h sys/wait.h time.h      \
-                  unistd.h])
+                  sys/time.h sys/types.h sys/wait.h             \
+                  sys/utsname.h                                 \
+                  time.h unistd.h])
 
 AC_CHECK_HEADERS([arpa/inet.h dirent.h fstab.h inttypes.h limits.h mntent.h net/if.h netinet/in.h pwd.h signal.h termios.h sys/mman.h sys/select.h sys/socket.h sys/times.h sys/timex.h sys/types.h math.h complex.h])
 
@@ -267,6 +268,7 @@ AC_CHECK_DECLS([environ])
 AC_CHECK_FUNCS([sigaltstack sigemptyset sigaddset sigfillset sigprocmask sigaction])
 AC_CHECK_TYPES([struct timespec])
 AC_CHECK_FUNCS([hypot cbrt])
+AC_CHECK_FUNCS([uname])
 
 AC_CACHE_SAVE
 
