@@ -2,7 +2,7 @@ dnl @configure_input@
 dnl
 
 AC_PREREQ([2.68])
-AC_INIT([Vicare Scheme],[0.3d4],[marco.maggi-ipsu@poste.it],
+AC_INIT([Vicare Scheme],[0.3d5],[marco.maggi-ipsu@poste.it],
   [vicare-scheme],[http://marcomaggi.github.com/vicare.html])
 AC_CONFIG_SRCDIR([src])
 AC_CONFIG_MACRO_DIR([autotools])
@@ -93,6 +93,15 @@ AM_CONDITIONAL([WANT_SRFI],[test "x$vicare_enable_SRFI" = xyes])
 AM_COND_IF([WANT_SRFI],
   [AC_DEFINE([VICARE_BUILT_WITH_SRFI_ENABLED],[1],
      [defined if SRFI libraries were requested at configuration time])])
+
+VICARE_ENABLE_OPTION([NAUSICAA],[nausicaa],[yes],
+  [whether to install the Nausicaa libraries],
+  [enable installation of Nausicaa libraries])
+AM_CONDITIONAL([WANT_NAUSICAA],[test "x$vicare_enable_NAUSICAA" = xyes])
+
+AM_COND_IF([WANT_NAUSICAA],
+  [AC_DEFINE([VICARE_BUILT_WITH_NAUSICAA_ENABLED],[1],
+     [defined if Nausicaa libraries were requested at configuration time])])
 
 VICARE_ENABLE_OPTION([POSIX],[posix],[yes],
   [whether POSIX features are enabled],

@@ -51,9 +51,11 @@ VICARE_SCHEME_CORE_TESTS	= \
 	\
 	test-vicare-bignums.sps						\
 	test-vicare-bytevectors.sps					\
+	test-vicare-builtin-posix.sps					\
 	test-vicare-chars.sps						\
 	test-vicare-collect.sps						\
 	test-vicare-compensations.sps					\
+	test-vicare-conditions.sps					\
 	test-vicare-enumerations.sps					\
 	test-vicare-environment-inquiry.sps				\
 	test-vicare-equality.sps					\
@@ -166,15 +168,20 @@ VICARE_SCHEME_CORE_TESTS	= \
 	test-vicare-language-extensions-coroutines.sps			\
 	test-vicare-language-extensions-custom-ports.sps		\
 	test-vicare-language-extensions-hooks.sps			\
+	test-vicare-language-extensions-identifier-alists.sps		\
+	test-vicare-language-extensions-identifier-properties.sps	\
+	test-vicare-language-extensions-identifier-substitutions.sps	\
 	test-vicare-language-extensions-infix.sps			\
 	test-vicare-language-extensions-keywords.sps			\
 	test-vicare-language-extensions-loops.sps			\
+	test-vicare-language-extensions-makers.sps			\
 	test-vicare-language-extensions-namespaces.sps			\
 	test-vicare-language-extensions-sentinels.sps			\
 	test-vicare-language-extensions-simple-match.sps		\
 	test-vicare-language-extensions-streams.sps			\
 	test-vicare-language-extensions-variables.sps			\
 	\
+	test-vicare-containers-arrays.sps				\
 	test-vicare-containers-bytevector-compounds.sps			\
 	test-vicare-containers-bytevectors-s8-high.sps			\
 	test-vicare-containers-bytevectors-s8-low.sps			\
@@ -189,6 +196,8 @@ VICARE_SCHEME_CORE_TESTS	= \
 	test-vicare-containers-object-properties.sps			\
 	test-vicare-containers-one-dimension-cc.sps			\
 	test-vicare-containers-one-dimension-co.sps			\
+	test-vicare-containers-queues.sps				\
+	test-vicare-containers-stacks.sps				\
 	test-vicare-containers-strings-high.sps				\
 	test-vicare-containers-strings-low.sps				\
 	test-vicare-containers-strings-rabin-karp.sps			\
@@ -204,7 +213,11 @@ VICARE_SCHEME_CORE_TESTS	= \
 	test-pregexp.sps						\
 	test-vicare-getopts.sps						\
 	test-formations-round.sps					\
-	test-formations-lib.sps
+	test-formations-lib.sps						\
+	\
+	test-vicare-parser-tools-silex-file.sps				\
+	test-vicare-parser-tools-silex-misc.sps				\
+	test-vicare-parser-tools-silex-online.sps
 
 VICARE_SCHEME_LONG_TESTS	= \
 	long-test-r6rs-run.sps						\
@@ -249,6 +262,42 @@ VICARE_SCHEME_SRFI_TESTS	= \
 VICARE_SCHEME_SRFI_POSIX_TESTS	= \
 	test-srfi-106-socket.sps
 
+VICARE_SCHEME_NAUSICAA_TESTS	= \
+	test-nausicaa-tags-helpers.sps					\
+	test-nausicaa-tags-core-classes.sps				\
+	test-nausicaa-tags-core-labels.sps				\
+	test-nausicaa-tags-docs.sps					\
+	test-nausicaa-oopp-generics.sps					\
+	test-nausicaa-oopp-binding-constructs.sps			\
+	test-nausicaa-oopp-builtin-labels.sps				\
+	test-nausicaa-oopp-core.sps					\
+	test-nausicaa-oopp-labels-and-interfaces.sps			\
+	test-nausicaa-oopp-label-core.sps				\
+	test-nausicaa-oopp-label-shadowing.sps				\
+	test-nausicaa-oopp-mixins.sps					\
+	test-nausicaa-oopp-setter-and-getter.sps			\
+	test-nausicaa-oopp-unsafe-field-selectors.sps			\
+	test-nausicaa-multimethods-ordinary.sps				\
+	test-nausicaa-multimethods-starred.sps				\
+	test-nausicaa-conditions.sps					\
+	\
+	test-nausicaa-containers-lists.sps				\
+	test-nausicaa-containers-vectors.sps				\
+	test-nausicaa-containers-strings.sps				\
+	test-nausicaa-containers-arrays.sps				\
+	test-nausicaa-containers-stacks.sps				\
+	test-nausicaa-containers-queues.sps				\
+	test-nausicaa-containers-bitvectors.sps				\
+	test-nausicaa-containers-iterators.sps				\
+	\
+	test-nausicaa-parser-tools-lexical-token.sps			\
+	test-nausicaa-parser-tools-source-location.sps			\
+	test-nausicaa-parser-tools-lalr-lr.sps				\
+	test-nausicaa-parser-tools-lalr-glr.sps				\
+	test-nausicaa-parser-tools-lalr-calc.sps			\
+	\
+	test-issue-058-lalr-unary-prec.sps
+
 VICARE_SCHEME_FFI_TESTS	= \
 	test-vicare-ffi-core.sps					\
 	test-vicare-ffi-foreign-pointer-wrapper.sps
@@ -288,12 +337,17 @@ VICARE_SCHEME_CRE2_TESTS	= foreign-test-vicare-cre2.sps
 ## select tests for "make check"
 
 TESTS		= $(VICARE_SCHEME_CORE_TESTS)
+XFAIL_TESTS	= test-issue-058-lalr-unary-prec.sps
 
 if WANT_SRFI
 TESTS		+= $(VICARE_SCHEME_SRFI_TESTS)
 if WANT_POSIX
 TESTS		+= $(VICARE_SCHEME_SRFI_POSIX_TESTS)
 endif
+endif
+
+if WANT_NAUSICAA
+TESTS		+= $(VICARE_SCHEME_NAUSICAA_TESTS)
 endif
 
 if WANT_LIBFFI
@@ -328,6 +382,19 @@ EXTRA_DIST	= \
 	lists/low.sls					\
 	lists/stx.sls					\
 	numerics/helpers.sls				\
+	libtest/calc-code-lexer.sls			\
+	libtest/calc-parser-helper.sls			\
+	libtest/calc-parser-lexer.sls			\
+	libtest/calc-parser.sls				\
+	libtest/calc-portable-lexer.sls			\
+	libtest/calc-tree-lexer.sls			\
+	libtest/classes-lib.sls				\
+	libtest/makers-lib.sls				\
+	libtest/records-lib.sls				\
+	libtest/silex-test.sls				\
+	make-silex-calc.sps				\
+	make-lalr-calc.sps				\
+	calc.l						\
 	TEST-SOURCE-FILE.txt				\
 	rn100						\
 	\
@@ -379,6 +446,7 @@ EXTRA_DIST	= \
 	$(VICARE_SCHEME_LONG_TESTS)			\
 	$(VICARE_SCHEME_SRFI_TESTS)			\
 	$(VICARE_SCHEME_SRFI_POSIX_TESTS)		\
+	$(VICARE_SCHEME_NAUSICAA_TESTS)			\
 	$(VICARE_SCHEME_FFI_TESTS)			\
 	$(VICARE_SCHEME_POSIX_TESTS)			\
 	$(VICARE_SCHEME_GLIBC_TESTS)			\
@@ -424,6 +492,7 @@ VICARE_ENV	= \
 	CHECK_TEST_NAME=$(name); export CHECK_TEST_NAME;				\
 	VICARE_SRC_DIR=$(srcdir); export VICARE_SRC_DIR;				\
 	VICARE_BUILDDIR=$(builddir); export VICARE_BUILDDIR;				\
+	SILEX_PATH=$(srcdir)/../lib/vicare/parser-tools/silex/macros; export SILEX_PATH;\
 	LD_LIBRARY_PATH=$(builddir)/../src/.libs; export LD_LIBRARY_PATH;
 VICARE_RUN	= $(VICARE_ENV) $(VICARE_TIME_TESTS) $(GDB) $(VICARE) $(VICARE_FLAGS)
 
@@ -450,6 +519,22 @@ demo demos:
 	@for f in $(VICARE_SELECTED_DEMOS); do $(VICARE_RUN) $$f; done
 	@echo
 
+## --------------------------------------------------------------------
+
+## SILex test files
+
+.PHONY: silex-test
+
+silex-test:
+	@for f in $(testdir)/make-silex-*.sps; do export testdir=$(testdir); $(VICARE_RUN) $$f; done
+
+## special rules: LALR test parsers building
+
+.PHONY: lalr-test
+
+lalr-test:
+	@for f in $(testdir)/make-lalr-*.sps; do export testdir=$(testdir); $(VICARE_RUN) $$f; done
+
 #page
 #### running vicare from the build directory
 
@@ -461,7 +546,8 @@ VICARE_TEST_RUN_FLAGS	= -b $(VICARE_BOOT) $(VFLAGS) $(user_flags)
 VICARE_TEST_RUN_ENV	= \
 	VICARE_LIBRARY_PATH=$(VICARE_TEST_SEARCH_PATH); export VICARE_LIBRARY_PATH;	\
 	VICARE_SRC_DIR=$(srcdir); export VICARE_SRC_DIR;				\
-	VICARE_BUILDDIR=$(builddir); export VICARE_BUILDDIR;
+	VICARE_BUILDDIR=$(builddir); export VICARE_BUILDDIR;				\
+	SILEX_PATH=$(srcdir)/../lib/vicare/parser-tools/silex; export SILEX_PATH;
 VICARE_TEST_RUN	= $(VICARE_TEST_RUN_ENV) $(VICARE) $(VICARE_TEST_RUN_FLAGS)
 VICARE_TEST_VIE	= $(VICARE_TEST_RUN_ENV) $(VIE) $(VICARE) --raw-repl $(VICARE_TEST_RUN_FLAGS)
 
@@ -496,9 +582,10 @@ VICARE_INSTCHECK_LIBRARY_PATH = $(DESTDIR)$(VICARE_LIBDIR):$(VICARE_LIBRARY_PATH
 
 VICARE_INSTCHECK_FLAGS	= --print-loaded-libraries $(user_flags)
 VICARE_INSTCHECK_ENV	= \
-	VICARE_LIBRARY_PATH=$(VICARE_INSTCHECK_LIBRARY_PATH); export VICARE_LIBRARY_PATH; \
-	LD_LIBRARY_PATH=$(DESTDIR)$(libdir); export LD_LIBRARY_PATH; \
-	VICARE_CHECK_QUIET=no; export VICARE_CHECK_QUIET;
+	VICARE_LIBRARY_PATH=$(VICARE_INSTCHECK_LIBRARY_PATH);	export VICARE_LIBRARY_PATH;	\
+	LD_LIBRARY_PATH=$(DESTDIR)$(libdir);			export LD_LIBRARY_PATH;		\
+	VICARE_CHECK_QUIET=no;					export VICARE_CHECK_QUIET;	\
+	SILEX_PATH=$(srcdir)/../lib/vicare/parser-tools/silex;	export SILEX_PATH;
 VICARE_INSTCHECK_RUN	= \
 	$(VICARE_INSTCHECK_ENV) $(DESTDIR)$(bindir)/vicare $(VICARE_INSTCHECK_FLAGS)
 

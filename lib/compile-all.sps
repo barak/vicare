@@ -43,10 +43,12 @@
   (only (vicare arguments validation))
   (only (vicare arguments general-c-buffers))
 
+  (only (vicare language-extensions case-identifiers))
   (only (vicare language-extensions syntaxes))
   (only (vicare language-extensions amb))
   (only (vicare language-extensions simple-match))
   (only (vicare language-extensions coroutines))
+  (only (vicare language-extensions increments))
   (only (vicare language-extensions infix))
   (only (vicare language-extensions keywords))
   (only (vicare language-extensions sentinels))
@@ -61,6 +63,11 @@
   (only (vicare language-extensions callables))
   (only (vicare language-extensions define-record-extended))
   (only (vicare language-extensions c-enumerations))
+  (only (vicare language-extensions identifier-alists))
+  (only (vicare language-extensions identifier-properties))
+  (only (vicare language-extensions identifier-substitutions))
+  (only (vicare language-extensions let-constants))
+  (only (vicare language-extensions makers))
 
   (only (vicare crypto randomisations low))
   (only (vicare crypto randomisations))
@@ -104,12 +111,18 @@
   (only (vicare containers one-dimension-cc))
   (only (vicare containers bytevectors u8))
   (only (vicare containers bytevectors s8))
+  (only (vicare containers arrays))
+  (only (vicare containers stacks))
+  (only (vicare containers queues))
+
+  (only (vicare parser-tools silex lexer))
+  (only (vicare parser-tools silex))
+  (only (vicare parser-tools silex utilities))
 
   (only (vicare net channels))
 
   (only (vicare assembler inspection))
   (only (vicare debugging compiler))
-
 
   (only (vicare irregex))
   (only (vicare pregexp))

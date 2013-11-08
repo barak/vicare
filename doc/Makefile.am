@@ -4,60 +4,89 @@
 
 EXTRA_DIST		= QUEST-FOR-ISSUE-35
 
-info_TEXINFOS		= vicare-scheme.texi
+info_TEXINFOS		= \
+	vicare-scheme.texi			\
+	vicare-libs.texi			\
+	nausicaa.texi
+
 vicare_scheme_TEXINFOS	= \
-	gpl-3.0.texi			\
-	macros.texi			\
+	gpl-3.0.texi				\
+	macros.texi				\
 	\
-	overview.texi			\
-	using.texi			\
-	scheme.texi			\
-	baselib.texi			\
-	stdlib.texi			\
+	overview.texi				\
+	using.texi				\
+	scheme.texi				\
+	baselib.texi				\
+	stdlib.texi				\
 	exception-handlers-implementation.texi	\
-	iklib.texi			\
-	ffi.texi			\
-	posix.texi			\
-	glibc.texi			\
-	iconv.texi			\
-	linux.texi			\
-	syslib.texi			\
-	capi.texi			\
-	lang.texi			\
-	libs.texi			\
-	objects.texi			\
-	debug.texi			\
-	machinery.texi			\
-	compiler.texi			\
+	iklib.texi				\
+	ffi.texi				\
+	syslib.texi				\
+	capi.texi				\
+	objects.texi				\
+	debug.texi				\
+	machinery.texi				\
+	compiler.texi				\
 	\
-	bytevectors.texi		\
-	char-sets.texi			\
-	comparisons.texi		\
-	knuth-morris-pratt.texi		\
-	levenshtein.texi		\
-	lists.texi			\
-	loops.texi			\
-	object-properties.texi		\
-	one-dimension.texi		\
-	randomisations.texi		\
-	streams.texi			\
-	strings.texi			\
-	vectors.texi			\
+	missing.texi				\
+	building.texi				\
+	credits.texi				\
+	unicode.texi				\
+	fasl.texi				\
+	shmem.texi				\
+	binfmt.texi				\
+	history.texi				\
+	references.texi
+
+vicare_libs_TEXINFOS = \
+	gpl-3.0.texi				\
+	macros.texi				\
 	\
-	irregex.texi			\
-	pregexp.texi			\
-	formations.texi			\
+	lang.texi				\
 	\
-	missing.texi			\
-	building.texi			\
-	credits.texi			\
-	unicode.texi			\
-	fasl.texi			\
-	shmem.texi			\
-	binfmt.texi			\
-	cre2.texi			\
-	history.texi			\
-	references.texi			\
+	posix.texi				\
+	glibc.texi				\
+	iconv.texi				\
+	linux.texi				\
+	cre2.texi				\
+	\
+	libs-arguments-validation.texi		\
+	libs-arrays.texi			\
+	libs-bytevectors.texi			\
+	libs-bytevector-compounds.texi		\
+	libs-cbuffers.texi			\
+	libs-char-sets.texi			\
+	libs-comparisons.texi			\
+	libs-debugging.texi			\
+	libs-flonum-format.texi			\
+	libs-flonum-parser.texi			\
+	libs-formations.texi			\
+	libs-getopts.texi			\
+	libs-gcc.texi				\
+	libs-identifier-alists.texi		\
+	libs-identifier-properties.texi		\
+	libs-irregex.texi			\
+	libs-knuth-morris-pratt.texi		\
+	libs-levenshtein.texi			\
+	libs-lists.texi				\
+	libs-loops.texi				\
+	libs-object-properties.texi		\
+	libs-one-dimension.texi			\
+	libs-parser-logic.texi			\
+	libs-platform.texi			\
+	libs-pregexp.texi			\
+	libs-queues.texi			\
+	libs-randomisations.texi		\
+	libs-readline.texi			\
+	libs-stacks.texi			\
+	libs-streams.texi			\
+	libs-strings.texi			\
+	libs-vectors.texi			\
+	libs-weak-hashtables.texi		\
+	\
+	libs-parser-tools-silex.texi		\
+	\
+	libs-net-channels.texi			\
 	\
 	srfi.texi				\
 	srfi-and-let-star.texi			\
@@ -96,5 +125,30 @@ vicare_scheme_TEXINFOS	= \
 	srfi-time.texi				\
 	srfi-vectors.texi			\
 	srfi-functional-pairs.texi
+
+nausicaa_TEXINFOS	= \
+	nausicaa-language.texi					\
+	nausicaa-oopp.texi					\
+	nausicaa-multimethods.texi				\
+	nausicaa-builtins.texi					\
+	nausicaa-conditions.texi				\
+	nausicaa-increments.texi				\
+	\
+	nausicaa-containers-lists.texi				\
+	nausicaa-containers-vectors.texi			\
+	nausicaa-containers-strings.texi			\
+	nausicaa-containers-arrays.texi				\
+	nausicaa-containers-stacks.texi				\
+	nausicaa-containers-queues.texi				\
+	nausicaa-containers-bitvectors.texi			\
+	nausicaa-containers-iterators.texi			\
+	\
+	nausicaa-parser-tools-source-locations.texi		\
+	nausicaa-parser-tools-lexical-tokens.texi		\
+	nausicaa-parser-tools-lalr.texi				\
+	\
+	macros.texi						\
+	fdl-1.3.texi						\
+	gpl-3.0.texi
 
 ### end of file

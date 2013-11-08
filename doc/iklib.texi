@@ -31,7 +31,7 @@ makes sense to access from Scheme.
 
 @item @library{vicare platform utilities}
 Defines helper functions to deal with platform specific issues;
-@ref{platform} for details.
+@libsref{platform, Hosting platform utilities} for details.
 
 @item @library{vicare platform features}
 @cindex Library @library{vicare platform features}
@@ -196,8 +196,8 @@ values are strings.
 
 
 The following bindings are specified by @ansrfi{112}, exported by
-@library{vicare} and reexported by the @srfi{}'s libraries, @ref{srfi
-env-inquiry spec, Specification}.
+@library{vicare} and reexported by the @srfi{}'s libraries,
+@libsref{srfi env-inquiry spec, Specification}.
 
 @defun implementation-name
 Return the string @code{"vicare-scheme"}.
@@ -300,6 +300,30 @@ and the syntax:
 @example
 (define-syntax @meta{name})
 @expansion{} (define-syntax @meta{name} (syntax-rules ()))
+@end example
+@end deffn
+
+
+@deffn Syntax define-syntax* @meta{name}
+@deffnx Syntax define-syntax* @meta{name} @meta{transformer}
+@deffnx Syntax define-syntax* (@meta{name} @meta{arg}) @metao{body} @meta{body} @dots{}
+Like @func{define-syntax} defined by Vicare.  Additionally, when the
+last form is used, the unhygienic bindings @code{__who__} and
+@func{synner} are introduced as follows:
+
+@example
+(define-syntax* (@meta{name} @meta{arg}) @metao{body} @meta{body} @dots{})
+@expansion{} (define-syntax* (@meta{name} @meta{arg})
+      (let-syntax
+          ((__who__ (identifier-syntax (quote @meta{name}))))
+        (letrec
+            ((synner (case-lambda
+                       ((message)
+                        (synner message #f))
+                       ((message subform)
+                        (syntax-violation __who__
+                           message @meta{arg} subform)))))
+          @metao{body} @meta{body} @dots{})))
 @end example
 @end deffn
 
@@ -831,6 +855,24 @@ Supported symbols are @code{big}, @code{little}, @code{network} an
 is converted to the return value of @code{(native-endianness)}.
 @end deffn
 
+
+@deffn Syntax eval-for-expand @metao{body} @meta{body} @dots{}
+Evaluate the @meta{body} forms at expand time.  An
+@func{eval-for-expand} form counts a definition in a body.
+
+Notice that definitions in the body are @strong{not} visible by other
+code evaluated for expand.
+@end deffn
+
+
+@deffn Syntax set-cons! @meta{who} @meta{obj}
+Expand to:
+
+@example
+(set! @meta{who} (cons @meta{obj} @meta{who}))
+@end example
+@end deffn
+
 @c page
 @node iklib compensations
 @section Compensation stacks
@@ -1127,6 +1169,8 @@ Push the given thunk on the current compensations stack.
 * iklib conditions spos::       Scheme source code position.
 * iklib conditions eagain::     Reporting @code{EAGAIN} exceptions.
 * iklib conditions errno::      Reporting @code{errno} exceptions.
+* iklib conditions procarg::    Procedure argument violations.
+* iklib conditions exprret::    Expression return value violations.
 @end menu
 
 @c page
@@ -1236,6 +1280,65 @@ Return @true{} if @var{obj} is an instance of @condition{errno}.
 @defun condition-errno @var{obj}
 Accessor for the encoded @code{errno} value in @var{obj}, which must be
 an instance of @condition{errno}.
+@end defun
+
+@c page
+@node iklib conditions procarg
+@subsection Procedure argument violations
+
+
+@deftp {Condition Type} &procedure-argument-violation
+Condition object type representing invalid values handed as arguments to
+a procedure; it is derived from @condition{assertion}.
+@end deftp
+
+
+@defun make-procedure-argument-violation
+Build and return a new condition object of type
+@condition{procedure-argument-validation}.
+@end defun
+
+
+@defun procedure-argument-violation? @var{obj}
+Return @true{} if @var{obj} is a condition object of type
+@condition{procedure-argument-validation}; otherwise return @false{}.
+@end defun
+
+
+@defun procedure-argument-violation @var{who} @var{message} @var{irritant} @dots{}
+Raise a compound condition object as non--continuable exception with
+component types: @condition{who}, @condition{message},
+@condition{irritants}, @condition{procedure-argument-validation}.
+@end defun
+
+@c page
+@node iklib conditions exprret
+@subsection Expression return value violations
+
+
+@deftp {Condition Type} &expression-return-value-violation
+Condition object type representing invalid values returned from an
+expression; it is derived from @condition{assertion}.
+@end deftp
+
+
+@defun make-expression-return-value-violation
+Build and return a new condition object of type
+@condition{expression-return-value-validation}.
+@end defun
+
+
+@defun expression-return-value-violation? @var{obj}
+Return @true{} if @var{obj} is a condition object of type
+@condition{expression-return-value-validation}; otherwise return
+@false{}.
+@end defun
+
+
+@defun expression-return-value-violation @var{who} @var{message} @var{irritant} @dots{}
+Raise a compound condition object as non--continuable exception with
+component types: @condition{who}, @condition{message},
+@condition{irritants}, @condition{expression-return-value-validation}.
 @end defun
 
 @c page
@@ -2322,7 +2425,7 @@ must be already bound to fluid syntaxes defined by
 
 
 Some functions accept an optional argument @var{synner}: when used, it
-must be a function accepting 1 or 2 arguments, the first arugment being
+must be a function accepting 1 or 2 arguments, the first argument being
 a string error message and the optional second argument being a subform;
 @var{synner} must raise a compound condition object with components:
 @condition{who}, @condition{message}, @condition{syntax}.  The
@@ -2388,7 +2491,7 @@ and @var{suffix}.  @var{suffix} can be a string, symbol or identifier.
 @defun identifier-append @var{ctx} @var{item} @dots{}
 Build and return a new identifier, in the same lexical context of the
 identifier @var{ctx}, whose string name is the concatenation of the
-arugments @var{item}.  Each @var{item} can be a string, symbol or
+arguments @var{item}.  Each @var{item} can be a string, symbol or
 identifier.
 
 @example
@@ -2404,7 +2507,7 @@ identifier.
 @defun identifier-format @var{ctx} @var{template} @var{item} @dots{}
 Build and return a new identifier, in the same lexical context of the
 identifier @var{ctx}, whose string name is the result of formatting the
-string @var{template} with the arugments @var{item}.  @var{template} can
+string @var{template} with the arguments @var{item}.  @var{template} can
 be a string including the same escape sequences of @func{format} from
 @library{vicare} (@pxref{iklib printing, format}).  Each @var{item} can
 be a string, symbol or identifier.
@@ -2770,6 +2873,12 @@ Recursively visit the internals of the given syntax objects and return
 compared with @func{free-identifier=?}.
 @end defun
 
+
+@defun {identifier=symbol?} @var{id} @var{sym}
+Return true if the symbol @var{sym} is equal to the symbol name of the
+identifier @var{id}.
+@end defun
+
 @c page
 @node iklib expander clauses
 @subsection Syntax clauses helpers
@@ -2804,7 +2913,7 @@ and processing such clauses.
 
 
 Some functions accept an optional argument @var{synner}: when used, it
-must be a function accepting 1 or 2 arguments, the first arugment being
+must be a function accepting 1 or 2 arguments, the first argument being
 a string error message and the optional second argument being a subform;
 @var{synner} must raise a compound condition object with components:
 @condition{who}, @condition{message}, @condition{syntax}.  The
@@ -3010,24 +3119,76 @@ Accessors for the fields of syntax clause specification objects.
 @defunx syntax-clauses-single-spec @var{spec} @var{unwrapped-clauses} @var{synner}
 Given a fully unwrapped syntax object holding a list of clauses (for
 example the return value of @func{syntax-clauses-unwrap}) verify if
-there are clauses conforming to the given specification @var{spec}.  If
-successful return a (possibly empty) list of syntax objects representing
-the cdrs of the clauses matching @var{spec}; if an invalid clause is
-found call @var{synner} or raise a @condition{syntax} object.
+there are clauses conforming to the given specification @var{spec}.
+
+If successful return a (possibly empty) vector of vectors of syntax
+objects; else call @var{synner} or raise a @condition{syntax} exception.
+The length of the returned vector is the number of clauses from
+@var{unwrapped-clauses} conforming to @var{spec}.  Each nested vector
+represents the cdr of a clause matching @var{spec}:
+
+@itemize
+@item
+If a clause has no arguments: the corresponding nested vector is empty.
+
+@item
+If a clause has @math{1} argument: the corresponding nested vector has
+@math{1} item being the syntax object representing the argument.
+
+@item
+If a clause has @math{N} arguments: the corresponding nested vector has
+@math{N} items being the syntax objects representing the arguments.
+@end itemize
+
+Examples:
 
 @example
 (import (vicare))
 
-(define spec
-  (make-syntax-clause-spec #'b 1 1 1 1 '() '()))
+(syntax-clauses-single-spec
+   (make-syntax-clause-spec #'b 1 1 1 1 '() '())
+   (syntax-clauses-unwrap #'((a 123)
+                             (b 456)
+                             (d 789))))
+@result{} #(#(456))
 
-(define unwrapped-clauses
-  (syntax-clauses-unwrap #'((a 123) (b 456) (d 789))))
+(syntax-clauses-single-spec
+   (make-syntax-clause-spec #'b 1 1 0 +inf.0 '() '())
+   (syntax-clauses-unwrap #'((a 123)
+                             (b)
+                             (d 789))))
+@result{} #(#())
 
-(syntax=?
- (syntax-clauses-single-spec spec unwrapped-clauses)
- '((456)))
-@result{} #t
+(syntax-clauses-single-spec
+   (make-syntax-clause-spec #'b 1 1 0 +inf.0 '() '())
+   (syntax-clauses-unwrap #'((a 123)
+                             (b 4 5 6)
+                             (d 789))))
+@result{} #(#(4 5 6))
+
+(syntax-clauses-single-spec
+   (make-syntax-clause-spec #'b 1 1 0 +inf.0 '() '())
+   (syntax-clauses-unwrap #'((a 123)
+                             (b 4)
+                             (b 5)
+                             (b 6)
+                             (d 789))))
+@result{} #(#(4) #(5) #(6))
+
+(syntax-clauses-single-spec
+   (make-syntax-clause-spec #'b 1 1 0 +inf.0 '() '())
+   (syntax-clauses-unwrap #'((a 123)
+                             (b 4 4.1)
+                             (b 5 5.1)
+                             (d 789))))
+@result{} #(#(4 4.1) #(5 5.1))
+
+(syntax-clauses-single-spec
+   (make-syntax-clause-spec #'b 1 1 0 +inf.0 '() '())
+   (syntax-clauses-unwrap #'((a 123)
+                             (b 4 ciao 6)
+                             (d 789))))
+@result{} #(#(4 #<syntax-object expr=ciao> 6))
 @end example
 @end defun
 
@@ -3040,22 +3201,51 @@ the clauses conform to the given @var{specs}, which must be a list of
 syntax clause specification objects.
 
 Combine the clause arguments with the given @var{knil} in a
-@func{fold-left} fashion; if successful return the resulting @var{knil};
+@func{fold-left} fashion, if successful return the resulting @var{knil};
 if an invalid clause is found call @var{synner} or raise a
-@condition{syntax} object.  The operation is as follows:
+@condition{syntax} object.
+
+The operation is conceptually as follows:
 
 @example
 (fold-left
     (lambda (knil spec)
-      (@var{combine} knil spec
-        (syntax-clauses-single-spec spec
-          @var{unwrapped-clauses} @var{synner})))
+      (let ((args (syntax-clauses-single-spec spec
+                     @var{unwrapped-clauses} @var{synner})))
+        (if (fxzero? (vector-length args))
+            knil
+          (@var{combine} knil spec args))))
   @var{knil}
   @var{specs})
 @end example
 
-This function does @strong{not} check that all the clauses conform to a
-given specification.
+@noindent
+notice that @var{combine} is called only if a clause from @var{specs} is
+present in @var{unwrapped-clauses}; @var{combine} must return the new
+value for @var{knil}.
+@end defun
+
+
+@defun syntax-clauses-validate-specs @var{list-of-specs}
+Given a list of @objtype{syntax-clause-spec} objects: perform some
+validations among them.  If successful return @var{list-of-specs}
+itself, otherwise raise an assertion violation.
+
+The following checks are performed:
+
+@itemize
+@item
+For every identifier listed in the @code{mutually-inclusive} field of
+every @objtype{syntax-clause-spec}: check that such identifier is equal,
+according to @func{free-identifier=?}, to an identifier in the
+@code{keyword} field of another @objtype{syntax-clause-spec} object.
+
+@item
+For every identifier listed in the @code{mutually-exclusive} field of
+every @objtype{syntax-clause-spec}: check that such identifier is equal,
+according to @func{free-identifier=?}, to an identifier in the
+@code{keyword} field of another @objtype{syntax-clause-spec} object.
+@end itemize
 @end defun
 
 @c page
@@ -3631,9 +3821,102 @@ Reset to void all the fields of a structure.
 
 
 @menu
+* iklib records predicates::    Record predicates.
+* iklib records fields::        Accessing and mutating fields.
 * iklib records final::         Automatic finalisation of records.
 * iklib records misc::          Miscellaneous functions.
 @end menu
+
+@c page
+@node iklib records predicates
+@subsection Record predicates
+
+
+@defun record-and-rtd? @var{record} @var{rtd}
+Return @true{} if @var{record} is a record instance of @var{rtd} or a
+record instance of a subtype of @var{rtd}; otherwise return @false{}.
+@end defun
+
+
+@deffn Syntax record-type-and-record? @meta{type-name} @meta{record}
+Return @true{} if @meta{record} is an expression evaluating to a record
+instance of type @meta{type-name} or a record instance of a subtype of
+@meta{type-name}; otherwise return @false{}.  This syntax allows to test
+the type of a record instance through the type name identifier, without
+the need to export the predicate identifier out of libraries.
+@end deffn
+
+@c page
+@node iklib records fields
+@subsection Accessing and mutating fields
+
+
+@deffn Syntax record-type-field-ref @meta{type-name} @meta{field-name} @meta{record}
+@deffnx Syntax record-type-field-set! @meta{type-name} @meta{field-name} @meta{record} @meta{new-value}
+Expand to an expression which accesses or mutates the field whose name
+is @meta{field-name} in the record @meta{record} of type
+@meta{type-name}.  These syntaxes allow access to the fields of a record
+through the type name identifier, without the need to export accessor
+and mutator identifiers out of libraries.
+
+@example
+(import (vicare))
+
+(define-record-type alpha
+  (field (mutable a)))
+
+(define-record-type beta
+  (parent alpha)
+  (field (mutable b)))
+
+(define A
+  (make-alpha 1))
+
+(define B
+  (make-beta 1 11))
+
+(record-type-field-ref  alpha a A)       @result{} 1
+(record-type-field-set! alpha a A 2)
+(record-type-field-ref  alpha a A)       @result{} 2
+
+(record-type-field-ref  alpha a B)       @result{} 1
+(record-type-field-set! alpha a B 2)
+(record-type-field-ref  alpha a B)       @result{} 2
+
+(record-type-field-ref  beta b B)        @result{} 11
+(record-type-field-set! beta b B 22)
+(record-type-field-ref  beta b B)        @result{} 22
+@end example
+@end deffn
+
+
+@deffn Syntax $record-type-field-ref @meta{type-name} @meta{field-name} @meta{record}
+@deffnx Syntax $record-type-field-set! @meta{type-name} @meta{field-name} @meta{record} @meta{new-value}
+Expand to an unsafe expression which accesses or mutates the field whose
+name is @meta{field-name} in the record @meta{record} of type
+@meta{type-name}.  These syntaxes allow unsafe access to the fields of a
+record through the type name identifier, without the need to export
+unsafe accessor and mutator identifiers out of libraries.
+
+These syntaxes are usable only when the @func{define-record-type} syntax
+used to define @meta{type-name} has been expanded in extended Vicare
+mode; if @command{vicare} was run with the option @option{--strict-r6rs}
+use of these syntaxes raises a syntax violation exception.
+
+@example
+(import (vicare))
+
+(define-record-type alpha
+  (field (mutable a)))
+
+(define A
+  (make-alpha 1))
+
+($record-type-field-ref  alpha a A)      @result{} 1
+($record-type-field-set! alpha a A 2)
+($record-type-field-ref  alpha a A)      @result{} 2
+@end example
+@end deffn
 
 @c page
 @node iklib records final
@@ -3930,8 +4213,8 @@ first-out sequence.  The following bindings are exported by the library
 @library{vicare}.
 
 
-@defun make-queue
-@defunx make-queue @var{init-values}
+@defun make-queue-procs
+@defunx make-queue-procs @var{init-values}
 Build a queue of items and return @math{3} values:
 
 @enumerate
@@ -3957,18 +4240,18 @@ Usage examples:
 (import (vicare))
 
 (let-values (((empty? enqueue! dequeue!)
-              (make-queue)))
+              (make-queue-procs)))
   (empty?))
 @result{} #t
 
 (let-values (((empty? enqueue! dequeue!)
-              (make-queue)))
+              (make-queue-procs)))
   (enqueue! 1)
   (empty?))
 @result{} #f
 
 (let-values (((empty? enqueue! dequeue!)
-              (make-queue)))
+              (make-queue-procs)))
   (enqueue! 1)
   (empty?)      @result{} #f
   (dequeue!)    @result{} 1
@@ -3976,7 +4259,7 @@ Usage examples:
 @result{} #t
 
 (let-values (((empty? enqueue! dequeue!)
-              (make-queue)))
+              (make-queue-procs)))
   (enqueue! 1)
   (enqueue! 2)
   (enqueue! 3)
@@ -4256,6 +4539,12 @@ that are encoded but should not are decoded.
 The following bindings are exported by the library @library{vicare}.
 
 
+@defun bytevector-empty? @var{bytevector}
+Return @true{} if the bytevector @var{bytevector} has zero length,
+otherwise return @false{}.
+@end defun
+
+
 @defun bytevector-append @var{bytevector} ...
 Concatenate the bytevector arguments and return the result.  If no
 arguments are given: return the empty bytevector.
@@ -4274,6 +4563,12 @@ lengths is not in the range of the maximum bytevector length.
 
 
 The following bindings are exported by the library @library{vicare}.
+
+
+@defun string-empty? @var{str}
+Return @true{} if the string @var{str} is empty, otherwise return
+@false{}.
+@end defun
 
 
 @defun string-copy! @var{src.str} @var{src.start} @var{dst.str} @var{dst.start} @var{count}
@@ -4390,6 +4685,12 @@ integer objects satisfying:
 Return a newly allocated vector formed from the items of @var{vec}
 beginning with index @var{start} (inclusive) and ending with index
 @var{end} (exclusive).
+@end defun
+
+
+@defun vector-empty? @var{vec}
+Return @true{} if the vector @var{vec} has zero length, otherwise return
+@false{}.
 @end defun
 
 
@@ -4778,6 +5079,7 @@ representing the mantissa's @math{53} bits.
 @menu
 * iklib numerics constants::    Numeric constants.
 * iklib numerics preds::        Additional numeric predicates.
+* iklib numerics bignums::      Additional bignum functions.
 * iklib numerics math::         Additional math functions.
 * iklib numerics bitwise::      Additional bitwise functions.
 @end menu
@@ -4882,26 +5184,33 @@ The following bindings are exported by the @library{ikarus} and
 
 
 @defun bignum? @var{obj}
-Return true if @var{obj} is an exact integer represented by a big
-number.
+Return @true{} if @var{obj} is an exact integer represented by a big
+number; otherwise return @false{}.
 @end defun
 
 
 @defun ratnum? @var{obj}
-Return true if @var{obj} is an exact rational number.
+Return @true{} if @var{obj} is an exact rational number; otherwise
+return @false{}.
 @end defun
 
 
 @defun cflonum? @var{obj}
-Return true if @var{obj} is a complex number having flonums as both real
-and imaginary parts.
+Return @true{} if @var{obj} is a complex number having flonums as both
+real and imaginary parts; otherwise return @false{}.
 @end defun
 
 
 @defun compnum? @var{obj}
-Return true if @var{obj} is a complex number having any possible
+Return @true{} if @var{obj} is a complex number having any possible
 combination of number representations as real and imaginary parts, but
-not both flonums.
+not both flonums; otherwise return @false{}.
+@end defun
+
+
+@defun exact-integer? @var{obj}
+Return @true{} if @var{obj} is a fixnum or bignum; otherwise return
+@false{}.
 @end defun
 
 @c ------------------------------------------------------------
@@ -4910,6 +5219,46 @@ not both flonums.
 @defunx non-negative? @var{X}
 Return @true{} if @var{X} is a real number object and it is,
 respectively, non--positive or non--negative.
+@end defun
+
+@c page
+@node iklib numerics bignums
+@subsection Additional bignum functions
+
+
+@defun bignum-positive? @var{bn}
+@defunx bignum-non-negative? @var{bn}
+The argument must be a bignum.  Return @true{} if it is positive,
+otherwise return @false{}.
+@end defun
+
+
+@defun bignum-negative? @var{bn}
+@defunx bignum-non-positive? @var{bn}
+The argument must be a bignum.  Return @true{} if it is negative,
+otherwise return @false{}.
+@end defun
+
+
+@defun bignum-odd? @var{bn}
+The argument must be a bignum.  Return @true{} if it is odd, otherwise
+return @false{}.
+@end defun
+
+
+@defun bignum-even? @var{bn}
+The argument must be a bignum.  Return @true{} if it is even, otherwise
+return @false{}.
+@end defun
+
+
+@defun least-positive-bignum
+Return the smallest positive bignum.
+@end defun
+
+
+@defun greatest-negative-bignum
+Return the greatest negative bignum.
 @end defun
 
 @c page
@@ -6758,7 +7107,8 @@ example in the previous section):
 @value{PRJNAME} extends the input/output facilities defined by @rnrs{6}.
 
 @menu
-* iklib io pathnames::          Pathnames handling.
+* iklib io pathnames::          String and bytevector pathnames
+                                handling.
 * iklib io codecs::             Transcoders and additional codecs.
 * iklib io non-blocking::       Handling non--blocking devices.
 * iklib io binary::             Additional binary port features.
@@ -6770,14 +7120,15 @@ example in the previous section):
 
 @c page
 @node iklib io pathnames
-@subsection Pathnames handling
+@subsection String and bytevector pathnames handling
 
 
 All the file--related functions defined by @rnrs{6} accept a Scheme
 string as representing a file pathname; internally such string is
 converted to a bytevector to be handed to the underlying operating
-system.  The following bindings are exported by the @library{ikarus}
-library.
+system.
+
+The following bindings are exported by the library @library{vicare}.
 
 
 @deffn Parameter string->filename-func
@@ -6794,6 +7145,73 @@ In @value{PRJNAME} the filename--to--string conversion is performed by
 the function returned by @func{filename->string-func}, which defaults to
 @func{utf8->string}.
 @end deffn
+
+
+The following bindings are exported by the library @library{vicare
+$posix}.
+
+
+@defun file-pathname? @var{obj}
+@defunx file-string-pathname? @var{obj}
+@defunx file-bytevector-pathname? @var{obj}
+Return @true{} if @var{obj} is a string or bytevector, not empty, not
+including a character whose @ascii{} representation is the null byte.
+@end defun
+
+
+@defun file-absolute-pathname? @var{pathname}
+The argument @var{pathname} must be a string or bytevector.  Return
+@true{} if @var{pathname} starts with a @code{/} character, which means
+it is valid as Unix--style absolute pathname; otherwise return @false{}.
+
+This function only acts upon its argument, never accessing the file
+system.
+@end defun
+
+
+@defun file-relative-pathname? @var{pathname}
+The argument @var{pathname} must be a string or bytevector.  Return
+@true{} if @var{pathname} doest @strong{not} start with a @code{/}
+character, which means it is valid as Unix--style relative pathname;
+otherwise return @false{}.
+
+This function only acts upon its argument, never accessing the file
+system.
+@end defun
+
+
+@defun split-pathname-root-and-tail @var{pathname}
+Given a string representing a pathname: split it into the directory part
+and the tail part.  Return 2 values: a string representing the directory
+part and a string representing the tail name part.  If @var{pathname} is
+just the name of a file or directory relative to the current directory:
+the directory part is empty and the first returned value is the empty
+string.
+
+Assume the pathname components separator is @code{/}, which is
+Unix--specific.
+
+@example
+(receive (root tail)
+    (split-pathname-root-and-tail "a/b")
+  (list root tail))
+@result{} ("a" "b")
+
+(receive (root tail)
+    (split-pathname-root-and-tail "ciao")
+  (list root tail))
+@result{} ("" "ciao")
+@end example
+@end defun
+
+
+@defun file-colon-search-path? @var{obj}
+@defunx file-string-colon-search-path? @var{obj}
+@defunx file-bytevector-colon-search-path? @var{obj}
+Return @true{} if @var{obj} is a string or bytevector, possibly empty,
+not including a character whose @ascii{} representation is the null
+byte.
+@end defun
 
 
 @defun split-search-path @var{path}
@@ -6855,7 +7273,7 @@ Empty components are discarded.
 (import (vicare))
 
 (split-pathname-bytevector '#vu8())
-@result{} #f ()
+@error{} "invalid pathname"
 
 (split-pathname-bytevector '#ve(ascii "ciao/hello"))
 @result{} #f (#ve(ascii "ciao") #ve(ascii "hello"))
@@ -6864,7 +7282,7 @@ Empty components are discarded.
 @result{} #t ()
 
 (split-pathname-string "")
-@result{} #f ()
+@error{} "invalid pathname"
 
 (split-pathname-string "ciao/hello/salut")
 @result{} #f ("ciao" "hello" "salut")
@@ -6880,6 +7298,68 @@ Empty components are discarded.
 @end example
 @end defun
 
+
+@defun search-file-in-environment-path @var{pathname} @var{environment-variable}
+Search a file pathname (regular file or directory) in the given search
+path.
+
+@var{pathname} must be a string representing a file pathname;
+@var{environment-variable} must be a string representing a system
+environment variable.
+
+@itemize
+@item
+If @var{pathname} is absolute, test its existence: when found, return a
+string representing the real absolute file pathname; otherwise return
+@false{}.
+
+@item
+If @var{pathname} is relative and it has a directory part, test its
+existence: when found, return a string representing the real absolute
+file pathname; otherwise return @false{}.
+
+@item
+If @var{pathname} is relative and it has no directory part, read the
+environment variable as colon--separated list of directories and search
+the file in them, from the first to the last: when found, return a
+string representing the real absolute file pathname; otherwise return
+@false{}.
+
+Notice that the file is searched in the process' current working
+directory only if such directory is listed in the given path.
+@end itemize
+@end defun
+
+
+@defun search-file-in-list-path @var{pathname} @var{list-of-directories}
+Search a file pathname (regular file or directory) in the given search
+path.
+
+@var{pathname} must be a string representing a file pathname;
+@var{list-of-directories} must be a list of strings representing
+directory pathnames.
+
+@itemize
+@item
+If @var{pathname} is absolute, test its existence: when found, return a
+string representing the real absolute file pathname; otherwise return
+@false{}.
+
+@item
+If @var{pathname} is relative and it has a directory part, test its
+existence: when found, return a string representing the real absolute
+file pathname; otherwise return @false{}.
+
+@item
+If @var{pathname} is relative and it has no directory part, search the
+file in the given directories, from the first to the last: when found,
+return a string representing the real absolute file pathname; otherwise
+return @false{}.
+
+Notice that the file is searched in the process' current working
+directory only if such directory is listed in the given path.
+@end itemize
+@end defun
 
 @c page
 @node iklib io codecs
@@ -9029,8 +9509,8 @@ variable @code{errno} to some predefined integer constant,
 @glibcref{Checking for Errors, errno}.  The Scheme code accessing
 @code{errno} values should be agnostic with respect to the actual error
 codes; for this to happen we should use the following facilities along
-with bindings from @library{vicare platform errno}, @ref{errno} for
-details.
+with bindings from @library{vicare platform errno}, @libsref{errno, More
+features for @code{errno}} for details.
 
 Values for the C language variable @code{errno} are encoded as negated
 fixnum values: if @code{EPERM} is defined to @code{1} at the C language
@@ -9191,8 +9671,8 @@ Return @true{} if the @vari{time} is greater than or equal to
 
 The following bindings are exported by the libraries @library{vicare},
 @library{ikarus}.  An extended @api{} for @gnu{} Readline is available
-through the @library{vicare readline} library; @ref{readline} for
-details.
+through the @library{vicare readline} library; @libsref{readline,
+Extended interface to @gnu{} Readline} for details.
 
 
 @defun readline-enabled?

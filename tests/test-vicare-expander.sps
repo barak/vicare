@@ -668,11 +668,11 @@
 
   (define-fluid-syntax continue
     (lambda (stx)
-      (syntax-error 'continue "syntax \"continue\" out of any loop")))
+      (syntax-violation 'continue "syntax \"continue\" out of any loop" stx)))
 
   (define-fluid-syntax break
     (lambda (stx)
-      (syntax-error 'continue "syntax \"break\" out of any loop")))
+      (syntax-violation 'continue "syntax \"break\" out of any loop" stx)))
 
   (define-syntax while
     (syntax-rules ()
@@ -829,11 +829,11 @@
 
   (define-fluid-syntax continue
     (lambda (stx)
-      (syntax-error 'continue "syntax \"continue\" out of any loop")))
+      (syntax-violation 'continue "syntax \"continue\" out of any loop" stx)))
 
   (define-fluid-syntax break
     (lambda (stx)
-      (syntax-error 'break "syntax \"break\" out of any loop")))
+      (syntax-violation 'break "syntax \"break\" out of any loop" stx)))
 
   (define-syntax until
     (syntax-rules ()
@@ -990,11 +990,11 @@
 
   (define-fluid-syntax continue
     (lambda (stx)
-      (syntax-error 'continue "syntax \"continue\" out of any loop")))
+      (syntax-violation 'continue "syntax \"continue\" out of any loop" stx)))
 
   (define-fluid-syntax break
     (lambda (stx)
-      (syntax-error 'break "syntax \"break\" out of any loop")))
+      (syntax-violation 'break "syntax \"break\" out of any loop" stx)))
 
   (define-syntax for
     (syntax-rules ()
@@ -1899,6 +1899,125 @@
 				123))))))
 	(doit))
     => 123)
+
+  #t)
+
+
+(parametrise ((check-test-name	'define-syntax-star))
+
+;;;auxiliary syntax definition
+
+  (check
+      (let ()
+	(define-syntax* ciao)
+	(define-syntax (doit stx)
+	  (syntax-case stx ()
+	    ((_ ?id)
+	     (free-identifier=? #'?id #'ciao))))
+	(doit ciao))
+    => #t)
+
+  (check
+      (let ()
+	(define-syntax* ciao)
+	(define-syntax (doit stx)
+	  (syntax-case stx ()
+	    ((_ ?id)
+	     (free-identifier=? #'?id #'ciao))))
+	(doit hello))
+    => #f)
+
+;;; --------------------------------------------------------------------
+;;;common syntax definition
+
+  (check
+      (let ()
+	(define-syntax* ciao)
+	(define-syntax* doit
+	  (lambda (stx)
+	    (syntax-case stx ()
+	      ((_ ?id)
+	       (free-identifier=? #'?id #'ciao)))))
+	(doit hello))
+    => #f)
+
+;;; --------------------------------------------------------------------
+;;; special syntax definitions
+
+  (check
+      (let ()
+	(define-syntax* ciao)
+	(define-syntax* (doit stx)
+	  (syntax-case stx ()
+	    ((_ ?id)
+	     (free-identifier=? #'?id #'ciao))))
+	(doit hello))
+    => #f)
+
+  (check
+      (guard (E ((syntax-violation? E)
+		 (list (condition-who E)
+		       (syntax->datum (syntax-violation-form E))
+		       (syntax->datum (syntax-violation-subform E))))
+		(else E))
+	(eval '(let ()
+		 (define-syntax* (doit stx)
+		   (syntax-case stx ()
+		     ((_ ?id)
+		      (synner "bad syntax"))))
+		 (doit hello))
+	      (environment '(vicare))))
+    => '(doit (doit hello) #f))
+
+  (check
+      (guard (E ((syntax-violation? E)
+		 (list (condition-who E)
+		       (syntax->datum (syntax-violation-form E))
+		       (syntax->datum (syntax-violation-subform E))))
+		(else E))
+	(eval '(let ()
+		 (define-syntax* (doit stx)
+		   (syntax-case stx ()
+		     ((_ ?id)
+		      (synner "bad syntax" #'?id))))
+		 (doit hello))
+	      (environment '(vicare))))
+    => '(doit (doit hello) hello))
+
+  (check	;redefinition  of __WHO__,  SYNNER  still  bound to  the
+		;automatically generated one
+      (guard (E ((syntax-violation? E)
+		 (list (condition-who E)
+		       (syntax->datum (syntax-violation-form E))
+		       (syntax->datum (syntax-violation-subform E))))
+		(else E))
+	(eval '(let ()
+		 (define-syntax* (doit stx)
+		   (define __who__ 'other)
+		   (syntax-case stx ()
+		     ((_ ?id)
+		      (synner "bad syntax" #'?id))))
+		 (doit hello))
+	      (environment '(vicare))))
+    => '(doit (doit hello) hello))
+
+  (check	;redefinition of WHO and SYNNER
+      (guard (E ((syntax-violation? E)
+		 (list (condition-who E)
+		       (syntax->datum (syntax-violation-form E))
+		       (syntax->datum (syntax-violation-subform E))))
+		(else E))
+	(eval '(let ()
+		 (define-syntax* (doit stx)
+		   (define __who__ 'other)
+		   (define (synner message subform)
+		     (syntax-violation __who__ message subform #f))
+		   (syntax-case stx ()
+		     ((_ ?id)
+		      (synner "bad syntax" #'?id))))
+		 (doit hello))
+	      (environment '(vicare))))
+    => '(other hello #f))
 
   #t)
 
