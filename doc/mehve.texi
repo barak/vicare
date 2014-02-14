@@ -9,7 +9,7 @@
 @c Macros.
 @c ------------------------------------------------------------
 
-@include version-mehve.texi
+@include version.texi
 @include macros.texi
 
 @c page
