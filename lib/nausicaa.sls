@@ -1,6 +1,6 @@
 ;;; -*- coding: utf-8 -*-
 ;;;
-;;;Part of: Nausicaa/OOPP
+;;;Part of: Vicare Scheme
 ;;;Contents: augmented Scheme language around (rnrs)
 ;;;Date: Wed May 23, 2012
 ;;;
@@ -738,7 +738,6 @@
     array-set-c-unsigned-long!
     array-set-c-unsigned-long-long!
     array-set-c-unsigned-short!
-    ascii->string
     asinh
     assembler-output
     atanh
@@ -988,7 +987,6 @@
     keyword->symbol
     lambda-returnable
     last-pair
-    latin1->string
     library
     library-extensions
     library-name<=?
@@ -1265,7 +1263,6 @@
     strdup*
     strerror
     string-empty?
-    string->ascii
     string-base64->bytevector
     string-copy!
     string->cstring
@@ -1275,7 +1272,6 @@
     string->guarded-cstring
     string->guarded-cstring*
     string-hex->bytevector
-    string->latin1
     string-or-symbol->string
     string-or-symbol->symbol
     string->pathname-func
@@ -1285,7 +1281,6 @@
     strings->argv*
     strings->guarded-argv
     strings->guarded-argv*
-    string->uri-encoding
     string->utf16be
     string->utf16le
     string->utf16n
@@ -1348,6 +1343,10 @@
     time-second
     top-level-value
     let*-syntax
+    let-constants
+    let*-constants
+    letrec-constants
+    letrec*-constants
     trace-define
     trace-define-syntax
     trace-lambda
@@ -1369,10 +1368,6 @@
     uninstall-library
     until
     unwind-protect
-    uri-decode
-    uri-encode
-    uri-encoding->string
-    uri-normalise-encoding
     utf-16be-codec
     utf16be->string
     utf-16le-codec
@@ -1489,10 +1484,19 @@
     os-version
 
     ;; condition types
-    &procedure-argument-violation
+;;; Redefined by (nausicaa language conditions)
+;;;
+;;; &procedure-argument-violation
     make-procedure-argument-violation
     procedure-argument-violation?
     procedure-argument-violation
+
+;;; Redefined by (nausicaa language conditions)
+;;;
+;;; &expression-return-value-violation
+    make-expression-return-value-violation
+    expression-return-value-violation?
+    expression-return-value-violation
 
     ;; bignums
     bignum-positive?
@@ -1504,6 +1508,25 @@
     least-positive-bignum
     greatest-negative-bignum
 
+    ;; raw octets and strings
+    octets->string			string->octets
+    octets-encoded-bytevector?		octets-encoded-string?
+
+    ;; ASCII and latin1 encodings
+    ascii->string			string->ascii
+    latin1->string			string->latin1
+    ascii-encoded-bytevector?		latin1-encoded-bytevector?
+    ascii-encoded-string?		latin1-encoded-string?
+
+    ;; URI/percent encoding
+    string->uri-encoding		uri-encoding->string
+    string->percent-encoding		percent-encoding->string
+    uri-decode				percent-decode
+    uri-encode				percent-encode
+    normalise-uri-encoding		normalise-percent-encoding
+    uri-encoded-bytevector?		percent-encoded-bytevector?
+    uri-encoded-string?			percent-encoded-string?
+
     ;; misc
     set-cons!
     eval-for-expand
@@ -1511,6 +1534,11 @@
     record-type-field-set!
     $record-type-field-ref
     $record-type-field-set!
+    values->list
+    define*
+    lambda*
+    case-lambda*
+    case-define*
 
 
 ;;;; bindings from (nausicaa language oopp)
@@ -1531,15 +1559,17 @@
      (receive-and-return/tags		receive-and-return)
      (do/tags				do)
      (do*/tags				do*)
-     (case-lambda/tags			case-lambda))
+     (case-lambda/tags			case-lambda)
+     (case-define/tags			case-define))
 
     define-label		define-class		define-mixin
     make-from-fields		is-a?
     slot-set!			slot-ref
     tag-unique-identifiers
 
-    define/tags
+    define/tags			define-values/tags
     lambda/tags			case-lambda/tags
+    case-define/tags
     with-tags
     let/tags			let*/tags
     letrec/tags			letrec*/tags
@@ -1555,15 +1585,19 @@
 
     ;; built-in types
     <top> <boolean> <symbol> <keyword> <pointer>
-    <pair> <mutable-pair> <spine> <list>
-    <char> <string> <mutable-string> <vector>
+    <pair> <mutable-pair> <spine> <list> <nonempty-list>
+    <char>
+    <string> <ascii-string> <latin1-string> <percent-encoded-string> <mutable-string>
+    <vector>
     <record-type-descriptor> <record> <condition>
     <hashtable> <hashtable-eq> <hashtable-eqv> <string-hashtable> <string-ci-hashtable> <symbol-hashtable>
     <fixnum> <positive-fixnum> <negative-fixnum>
     <nonzero-fixnum> <nonpositive-fixnum> <nonnegative-fixnum>
-    <flonum>
-    <exact-integer> <integer> <integer-valued> <rational> <rational-valued>
-    <real> <real-valued> <complex> <number>
+    <integer-flonum> <rational-flonum> <flonum>
+    <positive-bignum> <negative-bignum> <bignum>
+    <exact-integer> <integer> <integer-valued>
+    <ratnum> <rational> <rational-valued>
+    <real> <real-valued> <cflonum> <compnum> <complex> <number>
     <procedure>
 
     <transcoder> <port>
@@ -1571,15 +1605,18 @@
     <binary-port> <binary-input-port> <binary-output-port> <binary-input/output-port>
     <textual-port> <textual-input-port> <textual-output-port> <textual-input/output-port>
 
-    <bytevector>
+    <bytevector> <nonempty-bytevector>
     <bytevector-u8> <bytevector-s8>
     <bytevector-u16l> <bytevector-s16l> <bytevector-u16b> <bytevector-s16b> <bytevector-u16n> <bytevector-s16n>
     <bytevector-u32l> <bytevector-s32l> <bytevector-u32b> <bytevector-s32b> <bytevector-u32n> <bytevector-s32n>
     <bytevector-u64l> <bytevector-s64l> <bytevector-u64b> <bytevector-s64b> <bytevector-u64n> <bytevector-s64n>
     ;;<bytevector-uintl> <bytevector-sintl> <bytevector-uintb> <bytevector-sintb> <bytevector-uintn> <bytevector-sintn>
     <bytevector-singlel> <bytevector-singleb> <bytevector-singlen> <bytevector-doublel> <bytevector-doubleb> <bytevector-doublen>
+    <ascii-bytevector> <latin1-bytevector> <percent-encoded-bytevector>
 
     <hashable-and-properties-clauses>
+
+    <undefined> <unspecified>
 
     ;; multimethods
     define-generic		define-generic*
@@ -1653,6 +1690,12 @@
     &h_errno
     &i/o-eagain
     &out-of-memory-error
+    &procedure-argument-violation
+    &expression-return-value-violation
+
+    ;; wrong type
+    &tagged-binding-violation
+    tagged-binding-violation
 
     ;; mismatch
     &mismatch make-mismatch-condition mismatch-condition?
@@ -1699,9 +1742,9 @@
 
 ;;;; bindings from (vicare language-extensions sentinels)
     sentinel
-    make-sentinel		sentinel?
-    undefined			undefined?
-    unspecified			unspecified?
+    make-sentinel	sentinel?
+    undefined		undefined?	defined?
+    unspecified		unspecified?	specified?
 
 
 ;;;; done exports
@@ -1727,6 +1770,8 @@
 		       &lexical
 		       &syntax
 		       &undefined
+		       &procedure-argument-violation
+		       &expression-return-value-violation
 
 		       ;; redefined from (rnrs arithmetic flonums (6))
 		       &no-infinities
@@ -1752,7 +1797,11 @@
 		       &i/o-eagain
 		       &out-of-memory-error)
 	    expand run)
-    (for (nausicaa language oopp)			expand run)
+    (for (except (nausicaa language oopp)
+		 &tagged-binding-violation
+		 make-tagged-binding-violation
+		 tagged-binding-violation?)
+      expand run)
     (for (nausicaa language multimethods)		expand run)
     (for (nausicaa language builtins)			expand run)
     (for (nausicaa language conditions)			expand run)

@@ -112,6 +112,7 @@ VICARE_SCHEME_CORE_TESTS	= \
 	test-vicare-numerics-hyper-atanh.sps				\
 	test-vicare-numerics-complex-numbers.sps			\
 	test-vicare-numerics-sqrt.sps					\
+	test-vicare-numerics-cbrt.sps					\
 	test-vicare-numerics-bitwise.sps				\
 	test-vicare-parameters.sps					\
 	test-vicare-parser-logic.sps					\
@@ -217,7 +218,8 @@ VICARE_SCHEME_CORE_TESTS	= \
 	\
 	test-vicare-parser-tools-silex-file.sps				\
 	test-vicare-parser-tools-silex-misc.sps				\
-	test-vicare-parser-tools-silex-online.sps
+	test-vicare-parser-tools-silex-online.sps			\
+	test-vicare-parser-tools-unix-pathnames.sps
 
 VICARE_SCHEME_LONG_TESTS	= \
 	long-test-r6rs-run.sps						\
@@ -263,7 +265,6 @@ VICARE_SCHEME_SRFI_POSIX_TESTS	= \
 	test-srfi-106-socket.sps
 
 VICARE_SCHEME_NAUSICAA_TESTS	= \
-	test-nausicaa-tags-helpers.sps					\
 	test-nausicaa-tags-core-classes.sps				\
 	test-nausicaa-tags-core-labels.sps				\
 	test-nausicaa-tags-docs.sps					\
@@ -277,6 +278,7 @@ VICARE_SCHEME_NAUSICAA_TESTS	= \
 	test-nausicaa-oopp-mixins.sps					\
 	test-nausicaa-oopp-setter-and-getter.sps			\
 	test-nausicaa-oopp-unsafe-field-selectors.sps			\
+	test-nausicaa-oopp-nested-calls.sps				\
 	test-nausicaa-multimethods-ordinary.sps				\
 	test-nausicaa-multimethods-starred.sps				\
 	test-nausicaa-conditions.sps					\
@@ -297,11 +299,22 @@ VICARE_SCHEME_NAUSICAA_TESTS	= \
 	test-nausicaa-parser-tools-lalr-lr.sps				\
 	test-nausicaa-parser-tools-lalr-glr.sps				\
 	test-nausicaa-parser-tools-lalr-calc.sps			\
+	test-nausicaa-parser-tools-uri.sps				\
 	\
-	test-nausicaa-net-ipv4-address.sps				\
-	test-nausicaa-net-ipv6-address.sps				\
+	test-nausicaa-uri-ip-address.sps				\
+	test-nausicaa-uri-ipv4-address.sps				\
+	test-nausicaa-uri-ipv6-address.sps				\
+	test-nausicaa-uri-uri.sps					\
+	test-nausicaa-uri-pathnames-unix.sps				\
 	\
-	test-issue-058-lalr-unary-prec.sps
+	test-issue-058-lalr-unary-prec.sps				\
+	\
+	test-mehve-language-numerics-arithmetics.sps			\
+	test-mehve-language-numerics-predicates.sps			\
+	test-mehve-language-numerics-parts.sps				\
+	test-mehve-language-numerics-transcendental.sps			\
+	test-mehve-language-infix.sps					\
+	test-mehve-language-input-output.sps
 
 VICARE_SCHEME_FFI_TESTS	= \
 	test-vicare-ffi-core.sps					\

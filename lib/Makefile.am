@@ -1,12 +1,22 @@
 ## Process this file with automake to produce Makefile.in
 
 EXTRA_DIST = \
-	vicare/platform/configuration.sls.in	\
-	vicare/platform/constants.sls.in	\
-	vicare/platform/errno.sls.in		\
-	vicare/platform/words.sls.in
+	vicare/platform/configuration.sls.in				\
+	vicare/platform/constants.sls.in				\
+	vicare/platform/errno.sls.in					\
+	vicare/platform/words.sls.in					\
+	nausicaa/uri/pathnames.sls.in
 
-dist_pkglibexec_SCRIPTS	= compile-all.sps
+dist_pkglibexec_SCRIPTS	= \
+	compile-vicare-platform.sps					\
+	compile-vicare-unsafe.sps					\
+	compile-vicare-language-extensions.sps				\
+	compile-vicare-crypto.sps					\
+	compile-vicare-numerics.sps					\
+	compile-vicare-containers.sps					\
+	compile-vicare-parser-tools.sps					\
+	compile-vicare-net.sps						\
+	compile-vicare-misc.sps
 
 libvicaredir		= $(libdir)/vicare-scheme
 
@@ -29,6 +39,7 @@ nobase_dist_libvicare_DATA	= \
 	vicare/arguments/validation.sls					\
 	\
 	vicare/language-extensions/amb.sls				\
+	vicare/language-extensions/ascii-chars/syntaxes.sls		\
 	vicare/language-extensions/ascii-chars.sls			\
 	vicare/language-extensions/c-enumerations.sls			\
 	vicare/language-extensions/callables.sls			\
@@ -42,10 +53,14 @@ nobase_dist_libvicare_DATA	= \
 	vicare/language-extensions/identifier-properties.sls		\
 	vicare/language-extensions/identifier-substitutions.sls		\
 	vicare/language-extensions/increments.sls			\
+	vicare/language-extensions/infix/auxiliary-syntaxes.sls		\
+	vicare/language-extensions/infix/lr-driver.sls			\
+	vicare/language-extensions/infix/parser-table.sls		\
+	vicare/language-extensions/infix/parser-utils.sls		\
+	vicare/language-extensions/infix/tokens.sls			\
 	vicare/language-extensions/infix.sls				\
 	vicare/language-extensions/makers.sls				\
 	vicare/language-extensions/keywords.sls				\
-	vicare/language-extensions/let-constants.sls			\
 	vicare/language-extensions/loops.sls				\
 	vicare/language-extensions/namespaces.sls			\
 	vicare/language-extensions/sentinels.sls			\
@@ -140,14 +155,17 @@ nobase_dist_libvicare_DATA	= \
 	vicare/parser-tools/silex/macros/identifier.macros.l		\
 	vicare/parser-tools/silex/macros/string.macros.l		\
 	vicare/parser-tools/silex/macros/unicode.macros.l		\
-	vicare/parser-tools/silex/macros/whitespaces-and-comments.macros.l
+	vicare/parser-tools/silex/macros/whitespaces-and-comments.macros.l	\
+	\
+	vicare/parser-tools/unix-pathnames.sls
 
 nobase_nodist_libvicare_DATA	= \
-	vicare/platform/configuration.sls	\
-	vicare/platform/constants.sls		\
-	vicare/platform/errno.sls		\
-	vicare/platform/features.sls		\
-	vicare/platform/words.sls
+	vicare/platform/configuration.sls		\
+	vicare/platform/constants.sls			\
+	vicare/platform/errno.sls			\
+	vicare/platform/features.sls			\
+	vicare/platform/words.sls			\
+	nausicaa/uri/pathnames.sls
 
 if WANT_SRFI
 nobase_dist_libvicare_DATA	+= \
@@ -326,17 +344,36 @@ nobase_dist_libvicare_DATA	+= \
 	nausicaa/parser-tools/lalr/glr-driver.sls			\
 	nausicaa/parser-tools/lalr.sls					\
 	\
+	nausicaa/uri/ip.sls						\
+	nausicaa/uri.sls						\
+	nausicaa/uri/pathnames.sls					\
+	nausicaa/uri/pathnames/unix.sls					\
+	nausicaa/uri/pathnames/abstract.sls				\
+	\
 	nausicaa/parser-tools/ip-addresses/ipv4-address-lexer.sls	\
 	nausicaa/parser-tools/ip-addresses/ipv4-address-parser.sls	\
 	nausicaa/parser-tools/ip-addresses/ipv6-address-lexer.sls	\
 	nausicaa/parser-tools/ip-addresses/ipv6-address-parser.sls	\
 	nausicaa/parser-tools/ipv4-addresses.sls			\
 	nausicaa/parser-tools/ipv6-addresses.sls			\
-	\
-	nausicaa/net/addresses/ipv4.sls					\
-	nausicaa/net/addresses/ipv6.sls
+	nausicaa/parser-tools/uri.sls					\
+	nausicaa/parser-tools/uri/utilities.sls
 
-dist_pkglibexec_SCRIPTS		+= compile-nausicaa.sps
+nobase_dist_libvicare_DATA	+= \
+	nausicaa/mehve.sls						\
+	nausicaa/mehve/language/numerics/predicates.sls			\
+	nausicaa/mehve/language/numerics/arithmetics.sls		\
+	nausicaa/mehve/language/numerics/parts.sls			\
+	nausicaa/mehve/language/numerics/transcendental.sls		\
+	nausicaa/mehve/language/infix.sls				\
+	nausicaa/mehve/language/input-output.sls
+
+dist_pkglibexec_SCRIPTS		+= \
+	compile-nausicaa-language.sps		\
+	compile-nausicaa-containers.sps		\
+	compile-nausicaa-parser-tools.sps	\
+	compile-nausicaa-misc.sps		\
+	compile-mehve-language.sps
 endif
 
 if WANT_LIBFFI
@@ -423,12 +460,25 @@ VICARE_INST_RUN	= $(VICARE_INST_ENV) $(VICARE_INST)
 
 vfasl:
 	test -d $(VICARE_FASL_DIRECTORY) || $(MKDIR_P) $(VICARE_FASL_DIRECTORY)
-	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-all.sps
+	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-vicare-platform.sps
+	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-vicare-unsafe.sps
+	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-vicare-language-extensions.sps
+	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-vicare-crypto.sps
+	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-vicare-numerics.sps
+	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-vicare-containers.sps
+	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-vicare-parser-tools.sps
+	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-vicare-net.sps
+	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-vicare-misc.sps
+
 if WANT_SRFI
 	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-srfi.sps
 endif
 if WANT_NAUSICAA
-	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-nausicaa.sps
+	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-nausicaa-language.sps
+	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-nausicaa-containers.sps
+	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-nausicaa-parser-tools.sps
+	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-nausicaa-misc.sps
+	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-mehve-language.sps
 endif
 if WANT_LIBFFI
 	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-ffi.sps
@@ -463,12 +513,24 @@ if WANT_CRE2
 endif
 
 vfasl-installed:
-	$(VICARE_INST_RUN) --compile-dependencies $(srcdir)/compile-all.sps
+	$(VICARE_INST_RUN) --compile-dependencies $(srcdir)/compile-vicare-platform.sps
+	$(VICARE_INST_RUN) --compile-dependencies $(srcdir)/compile-vicare-unsafe.sps
+	$(VICARE_INST_RUN) --compile-dependencies $(srcdir)/compile-vicare-language-extensions.sps
+	$(VICARE_INST_RUN) --compile-dependencies $(srcdir)/compile-vicare-crypto.sps
+	$(VICARE_INST_RUN) --compile-dependencies $(srcdir)/compile-vicare-numerics.sps
+	$(VICARE_INST_RUN) --compile-dependencies $(srcdir)/compile-vicare-containers.sps
+	$(VICARE_INST_RUN) --compile-dependencies $(srcdir)/compile-vicare-parser-tools.sps
+	$(VICARE_INST_RUN) --compile-dependencies $(srcdir)/compile-vicare-net.sps
+	$(VICARE_INST_RUN) --compile-dependencies $(srcdir)/compile-vicare-misc.sps
 if WANT_SRFI
 	$(VICARE_INST_RUN) --compile-dependencies $(srcdir)/compile-srfi.sps
 endif
 if WANT_NAUSICAA
-	$(VICARE_INST_RUN) --compile-dependencies $(srcdir)/compile-nausicaa.sps
+	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-nausicaa-language.sps
+	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-nausicaa-containers.sps
+	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-nausicaa-parser-tools.sps
+	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-nausicaa-misc.sps
+	$(VICARE_RUN) --compile-dependencies $(srcdir)/compile-mehve-language.sps
 endif
 if WANT_LIBFFI
 	$(VICARE_INST_RUN) --compile-dependencies $(srcdir)/compile-ffi.sps

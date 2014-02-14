@@ -2,7 +2,7 @@ dnl @configure_input@
 dnl
 
 AC_PREREQ([2.68])
-AC_INIT([Vicare Scheme],[0.3d6],[marco.maggi-ipsu@poste.it],
+AC_INIT([Vicare Scheme],[0.3d7],[marco.maggi-ipsu@poste.it],
   [vicare-scheme],[http://marcomaggi.github.com/vicare.html])
 AC_CONFIG_SRCDIR([src])
 AC_CONFIG_MACRO_DIR([autotools])
@@ -154,6 +154,11 @@ VICARE_WITH_LIBRARY([PTHREAD],[pthread],[check],
   [link executable with pthread],
   [pthread.h],[pthread],[main])
 AM_CONDITIONAL([WANT_PTHREAD],[test "x$vicare_with_PTHREAD" = xyes])
+
+dnl --------------------------------------------------------------------
+
+PLATFORM_PATHNAME=unix
+AC_SUBST([PLATFORM_PATHNAME])
 
 #page
 #### basic system inspection
@@ -1701,8 +1706,9 @@ AC_CONFIG_FILES(Makefile
                 lib/vicare/platform/constants.sls
                 lib/vicare/platform/errno.sls
                 lib/vicare/platform/words.sls
-                meta/slackware/doinst.sh
-                doc/version.texi)
+                doc/version.texi
+                lib/nausicaa/uri/pathnames.sls
+                meta/slackware/doinst.sh)
 AC_OUTPUT
 
 ### end of file

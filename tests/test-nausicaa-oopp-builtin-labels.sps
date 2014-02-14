@@ -620,7 +620,71 @@
 	(vector (B a str[0]) (B a str[1])))
     => '#(#\c #\I))
 
+;;; --------------------------------------------------------------------
+
+  (check
+      (let (((O <string>) "ciao"))
+	(O ascii))
+    => '#ve(ascii "ciao"))
+
+  (check
+      (let (((O <string>) "ciao"))
+	(O latin1))
+    => '#ve(latin1 "ciao"))
+
+  (check
+      (let (((O <string>) "ciao"))
+	(O utf8))
+    => '#ve(utf8 "ciao"))
+
+  (check
+      (let (((O <string>) "ciao"))
+	(O utf16le))
+    => '#ve(utf16le "ciao"))
+
+  (check
+      (let (((O <string>) "ciao"))
+	(O utf16be))
+    => '#ve(utf16be "ciao"))
+
+  (check
+      (let (((O <string>) "ciao"))
+	(O utf16n))
+    => '#ve(utf16n "ciao"))
+
+  (check
+      (let (((O <string>) "ciao"))
+	(O utf16))
+    => '#ve(utf16be "ciao"))
+
+  (check
+      (let (((O <string>) "ci?a=o"))
+	(O percent-encoding))
+    => '#ve(ascii "ci%3Fa%3Do"))
+
   #t)
+
+
+(parametrise ((check-test-name	'ascii-strings))
+
+  (check
+      (let* (((A <ascii-string>) "ciao")
+	     ((B <ascii-string>) (A copy)))
+	(B[1]))
+    => #\i)
+
+  #f)
+
+
+(parametrise ((check-test-name	'latin1-strings))
+
+  (check
+      (let* (((A <latin1-string>) "ciao")
+	     ((B <latin1-string>) (A copy)))
+	(B[1]))
+    => #\i)
+
+  #f)
 
 
 (parametrise ((check-test-name	'vectors))
@@ -870,10 +934,47 @@
       ((<bytevector>) '(1 2))
     => #f)
 
+  (check
+      (let (((O <bytevector>) '#ve(ascii "ci?a=o")))
+	(O percent-encoded))
+    => '#ve(ascii "ci%3Fa%3Do"))
+
+  (check
+      (let (((O <bytevector>) '#ve(ascii "ci%3Fa%3Do")))
+	(O percent-decoded))
+    => '#ve(ascii "ci?a=o"))
+
+  (check
+      (let (((O <bytevector>) '#ve(ascii "ci%3Fa%3Do")))
+	(O percent-encoded?))
+    => #t)
+
+  (check
+      (let (((O <bytevector>) '#ve(ascii "ci?a=o")))
+	(O percent-encoded?))
+    => #f)
+
+  (check
+      (let (((O <bytevector>) '#ve(ascii "c%3")))
+	(O percent-encoded?))
+    => #f)
+
 ;;; --------------------------------------------------------------------
 
   (check
       (let (((bv <bytevector>) '#vu8(1 2)))
+	(bv copy))
+    => '#vu8(1 2))
+
+  (check
+      (let (((bv <bytevector>) '#vu8(1 2)))
+	(bv $copy))
+    => '#vu8(1 2))
+
+;;; --------------------------------------------------------------------
+
+  (check
+      (let (((bv <nonempty-bytevector>) '#vu8(1 2)))
 	(bv copy))
     => '#vu8(1 2))
 
@@ -911,6 +1012,87 @@
 	(set! B[1] -29)
 	(B[1]))
     => -29)
+
+  #t)
+
+
+(parametrise ((check-test-name	'ascii-bytevectors))
+
+  (check
+      (let* (((A <ascii-bytevector>) '#vu8(10 20 30 40 50 60 70 80))
+	     ((B <ascii-bytevector>) (A copy)))
+	(B[1]))
+    => 20)
+
+  (check
+      (let* (((A <ascii-bytevector>) '#vu8(10 20 30 40 50 60 70 80))
+	     ((B <ascii-bytevector>) (A copy)))
+	(set! B[1] 29)
+	(B[1]))
+    => 29)
+
+  #f)
+
+
+(parametrise ((check-test-name	'latin1-bytevectors))
+
+  (check
+      (let* (((A <latin1-bytevector>) '#ve(latin1 "ciao"))
+	     ((B <latin1-bytevector>) (A copy)))
+	(B[1]))
+    => 105)
+
+  (check
+      (let* (((A <latin1-bytevector>) '#ve(latin1 "ciao"))
+	     ((B <latin1-bytevector>) (A copy)))
+	(set! B[1] 29)
+	(B[1]))
+    => 29)
+
+  #f)
+
+
+(parametrise ((check-test-name	'percent-encoded-bytevectors))
+
+  (check
+      ((<percent-encoded-bytevector>) '#vu8())
+    => #t)
+
+  (check
+      ((<percent-encoded-bytevector>) (string->ascii "ciao"))
+    => #t)
+
+  (check
+      ((<percent-encoded-bytevector>) (string->ascii "cia%3do"))
+    => #t)
+
+  (check
+      ((<percent-encoded-bytevector>) (string->ascii "cia%3Do"))
+    => #t)
+
+  (check
+      ((<percent-encoded-bytevector>) (string->ascii "ci%3fa%3do"))
+    => #t)
+
+  (check
+      ((<percent-encoded-bytevector>) (string->ascii "ci%3Fa%3Do"))
+    => #t)
+
+  (check
+      ((<percent-encoded-bytevector>) (string->ascii "%7Eciao"))
+    => #t)
+
+  (check
+      ((<percent-encoded-bytevector>) (string->ascii "ci%5Fao"))
+    => #t)
+
+  (check
+      ((<percent-encoded-bytevector>) (string->ascii "ci%5"))
+    => #f)
+
+  (check
+      ((<percent-encoded-bytevector>) (string->ascii "ci%5Zao"))
+    => #f)
 
   #t)
 
@@ -1454,6 +1636,12 @@
   (check
       (let (((o <real>) 123))
 	(o string))
+    => "123")
+
+
+  (check
+      (let (((o <real>) 123))
+	(o string-radix))
     => "123")
 
 ;;; --------------------------------------------------------------------

@@ -73,9 +73,15 @@
     &h_errno
     &i/o-eagain
     &out-of-memory-error
+    &procedure-argument-violation
+    &expression-return-value-violation
 
     ;; convenience labels
     <common-conditions>
+
+    ;; wrong type
+    &tagged-binding-violation
+    tagged-binding-violation
 
     ;; mismatch
     &mismatch make-mismatch-condition mismatch-condition?
@@ -127,7 +133,9 @@
 		  &errno
 		  &h_errno
 		  &i/o-eagain
-		  &out-of-memory-error)
+		  &out-of-memory-error
+		  &procedure-argument-violation
+		  &expression-return-value-violation)
     (prefix (only (vicare)
 		  define-condition-type
 		  ;; (rnrs conditions (6))
@@ -165,9 +173,19 @@
 		  &errno
 		  &h_errno
 		  &i/o-eagain
-		  &out-of-memory-error)
+		  &out-of-memory-error
+		  &procedure-argument-violation
+		  &expression-return-value-violation)
 	    rnrs.)
-    (nausicaa language oopp)
+    (except (nausicaa language oopp)
+	    &tagged-binding-violation
+	    make-tagged-binding-violation
+	    tagged-binding-violation?)
+    (prefix (only (nausicaa language oopp)
+		  &tagged-binding-violation
+		  make-tagged-binding-violation
+		  tagged-binding-violation?)
+	    oopp.)
     (only (nausicaa language builtins)
 	  <condition>)
     (only (nausicaa language auxiliary-syntaxes)
@@ -390,6 +408,8 @@
 
   (define (parse-multiple-catch-clauses var-id clauses-stx)
     (syntax-case clauses-stx (else)
+      ;;Match when  there is no  ELSE clause.  Remember that  GUARD will
+      ;;reraise the exception when there is no ELSE clause.
       (()
        '())
       ;;The one with the ELSE clause must come first!!!
@@ -691,7 +711,7 @@
 		       (make-wrong-num-args-condition ?procname ?expected ?given))))))
 
 (define-condition-type &unimplemented
-  (parent &error))
+    (parent &error))
 
 (define raise-unimplemented-error
   (case-lambda
@@ -703,6 +723,36 @@
 		(make-message-condition message)
 		(make-unimplemented-condition)
 		(make-irritants-condition irritants))))))
+
+;;; --------------------------------------------------------------------
+
+(define-label &tagged-binding-violation
+  (parent &assertion)
+  (shadows oopp.&tagged-binding-violation)
+  (protocol (lambda () oopp.make-tagged-binding-violation))
+  (predicate oopp.tagged-binding-violation?))
+
+(define (tagged-binding-violation who message . irritants)
+  (raise
+   (condition (make-who-condition who)
+	      (make-message-condition message)
+	      (&tagged-binding-violation ())
+	      (make-irritants-condition irritants))))
+
+;;; --------------------------------------------------------------------
+
+(define-label &procedure-argument-violation
+  (parent &assertion)
+  (shadows rnrs.&procedure-argument-violation)
+  (protocol (lambda () make-procedure-argument-violation))
+  (predicate procedure-argument-violation?))
+
+(define-label &expression-return-value-violation
+  (parent &assertion)
+  (shadows rnrs.&expression-return-value-violation)
+  (protocol (lambda () make-expression-return-value-violation))
+  (predicate expression-return-value-violation?))
+
 
 ;;;; done
 

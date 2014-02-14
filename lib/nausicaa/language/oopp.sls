@@ -38,7 +38,8 @@
     tag-unique-identifiers
 
     define/tags			define-values/tags
-    lambda/tags			case-lambda/tags
+    lambda/tags
+    case-lambda/tags		case-define/tags
     with-tags			begin/tags
     let/tags			let*/tags
     letrec/tags			letrec*/tags
@@ -51,7 +52,13 @@
 
     <top> <top>? <top>-unique-identifiers
 
-    ;; auxiliary keywords
+    ;; conditions
+    &tagged-binding-violation
+    make-tagged-binding-violation
+    tagged-binding-violation?
+
+    ;; auxiliary syntaxes
+    =>
     (rename (aux.parent			parent)
 	    (aux.nongenerative		nongenerative)
 	    (aux.abstract		abstract)
@@ -138,6 +145,18 @@
 		   (syntax-violation '?name message ?stx subform))))
 	       ?body0 ?body ...))))
       )))
+
+(define-condition-type &tagged-binding-violation
+    &assertion
+  make-tagged-binding-violation
+  tagged-binding-violation?)
+
+(define (tagged-binding-violation who message . irritants)
+  (raise
+   (condition (make-who-condition who)
+	      (make-message-condition message)
+	      (make-tagged-binding-violation)
+	      (make-irritants-condition irritants))))
 
 
 (define-record-type (<top>-record-type make-<top> <top>?)
@@ -394,7 +413,7 @@
        (((MUTABLE-FIELD MUTABLE-ACCESSOR MUTABLE-MUTATOR MUTABLE-TAG) ...)
 	(help.<parsed-spec>-mutable-fields-data spec))
 
-       (((METHOD-NAME . METHOD-IMPLEMENTATION) ...)
+       (((METHOD-NAME METHOD-RV-TAG METHOD-IMPLEMENTATION) ...)
 	(help.<parsed-spec>-methods-table spec))
 
        (SHADOWED-IDENTIFIER
@@ -534,7 +553,9 @@
 		   (and (identifier? #'??var)
 			(identifier? #'??id))
 		   (case-symbol (syntax->datum #'??id)
-		     ((METHOD-NAME) #'(METHOD-IMPLEMENTATION ??expr . ??args))
+		     ((METHOD-NAME)
+		      (help.process-method-application #'let/tags #'METHOD-RV-TAG
+						       #'(METHOD-IMPLEMENTATION ??expr . ??args)))
 		     ...
 		     (else
 		      (%the-accessor stx #'??expr #'??var (cons #'??id #'??args)))))
@@ -565,6 +586,8 @@
 		  ((_ :mutator ??expr ??keys ??value)
 		   (%the-mutator stx #'??expr #'??keys #'??value))
 
+		  ;;Invoke  the  getter   transformer  function  without
+		  ;;nested member use.
 		  ((_ :getter ??expr (??var ((??key0 (... ...))
 					     (??key (... ...))
 					     (... ...))))
@@ -572,6 +595,17 @@
 		   (%the-getter #'(??var ((??key0 (... ...))
 					  (??key  (... ...))
 					  (... ...)))))
+		  ;;Invoke the  getter transformer function  with nested
+		  ;;member use.
+		  ((_ :getter ??expr (??var ((??key0 (... ...))
+					     (??key (... ...))
+					     (... ...))
+					    => ?form0 ?form (... ...)))
+		   (identifier? #'??var)
+		   (%the-getter #'(??var ((??key0 (... ...))
+					  (??key  (... ...))
+					  (... ...))
+					 => ?form0 ?form (... ...))))
 
 		  ((_ :setter ??expr (??var ((??key0 (... ...))
 					     (??key (... ...))
@@ -588,9 +622,10 @@
 		       #'(receive-and-return (val)
 			     ??expr
 			   (unless (THE-TAG :is-a? val)
-			     (assertion-violation 'THE-TAG WRONG-TYPE-ERROR-MESSAGE
-						  '(expression: ??expr)
-						  `(result: ,val))))
+			     (tagged-binding-violation 'THE-TAG
+			       WRONG-TYPE-ERROR-MESSAGE
+			       '(expression: ??expr)
+			       `(result: ,val))))
 		     #'??expr))
 
 		  ((_ :assert-procedure-argument ??id)
@@ -658,7 +693,7 @@
 		     ((IMMUTABLE-FIELD)	#'(lambda (obj) (IMMUTABLE-ACCESSOR obj))) ...
 		     ((MUTABLE-FIELD)	#'(lambda (obj) (MUTABLE-ACCESSOR   obj))) ...
 		     (else
-		      (synner "unknown field name in :accessor-function tag-syntax" #'??field-name))))
+		      #'(THE-PARENT :mutator-function ??field-name))))
 
 		  ((_ :mutator-function ??field-name)
 		   (identifier? #'??field-name)
@@ -670,7 +705,7 @@
 		      (synner "request of mutator function for immutable field" #'IMMUTABLE-FIELD))
 		     ...
 		     (else
-		      (synner "unknown field name in :mutator-function tag-syntax" #'??field-name))))
+		      #'(THE-PARENT :mutator-function ??field-name))))
 
 		  ;;Replace  all  the  occurrences of  ??SRC-ID  in  the
 		  ;;??BODY  forms with  the identifier  selected by  the
@@ -796,7 +831,7 @@
        (((MUTABLE-FIELD MUTABLE-ACCESSOR MUTABLE-MUTATOR MUTABLE-TAG) ...)
 	(help.<parsed-spec>-mutable-fields-data spec))
 
-       (((METHOD-NAME . METHOD-IMPLEMENTATION) ...)
+       (((METHOD-NAME METHOD-RV-TAG METHOD-IMPLEMENTATION) ...)
 	(help.<parsed-spec>-methods-table spec))
 
        ((DEFINITION ...)
@@ -1050,7 +1085,9 @@
 		   (and (identifier? #'??var)
 			(identifier? #'??id))
 		   (case-symbol (syntax->datum #'??id)
-		     ((METHOD-NAME) #'(METHOD-IMPLEMENTATION ??expr . ??args))
+		     ((METHOD-NAME)
+		      (help.process-method-application #'let/tags #'METHOD-RV-TAG
+						       #'(METHOD-IMPLEMENTATION ??expr . ??args)))
 		     ...
 		     (else
 		      (%the-accessor stx #'??expr #'??var (cons #'??id #'??args)))))
@@ -1062,6 +1099,8 @@
 		  ((_ :mutator ??expr ??keys ??value)
 		   (%the-mutator stx #'??expr #'??keys #'??value))
 
+		  ;;Invoke  the  getter   transformer  function  without
+		  ;;nested member use.
 		  ((_ :getter ??expr (??var ((??key0 (... ...))
 					     (??key (... ...))
 					     (... ...))))
@@ -1069,6 +1108,17 @@
 		   (%the-getter #'(??var ((??key0 (... ...))
 					  (??key  (... ...))
 					  (... ...)))))
+		  ;;Invoke the  getter transformer function  with nested
+		  ;;member use.
+		  ((_ :getter ??expr (??var ((??key0 (... ...))
+					     (??key (... ...))
+					     (... ...))
+					    => ?form0 ?form (... ...)))
+		   (identifier? #'??var)
+		   (%the-getter #'(??var ((??key0 (... ...))
+					  (??key  (... ...))
+					  (... ...))
+					 => ?form0 ?form (... ...))))
 
 		  ((_ :setter ??expr (??var ((??key0 (... ...))
 					     (??key (... ...))
@@ -1085,9 +1135,10 @@
 		       #'(receive-and-return (val)
 			     ??expr
 			   (unless (THE-TAG :is-a? val)
-			     (assertion-violation 'THE-TAG WRONG-TYPE-ERROR-MESSAGE
-						  '(expression: ??expr)
-						  `(result: ,val))))
+			     (tagged-binding-violation 'THE-TAG
+			       WRONG-TYPE-ERROR-MESSAGE
+			       '(expression: ??expr)
+			       `(result: ,val))))
 		     #'??expr))
 
 		  ((_ :assert-procedure-argument ??id)
@@ -1133,7 +1184,7 @@
 		     ((IMMUTABLE-FIELD)	#'(lambda (obj) (IMMUTABLE-ACCESSOR obj))) ...
 		     ((MUTABLE-FIELD)	#'(lambda (obj) (MUTABLE-ACCESSOR   obj))) ...
 		     (else
-		      (synner "unknown field name in :accessor-function tag-syntax" #'??field-name))))
+		      #'(THE-PARENT :accessor-function ??field-name))))
 
 		  ((_ :mutator-function ??field-name)
 		   (identifier? #'??field-name)
@@ -1145,7 +1196,7 @@
 		      (synner "request of mutator function for immutable field" #'IMMUTABLE-FIELD))
 		     ...
 		     (else
-		      (synner "unknown field name in :mutator-function tag-syntax" #'??field-name))))
+		      #'(THE-PARENT :mutator-function ??field-name))))
 
 		  ;; public API: binding definition
 
@@ -1554,7 +1605,7 @@
     ;;Thunk definition.
     ;;
     ((_ () ?body0 ?body ...)
-     #'(lambda () (begin/tags ?body0 ?body ...)))
+     #'(lambda () ?body0 ?body ...))
 
     ;;Function with tagged return values.
     ((_ ((?who ?rv-tag0 ?rv-tag ...) . ?formals) ?body0 ?body ...)
@@ -1566,7 +1617,7 @@
     ;;
     ((_ ?formals ?body0 ?body ...)
      (identifier? #'?formals)
-     #'(lambda ?formals (begin/tags ?body0 ?body ...)))
+     #'(lambda ?formals ?body0 ?body ...))
 
     ;;Function with tagged args argument.
     ;;
@@ -1580,7 +1631,7 @@
 	   (with-tagged-arguments-validation (who)
 	       VALIDATIONS
 	     (let-syntax (SYNTAX-BINDING ...)
-	       (begin/tags ?body0 ?body ...))))))
+	       ?body0 ?body ...)))))
 
     ;;Mandatory arguments and untagged rest argument.
     ;;
@@ -1593,7 +1644,7 @@
 	   (with-tagged-arguments-validation (who)
 	       VALIDATIONS
 	     (let-syntax (SYNTAX-BINDING ...)
-	       (begin/tags ?body0 ?body ...))))))
+	       ?body0 ?body ...)))))
 
     ;;Mandatory arguments and tagged rest argument.
     ;;
@@ -1607,7 +1658,7 @@
 	   (with-tagged-arguments-validation (who)
 	       VALIDATIONS
 	     (let-syntax (SYNTAX-BINDING ...)
-	       (begin/tags ?body0 ?body ...))))))
+	       ?body0 ?body ...)))))
 
     ;;Mandatory arguments and no rest argument.
     ;;
@@ -1619,7 +1670,7 @@
 	   (with-tagged-arguments-validation (who)
 	       VALIDATIONS
 	     (let-syntax (SYNTAX-BINDING ...)
-	       (begin/tags ?body0 ?body ...))))))
+	       ?body0 ?body ...)))))
 
     (_
      (synner "syntax error in LAMBDA/TAGS"))))
@@ -1655,7 +1706,7 @@
 			     (with-tagged-arguments-validation (who)
 				 VALIDATIONS
 			       (let-syntax (SYNTAX-BINDING ...)
-				 (begin/tags ?body0 ?body ...))))
+				 ?body0 ?body ...)))
 			  ou-clauses)))))
 
 	 ((?clause . ?other-clauses)
@@ -1663,6 +1714,17 @@
 
     (_
      (synner "invalid syntax in case-lambda definition"))))
+
+(define-syntax (case-define/tags stx)
+  (syntax-case stx ()
+    ((_ ?who (?formals ?body0 ?body ...) ...)
+     (identifier? #'?who)
+     (with-syntax
+	 ((WHO (datum->syntax #'?who '__who__)))
+       #'(define ?who
+	   (let-constants ((WHO '?who))
+	     (case-lambda/tags
+	       (?formals ?body0 ?body ...) ...)))))))
 
 
 ;;;; convenience syntaxes with tags: DEFINE and LAMBDA
@@ -1696,15 +1758,27 @@
 	  (identifier? #'?tag))
      #'(?tag ?who ?expr))
 
+    ;;Function definition with tagged return values through tagged who.
+    ;;
+    ((_ ((?who ?tag0 ?tag ...) . ?formals) ?body0 ?body ...)
+     (all-identifiers? #'(?who ?tag0 ?tag ...))
+     (with-syntax
+	 ((WHO (datum->syntax #'?who '__who__)))
+       #'(define ?who
+	   (lambda/tags ((_ ?tag0 ?tag ...) . ?formals)
+	     (let-constants ((WHO '?who))
+	       ?body0 ?body ...)))))
+
     ;;Function definition.
     ;;
     ((_ (?who . ?formals) ?body0 ?body ...)
      (identifier? #'?who)
-     #'(define ?who (lambda/tags ?formals ?body0 ?body ...)))
-
-    ((_ ((?who ?tag0 ?tag ...) . ?formals) ?body0 ?body ...)
-     (all-identifiers? #'(?who ?tag0 ?tag ...))
-     #'(define ?who (lambda/tags ?formals (aux.<- ?tag0 ?tag ...) ?body0 ?body ...)))
+     (with-syntax
+	 ((WHO (datum->syntax #'?who '__who__)))
+       #'(define ?who
+	   (lambda/tags ?formals
+	     (let-constants ((WHO '?who))
+	       ?body0 ?body ...)))))
 
     (_
      (synner "syntax error in DEFINE/TAGS"))))

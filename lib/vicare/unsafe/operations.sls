@@ -60,25 +60,17 @@
     $struct-ref
     $struct-set!
 
-    $caar
-    $cadr
-    $cdar
-    $cddr
-
-    $caaar
-    $caadr
-    $cadar
-    $cdaar
-    $cdadr
-    $cddar
-    $cdddr
-    $caddr
+;;; --------------------------------------------------------------------
 
     $fxzero?
     $fxnegative?
     $fxpositive?
     $fxnonpositive?
     $fxnonnegative?
+    $fxodd?
+    $fxeven?
+    $fxsign
+    $fxabs
     $fxadd1	;increment
     $fxsub1	;decrement
     $fxneg	;negation
@@ -95,11 +87,13 @@
     $fxdiv0
     $fxmod
     $fxmod0
-    $fx<
-    $fx>
-    $fx>=
-    $fx<=
-    $fx=
+    $fxdiv-and-mod
+    $fxdiv0-and-mod0
+    $fx<	;multiple arguments
+    $fx>	;multiple arguments
+    $fx>=	;multiple arguments
+    $fx<=	;multiple arguments
+    $fx=	;multiple arguments
 
     $fxand	;multiple arguments AND
     $fxior	;multiple arguments inclusive OR
@@ -109,6 +103,7 @@
     $fxadd3
     $fxadd4
     $fxincr!
+    $fxdecr!
 
 ;;; --------------------------------------------------------------------
 
@@ -143,10 +138,11 @@
     $flonum-u8-ref
     $flonum-set!
     $fixnum->flonum
-    ;;FIXME To be  uncommented at the next boot  image rotation.  (Marco
-    ;;Maggi; Sat Oct 26, 2013)
-    #;$fixnum->string
-    #;$fixnum->char
+    $fixnum->string
+    $fixnum->char
+    $flonum->exact
+    $flonum-integer?
+    $flonum-rational?
     $fl+
     $fl-
     $fl*
@@ -164,6 +160,46 @@
     $flnegative?
     $flnonpositive?
     $flnonnegative?
+    $flodd?
+    $fleven?
+    $flnan?
+    $flfinite?
+    $flinfinite?
+
+    $flround
+    $flfloor
+    $flceiling
+    $fltruncate
+
+    $flnumerator
+    $fldenominator
+
+    $flmax
+    $flmin
+
+    $flabs
+    $flsin
+    $flcos
+    $fltan
+    $flasin
+    $flacos
+    $flatan		$flatan2
+    $flsinh
+    $flcosh
+    $fltanh
+    $flasinh
+    $flacosh
+    $flatanh
+    $flexp
+    $fllog		$fllog2
+    $flexpm1
+    $fllog1p
+    $flexpt
+    $flsquare
+    $flcube
+    $flsqrt
+    $flcbrt
+    $flhypot
 
 ;;; --------------------------------------------------------------------
 
@@ -179,6 +215,8 @@
     $make-bytevector
     $bytevector-length
     $bytevector-empty?
+    $bytevector-not-empty?
+    $bytevector-u8-last-index
     $bytevector-u8-ref
     $bytevector-s8-ref
     $bytevector-u8-set!
@@ -236,14 +274,21 @@
 
     $bytevector=
     $bytevector-fill!
+    ;;FIXME To be  uncommented at the next boot  image rotation.  (Marco
+    ;;Maggi; Tue Nov 26, 2013)
+    #;$bytevector-copy
     $bytevector-copy!
     $bytevector-copy!/count
     $bytevector-self-copy-forwards!
     $bytevector-self-copy-backwards!
+    $subbytevector-u8
 
     $bytevector-total-length
     $bytevector-concatenate
     $bytevector-reverse-and-concatenate
+
+    $bytevector->base64
+    $base64->bytevector
 
 ;;; --------------------------------------------------------------------
 
@@ -252,13 +297,42 @@
     $set-car!
     $set-cdr!
 
+    $caar
+    $cadr
+    $cdar
+    $cddr
+
+    $caaar
+    $caadr
+    $cadar
+    $cdaar
+    $cdadr
+    $cddar
+    $cdddr
+    $caddr
+
+;;; --------------------------------------------------------------------
+
+    $length
+    ;;FIXME To be  uncommented at the next boot  image rotation.  (Marco
+    ;;Maggi; Tue Nov 26, 2013)
+    #;$map1
+    #;$for-each1
+    $for-all1
+    $exists1
+
 ;;; --------------------------------------------------------------------
 
     $make-vector
-    $vector-length
-    $vector-empty?
     $vector-ref
     $vector-set!
+    $vector-length
+    $vector-empty?
+
+    $vector-map1
+    $vector-for-each1
+    $vector-for-all1
+    $vector-exists1
 
     $vector-copy
     $vector-copy!
@@ -277,7 +351,6 @@
     $char>=
     $char<=
     $char->fixnum
-    $fixnum->char
 
     $char-is-single-char-line-ending?
     $char-is-carriage-return?
@@ -288,9 +361,14 @@
     $make-string
     $string-length
     $string-empty?
+    $string-not-empty?
+    $string-last-index
     $string-ref
     $string-set!
     $string=
+    $string
+    $uri-encoded-string?
+    $percent-encoded-string?
 
     $string-copy
     $string-copy!
@@ -303,6 +381,41 @@
     $string-total-length
     $string-concatenate
     $string-reverse-and-concatenate
+
+    ;;FIXME To be  uncommented at the next boot  image rotation.  (Marco
+    ;;Maggi; Tue Nov 26, 2013)
+    #;$string->octets
+    #;$octets->string
+    #;$octets-encoded-bytevector?
+
+    $string->ascii
+    $ascii->string
+    $ascii-encoded-bytevector?
+    $ascii-encoded-string?
+
+    $string->latin1
+    $latin1->string
+    $latin1-encoded-bytevector?
+    $latin1-encoded-string?
+
+    $string-base64->bytevector
+    $bytevector->string-base64
+
+    $uri-encode
+    $uri-decode
+    $uri-normalise-encoding
+    $uri-encoded-bytevector?
+    $percent-encode
+    $percent-decode
+    $percent-normalise-encoding
+    $percent-encoded-bytevector?
+
+;;; --------------------------------------------------------------------
+
+    $string-hash
+    $string-ci-hash
+    $symbol-hash
+    $bytevector-hash
 
 ;;; --------------------------------------------------------------------
 
@@ -331,30 +444,35 @@
     (ikarus system $structs)
     (except (ikarus system $fx)
 	    $fxmax
-	    $fxmin)
+	    $fxmin
+	    $fx<
+	    $fx>
+	    $fx>=
+	    $fx<=
+	    $fx=)
+    (prefix (only (ikarus system $fx)
+		  $fx<
+		  $fx>
+		  $fx>=
+		  $fx<=
+		  $fx=)
+	    sys.)
     (ikarus system $bignums)
     (ikarus system $ratnums)
     (ikarus system $flonums)
     (ikarus system $compnums)
     (ikarus system $pairs)
-    (except (ikarus system $vectors)
-	    ;;FIXME This except  must be removed at the  next boot image
-	    ;;rotation.  (Marco Maggi; Tue Oct 8, 2013)
-	    $vector-empty?)
-    (rename (except (ikarus system $bytevectors)
-		    ;;FIXME This except must be removed at the next boot
-		    ;;image rotation.  (Marco Maggi; Tue Oct 8, 2013)
-		    $bytevector-empty?)
+    (vicare system $lists)
+    (ikarus system $vectors)
+    (rename (ikarus system $bytevectors)
 	    ($bytevector-set!	$bytevector-set!)
 	    ($bytevector-set!	$bytevector-u8-set!)
 	    ($bytevector-set!	$bytevector-s8-set!))
     (ikarus system $chars)
-    (except (ikarus system $strings)
-	    ;;FIXME This except  must be removed at the  next boot image
-	    ;;rotation.  (Marco Maggi; Tue Oct 8, 2013)
-	    $string-empty?)
+    (ikarus system $strings)
     (ikarus system $codes)
     (ikarus system $pointers)
+    (vicare system $hashtables)
     (for (prefix (only (vicare platform configuration)
 		       platform-endianness)
 		 config.)
@@ -407,6 +525,8 @@
     ((_ ?op)
      ($fx- 0 ?op))))
 
+;;; --------------------------------------------------------------------
+
 (define-syntax $fxadd2
   (syntax-rules ()
     ((_ ?op)
@@ -434,9 +554,48 @@
      (set! ?op ($fxadd2 ?op)))
     ((_ ?op 3)
      (set! ?op ($fxadd3 ?op)))
+    ((_ ?op 4)
+     (set! ?op ($fxadd4 ?op)))
     ((_ ?op ?N)
      (set! ?op ($fx+ ?op ?N)))
     ))
+
+;;; --------------------------------------------------------------------
+
+(define-syntax $fxsub2
+  (syntax-rules ()
+    ((_ ?op)
+     ($fx- ?op 2))))
+
+(define-syntax $fxsub3
+  (syntax-rules ()
+    ((_ ?op)
+     ($fx- ?op 3))))
+
+(define-syntax $fxsub4
+  (syntax-rules ()
+    ((_ ?op)
+     ($fx- ?op 4))))
+
+(define-syntax $fxdecr!
+  (syntax-rules ()
+    ((_ ?op)
+     ($fxdecr! ?op 1))
+    ((_ ?op 0)
+     ?op)
+    ((_ ?op 1)
+     (set! ?op ($fxsub1 ?op)))
+    ((_ ?op 2)
+     (set! ?op ($fxsub2 ?op)))
+    ((_ ?op 3)
+     (set! ?op ($fxsub3 ?op)))
+    ((_ ?op 4)
+     (set! ?op ($fxsub4 ?op)))
+    ((_ ?op ?N)
+     (set! ?op ($fx+ ?op ?N)))
+    ))
+
+;;; --------------------------------------------------------------------
 
 (define-syntax $fxmax
   (syntax-rules ()
@@ -494,25 +653,44 @@
     ((_ ?op1 ?op2 . ?ops)
      ($fxlogxor ?op1 ($fxxor ?op2 . ?ops)))))
 
+;;; --------------------------------------------------------------------
+
+(let-syntax ((define-fx-compar (syntax-rules ()
+				  ((_ ?proc sys.?proc)
+				   (define-syntax ?proc
+				    (syntax-rules ()
+				      ((_ ?op1 ?op2)
+				       (sys.?proc ?op1 ?op2))
+				      ((_ ?op1 ?op2 ?op3 ?op4 (... ...))
+				       (let ((op2 ?op2))
+					 (and (sys.?proc ?op1 op2)
+					      (?proc op2 ?op3 ?op4 (... ...))))))))
+				 )))
+  (define-fx-compar $fx=  sys.$fx=)
+  (define-fx-compar $fx<  sys.$fx<)
+  (define-fx-compar $fx<= sys.$fx<=)
+  (define-fx-compar $fx>  sys.$fx>)
+  (define-fx-compar $fx>= sys.$fx>=))
+
 
 ;;;; bignums
 
-(define-inline (%bnbncmp X Y fxcmp)
+(define-syntax-rule (%bnbncmp X Y fxcmp)
   (fxcmp (foreign-call "ikrt_bnbncomp" X Y) 0))
 
-(define-inline ($bnbn= X Y)
+(define-syntax-rule ($bnbn= X Y)
   (%bnbncmp X Y $fx=))
 
-(define-inline ($bnbn< X Y)
+(define-syntax-rule ($bnbn< X Y)
   (%bnbncmp X Y $fx<))
 
-(define-inline ($bnbn> X Y)
+(define-syntax-rule ($bnbn> X Y)
   (%bnbncmp X Y $fx>))
 
-(define-inline ($bnbn<= X Y)
+(define-syntax-rule ($bnbn<= X Y)
   (%bnbncmp X Y $fx<=))
 
-(define-inline ($bnbn>= X Y)
+(define-syntax-rule ($bnbn>= X Y)
   (%bnbncmp X Y $fx>=))
 
 
@@ -935,10 +1113,17 @@
 
 ;;;; miscellaneous bytevector operations
 
-;;FIXME To  be removed at the  next boot image rotation.   (Marco Maggi;
-;;Tue Oct 8, 2013)
-(define-inline ($bytevector-empty? ?bv)
-  ($fxzero? ($bytevector-length ?bv)))
+;;Commented out because implemented by the boot image.
+;;
+;; (define-inline ($bytevector-empty? ?bv)
+;;   ($fxzero? ($bytevector-length ?bv)))
+
+(define-inline ($bytevector-not-empty? ?bv)
+  (not ($bytevector-empty? ?bv)))
+
+(define-inline ($bytevector-u8-last-index bv)
+  ;;To be called only if BV is not empty!!!
+  ($fxsub1 ($bytevector-length bv)))
 
 (define-inline ($bytevector-fill! ?bv ?index ?end ?fill)
   ;;Fill the  positions in ?BV  from ?INDEX inclusive to  ?END exclusive
@@ -1005,13 +1190,29 @@
 	($bytevector-u8-set! bv dst.start ($bytevector-u8-ref bv src.start))
 	(loop bv src.start dst.start src.end)))))
 
+(define-inline ($subbytevector-u8 src.bv src.start src.end)
+  (let* ((dst.len ($fx- src.end src.start))
+	 (dst.bv  ($make-bytevector dst.len)))
+    (do ((dst.index 0         ($fxadd1 dst.index))
+	 (src.index src.start ($fxadd1 src.index)))
+	(($fx= dst.index dst.len)
+	 dst.bv)
+      ($bytevector-u8-set! dst.bv dst.index ($bytevector-u8-ref src.bv src.index)))))
+
 
 ;;;; miscellaneous string operations
 
-;;FIXME To  be removed at the  next boot image rotation.   (Marco Maggi;
-;;Tue Oct 8, 2013)
-(define-inline ($string-empty? vec)
-  ($fxzero? ($string-length vec)))
+;;Commented out because implemented by the boot image.
+;;
+;; (define-inline ($string-empty? vec)
+;;   ($fxzero? ($string-length vec)))
+
+(define-inline ($string-not-empty? ?bv)
+  (not ($string-empty? ?bv)))
+
+(define-inline ($string-last-index str)
+  ;;To be called only if BV is not empty!!!
+  ($fxsub1 ($string-length str)))
 
 (define-inline ($string-fill! ?str ?index ?end ?fill)
   ;;Fill the positions  in ?STR from ?INDEX inclusive  to ?END exclusive
@@ -1102,10 +1303,10 @@
 	 (vec ($make-vector ?len)))
     ($vector-clean! vec)))
 
-;;FIXME To  be removed at the  next boot image rotation.   (Marco Maggi;
-;;Tue Oct 8, 2013)
-(define-inline ($vector-empty? vec)
-  ($fxzero? ($vector-length vec)))
+;;Commented out because implemented by the boot image.
+;;
+;; (define-inline ($vector-empty? vec)
+;;   ($fxzero? ($vector-length vec)))
 
 (define-inline ($vector-clean! ?vec)
   (foreign-call "ikrt_vector_clean" ?vec))

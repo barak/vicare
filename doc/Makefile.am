@@ -6,12 +6,14 @@ EXTRA_DIST		= \
 	QUEST-FOR-ISSUE-35				\
 	\
 	RFC/rfc4291.ipv6-address-achitecture.txt	\
-	RFC/rfc5735.ipv4-special-use-addresses.txt
+	RFC/rfc5735.ipv4-special-use-addresses.txt	\
+	RFC/rfc3986.uri.txt
 
 info_TEXINFOS		= \
 	vicare-scheme.texi			\
 	vicare-libs.texi			\
-	nausicaa.texi
+	nausicaa.texi				\
+	mehve.texi
 
 vicare_scheme_TEXINFOS	= \
 	gpl-3.0.texi				\
@@ -89,6 +91,7 @@ vicare_libs_TEXINFOS = \
 	libs-weak-hashtables.texi		\
 	\
 	libs-parser-tools-silex.texi		\
+	libs-parser-tools-unix-pathnames.texi	\
 	\
 	libs-net-channels.texi			\
 	\
@@ -153,8 +156,17 @@ nausicaa_TEXINFOS	= \
 	nausicaa-parser-tools-lexical-tokens.texi		\
 	nausicaa-parser-tools-lalr.texi				\
 	nausicaa-parser-tools-ip-addresses.texi			\
+	nausicaa-parser-tools-uri.texi				\
 	\
-	nausicaa-net-addresses.texi				\
+	nausicaa-uri-uri.texi					\
+	nausicaa-uri-pathnames.texi				\
+	\
+	macros.texi						\
+	fdl-1.3.texi						\
+	gpl-3.0.texi
+
+mehve_TEXINFOS	= \
+	mehve-language.texi					\
 	\
 	macros.texi						\
 	fdl-1.3.texi						\

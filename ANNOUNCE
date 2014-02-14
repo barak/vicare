@@ -1,4 +1,4 @@
-Subject: [announce] Vicare Scheme revision 0.3d6
+Subject: [announce] Vicare Scheme revision 0.3d7
 
                              Vicare Scheme
                              =============
@@ -35,6 +35,175 @@ and at:
 this project has a mailing list:
 
 	     <http://groups.google.com/group/vicare-users>
+
+
+Notes for revision 0.3d7
+------------------------
+
+* Boot images have been rotated.
+
+* Added unsafe operations to (vicare system $vectors):
+
+    $vector-map1
+    $vector-for-each1
+    $vector-for-all1
+    $vector-exists1
+
+* Added convenience syntax CASE-DEFINE to (vicare).
+
+    (case-define who ?cl-clause0 cl-clause ...)
+    ==> (define who (case-lambda ?cl-clause0 ?cl-clause ...))
+
+* Added to (vicare) the syntaxes:
+
+    let-constants
+    let*-constants
+    letrec-constants
+    letrec*-constants
+
+  like LET, LET*, LETREC, LETREC* but create immutable bindings.
+
+* Added  to   (vicare)  the  experimental  syntaxes   LAMBDA*,  DEFINE*,
+  CASE-LAMBDA*,  CASE-DEFINE*.   See   the  documentation  nodes  "iklib
+  syntaxes lambdas" and "iklib syntaxes defines".
+
+* Added  to  (vicare)  BYTEVECTOR-HASH   using  the  same  algorithm  of
+  STRING-HASH.
+
+* When  the syntax  DEFINE/TAGS  from (nausicaa)  is  used for  function
+  definition, the body forms are enclosed in a LET syntax as follows:
+
+    (let-constants ((__who__ (quote ?id))) ?body0 ?body ...)
+
+  so the binding "__who__" is available in the body forms to reference a
+  symbol representing the  function's name; this is  useful when raising
+  exceptions with  condition type "&who".  Such  non-hygienic definition
+  looks  non-Schemey, but  in  many  places in  the  code  there is  the
+  pattern:
+
+    (define (doit . args)
+      (define who 'doit)
+      ---)
+
+  to make the  name of the function available; such  definitions can now
+  be cleared.
+
+* Added  CASE-DEFINE to  (nausicaa)  and  CASE-DEFINE/TAGS to  (nausicaa
+  language oopp).
+
+* Added   experimental  nested   method  invocation.    When  a   method
+  specification has a  single tagged return value,  the following syntax
+  is available:
+
+    (define-label <alpha>
+      (method ((one <list>) self a b)
+        (list self a b)))
+
+    (let (((O <alpha>) 0))
+      (O one 10 20
+         => map add1))		=> '(1 11 21)
+
+    (let (((O <alpha>) 0))
+      (O one 10 20
+         => map add1
+         => fold-left 0 +))	=> (+ 1 11 21)
+
+    (let (((O <alpha>) 0))
+      (O one 10 20
+         => map add1
+         => map -
+         => fold-left 0 +))	=> (+ -1 -11 -21)
+
+  This is not Schemey at all, but many languages have similar syntaxes.
+
+* Added experimental nested getter syntax.  The getter transformer might
+  accept additional  forms to  use tag members  from the  runtime getter
+  value.
+
+    (define-label <fixnum-vector>
+      (parent <vector>)
+      (getter
+       (lambda (stx)
+         (syntax-case stx (=>)
+           ((?var ((?index)))
+            #'(vector-ref ?var ?index))
+           ((?var ((?index)) => ?form0 ?form ...)
+            #'(let (((fx <fixnum>) (?var[?index])))
+                (fx ?form0 ?form ...)))
+           ))))
+
+    (let (((O <fixnum-vector>) '#(0 1 2 3)))
+      (O[1] => string))
+    => "1"
+
+    (let (((O <fixnum-vector>) '#(0 1 2 3)))
+      (O[1] => odd?))
+    => #t
+
+    (let (((O <fixnum-vector>) '#(0 1 2 3)))
+      (O[2] => * 10))
+    => 20
+
+* BACKWARDS  INCOMPATIBILITY  In  the   (nausicaa)  language,  the  "<-"
+  auxiliary  syntax is  no  more used  by  DEFINE/TAGS, LAMBDA/TAGS  and
+  CASE-LAMBDA/TAGS to  specify validation tags for  returned values.  So
+  these are now syntax errors:
+
+    (define fun
+      (lambda ((O <pair>))
+        (<- <vector>)
+        (vector (O car) (O cdr))))
+
+    (define (fun (O <pair>))
+      (<- <vector>)
+      (vector (O car) (O cdr)))
+
+    (define fun
+      (case-lambda
+       (((O <pair>))
+        (<- <vector>)
+        (vector (O car) (O cdr)))))
+
+  we can use the following instead:
+
+    (define fun
+      (lambda ((_ <vector>) (O <pair>))
+        (vector (O car) (O cdr))))
+
+    (define ((fun <vector>) (O <pair>))
+      (vector (O car) (O cdr)))
+
+    (define fun
+      (case-lambda
+       (((_ <vector>) (O <pair>))
+        (vector (O car) (O cdr)))))
+
+* BACKWARDS  INCOMPATIBILITY Some  parser  functions for  IPv4 and  IPv6
+  addresses from the hierarchy (nausicaa  parser-tools ---) now return a
+  vector rather than a list.
+
+* BACKWARDS INCOMPATIBILITY Some constructor functions for IPv4 and IPv6
+  address labels  from the  hierarchy (nausicaa  net addresses  ---) now
+  accept a vector as argument rather than a list.
+
+* BACKWARDS INCOMPATIBILITY The function URI-NORMALISE-ENCODING has been
+  renamed to NORMALISE-URI-ENCODING.
+
+* BACKWARDS INCOMPATIBILITY The libraries for parsing IP addressing have
+  been reorganised and partly rewritten.
+
+* Imported URI libraries from Nausicaa as:
+
+     (nausicaa parser-tools uri ---)
+     (nausicaa uri ---)
+
+* Imported file system pathname libraries from Nausicaa as:
+
+     (nausicaa parser-tools unix-pathnames)
+     (nausicaa uri pathnames ---)
+
+* Imported the Mehve language.  A new master documentation file has been
+  added, "mehve.texi".
 
 
 Notes for revision 0.3d6
