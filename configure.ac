@@ -32,6 +32,9 @@ AC_DEFINE([_GNU_SOURCE],[1],[enable everything GNU])
 if git log -1 >& /dev/null; then
   COMMIT_HASH=$(git rev-parse HEAD)
   BRANCH_NAME=$(git rev-parse --abbrev-ref ${COMMIT_HASH})
+  if [ -z "${BRANCH_NAME}" ]; then
+    BRANCH_NAME=no-branch
+  fi
   thetimestamp=$(git show --format=format:'%cd' --date=iso ${COMMIT_HASH} -- | head -1)
 else
   COMMIT_HASH=no-commit
