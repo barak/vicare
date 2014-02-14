@@ -628,8 +628,16 @@
 		  port-remprop			port-property-list
 
 		  ;; networking
+		  make-binary-socket-input-port
+		  make-binary-socket-input-port*
+		  make-binary-socket-output-port
+		  make-binary-socket-output-port*
 		  make-binary-socket-input/output-port
 		  make-binary-socket-input/output-port*
+		  make-textual-socket-input-port
+		  make-textual-socket-input-port*
+		  make-textual-socket-output-port
+		  make-textual-socket-output-port*
 		  make-textual-socket-input/output-port
 		  make-textual-socket-input/output-port*)
     (only (vicare options)
@@ -1304,43 +1312,43 @@
 
 (define-argument-validation (port-mode who obj)
   (or (eq? obj 'r6rs) (eq? obj 'vicare))
-  (assertion-violation who "expected supported port mode as argument" obj))
+  (procedure-argument-violation who "expected supported port mode as argument" obj))
 
 (define-argument-validation (port-with-fd who obj)
   (and (port? obj)
        (let ((port obj))
 	 (with-port (port) port.fd-device?)))
-  (assertion-violation who "expected port with file descriptor as underlying device" obj))
+  (procedure-argument-violation who "expected port with file descriptor as underlying device" obj))
 
 ;;; --------------------------------------------------------------------
 
 (define-argument-validation ($input-port who obj)
   (%unsafe.input-port? obj)
-  (assertion-violation who "expected input port as argument" obj))
+  (procedure-argument-violation who "expected input port as argument" obj))
 
 (define-argument-validation ($output-port who obj)
   (%unsafe.output-port? obj)
-  (assertion-violation who "expected output port as argument" obj))
+  (procedure-argument-violation who "expected output port as argument" obj))
 
 (define-argument-validation ($not-input/output-port who obj)
   (not (%unsafe.input-and-output-port? obj))
-  (assertion-violation who "invalid input/output port as argument" obj))
+  (procedure-argument-violation who "invalid input/output port as argument" obj))
 
 ;;; --------------------------------------------------------------------
 
 (define-argument-validation ($binary-port who obj)
   (%unsafe.binary-port? obj)
-  (assertion-violation who "expected binary port as argument" obj))
+  (procedure-argument-violation who "expected binary port as argument" obj))
 
 (define-argument-validation ($textual-port who obj)
   (%unsafe.textual-port? obj)
-  (assertion-violation who "expected textual port as argument" obj))
+  (procedure-argument-violation who "expected textual port as argument" obj))
 
 ;;; --------------------------------------------------------------------
 
 (define-argument-validation ($open-port who obj)
   (not (%unsafe.port-closed? obj))
-  (assertion-violation who "expected open port as argument" obj))
+  (procedure-argument-violation who "expected open port as argument" obj))
 
 ;;; --------------------------------------------------------------------
 
@@ -1351,58 +1359,59 @@
   (raise
    (condition (make-who-condition who)
 	      (make-message-condition "position must be a nonnegative exact integer")
-	      (make-i/o-invalid-position-error position))))
+	      (make-i/o-invalid-position-error position)
+	      (make-procedure-argument-violation))))
 
 (define-argument-validation (get-position-result who position port)
   (and (or (fixnum? position)
 	   (bignum? position))
        (>= position 0))
-  (assertion-violation who "invalid value returned by get-position" port position))
+  (procedure-argument-violation who "invalid value returned by get-position" port position))
 
 ;;; --------------------------------------------------------------------
 
 (define-argument-validation (port-identifier who obj)
   (string? obj)
-  (assertion-violation who "ID is not a string" obj))
+  (procedure-argument-violation who "ID is not a string" obj))
 
 (define-argument-validation (read!-procedure who obj)
   (procedure? obj)
-  (assertion-violation who "READ! is not a procedure" obj))
+  (procedure-argument-violation who "READ! is not a procedure" obj))
 
 (define-argument-validation (write!-procedure who obj)
   (procedure? obj)
-  (assertion-violation who "WRITE! is not a procedure" obj))
+  (procedure-argument-violation who "WRITE! is not a procedure" obj))
 
 (define-argument-validation (maybe-close-procedure who obj)
   (or (procedure? obj) (not obj))
-  (assertion-violation who "CLOSE should be either a procedure or false" obj))
+  (procedure-argument-violation who "CLOSE should be either a procedure or false" obj))
 
 (define-argument-validation (maybe-get-position-procedure who obj)
   (or (procedure? obj) (not obj))
-  (assertion-violation who "GET-POSITION should be either a procedure or false" obj))
+  (procedure-argument-violation who "GET-POSITION should be either a procedure or false" obj))
 
 (define-argument-validation (maybe-set-position!-procedure who obj)
   (or (procedure? obj) (not obj))
-  (assertion-violation who "SET-POSITION! should be either a procedure or false" obj))
+  (procedure-argument-violation who "SET-POSITION! should be either a procedure or false" obj))
 
 (define-argument-validation (filename who obj)
   (string? obj)
-  (assertion-violation who "expected string as filename argument" obj))
+  (procedure-argument-violation who "expected string as filename argument" obj))
 
 (define-argument-validation (file-options who obj)
   (enum-set? obj)
-  (assertion-violation who "expected enum set as file-options argument" obj))
+  (procedure-argument-violation who "expected enum set as file-options argument" obj))
 
 ;;; --------------------------------------------------------------------
 
 (define-argument-validation (fixnum-start-index who start)
   (and (fixnum? start) ($fx>= start 0))
-  (assertion-violation who "expected non-negative fixnum as start index argument" start))
+  (procedure-argument-violation who "expected non-negative fixnum as start index argument" start))
 
 (define-argument-validation (start-index-for-bytevector who dst.start dst.bv)
   ;;Notice that start=length is valid is the count argument is zero
   ($fx<= dst.start ($bytevector-length dst.bv))
-  (assertion-violation who
+  (procedure-argument-violation who
     (string-append "start index argument " (number->string dst.start)
 		   " too big for bytevector of length "
 		   (number->string ($bytevector-length dst.bv)))
@@ -1411,7 +1420,7 @@
 (define-argument-validation ($start-index-for-string who dst.start dst.str)
   ;;Notice that start=length is valid is the count argument is zero
   ($fx< dst.start ($string-length dst.str))
-  (assertion-violation who
+  (procedure-argument-violation who
     (string-append "start index argument " (number->string dst.start)
 		   " too big for string of length " (number->string ($string-length dst.str)))
     dst.start))
@@ -1422,19 +1431,19 @@
   (and (integer? count)
        (exact? count)
        (>= count 0))
-  (assertion-violation who "expected non-negative exact integer as count argument" count))
+  (procedure-argument-violation who "expected non-negative exact integer as count argument" count))
 
 (define-argument-validation (fixnum-count who count)
   (and (fixnum? count)
        ($fx>= count 0))
-  (assertion-violation who "expected non-negative fixnum as count argument" count))
+  (procedure-argument-violation who "expected non-negative fixnum as count argument" count))
 
 (define-argument-validation (count-from-start-in-bytevector who count start dst.bv)
   ;;We know that COUNT and START  are fixnums, but not if START+COUNT is
   ;;a fixnum, too.
   ;;
   (<= (+ start count) ($bytevector-length dst.bv))
-  (assertion-violation who
+  (procedure-argument-violation who
     (string-append "count argument "    (number->string count)
 		   " from start index " (number->string start)
 		   " too big for bytevector of length "
@@ -1446,7 +1455,7 @@
   ;;a fixnum, too.
   ;;
   (<= (+ start count) ($string-length dst.str))
-  (assertion-violation who
+  (procedure-argument-violation who
     (string-append "count argument "    (number->string count)
 		   " from start index " (number->string start)
 		   " too big for string of length "
@@ -6889,79 +6898,136 @@
 
 ;;;; GET-CHAR and LOOKAHEAD-CHAR for ports with Latin-1 transcoder
 
-(define-inline (%unsafe.read-char-from-port-with-fast-get-latin1-tag ?port ?who)
-  ;;PORT must be a textual input port with bytevector buffer and Latin-1
-  ;;transcoder.   Knowing that Latin-1  characters are  1 byte  wide: we
-  ;;process here  the simple case of  one char available  in the buffer,
-  ;;else  we   call  the   specialised  function  for   reading  Latin-1
-  ;;characters.
-  ;;
-  (let ((port ?port))
+(module (%unsafe.read-char-from-port-with-fast-get-latin1-tag
+	 %unsafe.peek-char-from-port-with-fast-get-latin1-tag
+	 %unsafe.read/peek-char-from-port-with-latin1-codec)
+
+  (define-inline (%unsafe.read-char-from-port-with-fast-get-latin1-tag port who)
+    ;;PORT  must be  a textual  input  port with  bytevector buffer  and
+    ;;Latin-1 transcoder.   Knowing that  Latin-1 characters are  1 byte
+    ;;wide: we process here the simple case of one char available in the
+    ;;buffer, else we call the  specialised function for reading Latin-1
+    ;;characters.
+    ;;
     (with-port-having-bytevector-buffer (port)
-      (let ((buffer.offset port.buffer.index))
+      (let recurse ((buffer.offset port.buffer.index))
 	(if ($fx< buffer.offset port.buffer.used-size)
 	    (begin
 	      (set! port.buffer.index ($fxadd1 buffer.offset))
-	      (let ((byte ($bytevector-u8-ref port.buffer buffer.offset)))
-		($fixnum->char byte)))
-	  (%unsafe.read/peek-char-from-port-with-latin1-codec port ?who 1 0))))))
+	      (let ((octet ($bytevector-u8-ref port.buffer buffer.offset)))
+		(if ($latin1-chi? octet)
+		    ($fixnum->char octet)
+		  (let ((mode (transcoder-error-handling-mode port.transcoder)))
+		    (case mode
+		      ((ignore)
+		       ;;To ignore means jump to the next.
+		       (recurse))
+		      ((replace)
+		       #\xFFFD)
+		      ((raise)
+		       (raise
+			(condition (make-i/o-decoding-error port)
+				   (make-who-condition who)
+				   (make-message-condition "invalid code point for Latin-1 coded")
+				   (make-irritants-condition (list octet ($fixnum->char octet))))))
+		      (else
+		       (assertion-violation who "vicare internal error: invalid error handling mode" port mode)))))))
+	  (%unsafe.read/peek-char-from-port-with-latin1-codec port who 1 0)))))
 
-(define-inline (%unsafe.peek-char-from-port-with-fast-get-latin1-tag ?port ?who)
-  ;;PORT must be a textual input port with bytevector buffer and Latin-1
-  ;;transcoder.   Knowing that Latin-1  characters are  1 byte  wide: we
-  ;;process here  the simple case of  one char available  in the buffer,
-  ;;else  we   call  the   specialised  function  for   peeking  Latin-1
-  ;;characters.
-  ;;
-  (let ((port ?port))
+  (define-inline (%unsafe.peek-char-from-port-with-fast-get-latin1-tag port who)
+    ;;PORT  must be  a textual  input  port with  bytevector buffer  and
+    ;;Latin-1 transcoder.   Knowing that  Latin-1 characters are  1 byte
+    ;;wide: we process here the simple case of one char available in the
+    ;;buffer, else we call the  specialised function for peeking Latin-1
+    ;;characters.
+    ;;
     (with-port-having-bytevector-buffer (port)
       (let ((buffer.offset-byte port.buffer.index))
 	(if ($fx< buffer.offset-byte port.buffer.used-size)
-	    ($fixnum->char ($bytevector-u8-ref port.buffer buffer.offset-byte))
-	  (%unsafe.read/peek-char-from-port-with-latin1-codec port ?who 0 0))))))
+	    (let ((octet ($bytevector-u8-ref port.buffer buffer.offset-byte)))
+	      (if ($latin1-chi? octet)
+		  ($fixnum->char octet)
+		(let ((mode (transcoder-error-handling-mode port.transcoder)))
+		  (case mode
+		    ((replace)
+		     #\xFFFD)
+		    ;;When peeking we cannot ignore.
+		    ((ignore raise)
+		     (raise
+		      (condition (make-i/o-decoding-error port)
+				 (make-who-condition who)
+				 (make-message-condition "invalid code point for Latin-1 coded")
+				 (make-irritants-condition (list octet ($fixnum->char octet))))))
+		    (else
+		     (assertion-violation who "vicare internal error: invalid error handling mode" port mode))))))
+	  (%unsafe.read/peek-char-from-port-with-latin1-codec port who 0 0)))))
 
-(define (%unsafe.read/peek-char-from-port-with-latin1-codec port who buffer-index-increment offset)
-  ;;Subroutine of %DO-READ-CHAR or %DO-PEEK-CHAR.  PORT must be a textual
-  ;;input  port  with bytevector  buffer  and  Latin-1 transcoder;  such
-  ;;buffer must be already fully consumed.
-  ;;
-  ;;Refill  the input  buffer  reading from  the  underlying device  and
-  ;;return the a Scheme character from the buffer; if EOF is found while
-  ;;reading from the underlying device: return the EOF object.
-  ;;
-  ;;When  BUFFER-INDEX-INCREMENT=1 and  OFFSET=0 this  function  acts as
-  ;;GET-CHAR: it reads the next  character and consumes it advancing the
-  ;;port position.
-  ;;
-  ;;When  BUFFER-INDEX-INCREMENT=0 and  OFFSET=0 this  function  acts as
-  ;;PEEK-CHAR:  it  returns  the  next  character and  leaves  the  port
-  ;;position unchanged.
-  ;;
-  ;;When  BUFFER-INDEX-INCREMENT=0 and  OFFSET>0 this  function  acts as
-  ;;forwards PEEK-CHAR:  it reads the  the character at OFFSET  from the
-  ;;current buffer  index and leaves the port  position unchanged.  This
-  ;;usage is needed when converting EOL styles for PEEK-CHAR.  When this
-  ;;usage is desired: usually it is OFFSET=1.
-  ;;
-  ;;Other  combinations  of  BUFFER-INDEX-INCREMENT  and  OFFSET,  while
-  ;;possible, should not be needed.
-  ;;
-  (with-port-having-bytevector-buffer (port)
-    (define (%available-data buffer.offset)
-      (unless ($fxzero? buffer-index-increment)
-	(port.buffer.index.incr! buffer-index-increment))
-      ($fixnum->char ($bytevector-u8-ref port.buffer buffer.offset)))
-    (let ((buffer.offset ($fx+ offset port.buffer.index)))
-      (maybe-refill-bytevector-buffer-and-evaluate (port who)
-	(data-is-needed-at: buffer.offset)
-	(if-end-of-file: (eof-object))
-	(if-empty-buffer-and-refilling-would-block:
-	 WOULD-BLOCK-OBJECT)
-	(if-successful-refill:
-	 ;;After refilling we must reload buffer indexes.
-	 (%available-data ($fx+ offset port.buffer.index)))
-	(if-available-data: (%available-data buffer.offset))
-	))))
+  (define (%unsafe.read/peek-char-from-port-with-latin1-codec port who buffer-index-increment offset)
+    ;;Subroutine  of %DO-READ-CHAR  or  %DO-PEEK-CHAR.  PORT  must be  a
+    ;;textual input port with  bytevector buffer and Latin-1 transcoder;
+    ;;such buffer must be already fully consumed.
+    ;;
+    ;;Refill the  input buffer  reading from  the underlying  device and
+    ;;return the  a Scheme character  from the  buffer; if EOF  is found
+    ;;while reading from the underlying device: return the EOF object.
+    ;;
+    ;;When BUFFER-INDEX-INCREMENT=1  and OFFSET=0 this function  acts as
+    ;;GET-CHAR: it  reads the next  character and consumes  it advancing
+    ;;the port position.
+    ;;
+    ;;When BUFFER-INDEX-INCREMENT=0  and OFFSET=0 this function  acts as
+    ;;PEEK-CHAR:  it returns  the  next character  and  leaves the  port
+    ;;position unchanged.
+    ;;
+    ;;When BUFFER-INDEX-INCREMENT=0  and OFFSET>0 this function  acts as
+    ;;forwards PEEK-CHAR: it reads the  the character at OFFSET from the
+    ;;current buffer index and leaves the port position unchanged.  This
+    ;;usage is  needed when converting  EOL styles for  PEEK-CHAR.  When
+    ;;this usage is desired: usually it is OFFSET=1.
+    ;;
+    ;;Other  combinations of  BUFFER-INDEX-INCREMENT  and OFFSET,  while
+    ;;possible, should not be needed.
+    ;;
+    (with-port-having-bytevector-buffer (port)
+      (define (%available-data buffer.offset)
+	(unless ($fxzero? buffer-index-increment)
+	  (port.buffer.index.incr! buffer-index-increment))
+	(let ((octet ($bytevector-u8-ref port.buffer buffer.offset)))
+	  (if ($latin1-chi? octet)
+	      ($fixnum->char octet)
+	    (let ((mode (transcoder-error-handling-mode port.transcoder)))
+	      (case mode
+		((ignore)
+		 ;;To ignore means jump to the next.
+		 (%unsafe.read/peek-char-from-port-with-latin1-codec port who buffer-index-increment offset))
+		((replace)
+		 #\xFFFD)
+		((raise)
+		 (raise
+		  (condition (make-i/o-decoding-error port)
+			     (make-who-condition who)
+			     (make-message-condition "invalid code point for Latin-1 coded")
+			     (make-irritants-condition (list octet ($fixnum->char octet))))))
+		(else
+		 (assertion-violation who "vicare internal error: invalid error handling mode" port mode)))))))
+      (let ((buffer.offset ($fx+ offset port.buffer.index)))
+	(maybe-refill-bytevector-buffer-and-evaluate (port who)
+	  (data-is-needed-at: buffer.offset)
+	  (if-end-of-file: (eof-object))
+	  (if-empty-buffer-and-refilling-would-block:
+	   WOULD-BLOCK-OBJECT)
+	  (if-successful-refill:
+	   ;;After refilling we must reload buffer indexes.
+	   (%available-data ($fx+ offset port.buffer.index)))
+	  (if-available-data: (%available-data buffer.offset))
+	  ))))
+
+  (define-inline ($latin1-chi? chi)
+    (or ($fx<= #x00 chi #x1F) ;these are the control characters
+	($fx<= #x20 chi #x7E)
+	($fx<= #xA0 chi #xFF)))
+
+  #| end of module |# )
 
 
 ;;;; GET-CHAR and LOOKAHEAD-CHAR for ports with string buffer

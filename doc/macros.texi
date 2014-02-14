@@ -78,6 +78,10 @@ Revised^6 Report on the algorithmic language Scheme
 @acronym{CLOS}
 @end macro
 
+@macro oopp{}
+@acronym{OOPP}
+@end macro
+
 @macro library{SPEC}
 @code{(\SPEC\)}
 @end macro
@@ -98,11 +102,19 @@ Revised^6 Report on the algorithmic language Scheme
 <\NAME\>
 @end macro
 
-@macro clause{NAME}
+@macro objtype{NAME}
 @code{\NAME\}
 @end macro
 
-@macro objtype{NAME}
+@macro aobjtype{NAME}
+\NAME\
+@end macro
+
+@macro cobjtype{NAME}
+\NAME\
+@end macro
+
+@macro clause{NAME}
 @code{\NAME\}
 @end macro
 
@@ -189,6 +201,10 @@ Revised^6 Report on the algorithmic language Scheme
 
 @macro ascii{}
 @acronym{ASCII}
+@end macro
+
+@macro asciiz{}
+@acronym{ASCIIZ}
 @end macro
 
 @macro axml{}
@@ -392,8 +408,20 @@ Revised^6 Report on the algorithmic language Scheme
 @ref{\NODE\,\TITLE\,\TITLE\,autoconf}
 @end macro
 
+@macro vicareref{NODE, TITLE}
+@ref{\NODE\,\TITLE\,\TITLE\,vicare-scheme}
+@end macro
+
+@macro libsref{NODE, TITLE}
+@ref{\NODE\,\TITLE\,\TITLE\,vicare-libs}
+@end macro
+
 @macro nauref{NODE, TITLE}
 @ref{\NODE\,\TITLE\,\TITLE\,nausicaa}
+@end macro
+
+@macro mehveref{NODE, TITLE}
+@ref{\NODE\,\TITLE\,\TITLE\,mehve}
 @end macro
 
 @macro manpage{NODE, TITLE}

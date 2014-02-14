@@ -38,7 +38,12 @@
     hashtable-equivalence-function
     hashtable-hash-function
     string-hash			string-ci-hash
-    symbol-hash			equal-hash)
+    symbol-hash			bytevector-hash
+    equal-hash
+
+    ;; unsafe operations
+    $string-hash		$string-ci-hash
+    $symbol-hash		$bytevector-hash)
   (import
       (ikarus system $pairs)
     (ikarus system $vectors)
@@ -58,7 +63,8 @@
 	    hashtable-equivalence-function
 	    hashtable-hash-function
 	    string-hash			string-ci-hash
-	    symbol-hash			equal-hash)
+	    symbol-hash			bytevector-hash
+	    equal-hash)
     ;;This import spec must be the  last, else rebuilding the boot image
     ;;may fail.  (Marco Maggi; Sat Feb  9, 2013)
     (vicare arguments validation))
@@ -70,15 +76,15 @@
   (and (or (fixnum? obj)
 	   (bignum? obj))
        (>= obj 0))
-  (assertion-violation who "invalid initial hashtable capacity" obj))
+  (procedure-argument-violation who "invalid initial hashtable capacity" obj))
 
 (define-argument-validation (hasht who obj)
   (hasht? obj)
-  (assertion-violation who "expected hash table as argument" obj))
+  (procedure-argument-violation who "expected hash table as argument" obj))
 
 (define-argument-validation (mutable-hasht who obj)
   (hasht-mutable? obj)
-  (assertion-violation who "expected mutable hash table as argument" obj))
+  (procedure-argument-violation who "expected mutable hash table as argument" obj))
 
 
 ;;;; data structure
@@ -471,7 +477,7 @@
   (define-argument-validation (hash-result who obj)
     (or (fixnum? obj)
 	(bignum? obj))
-    (assertion-violation who "invalid return value from client hash function" obj))
+    (procedure-argument-violation who "invalid return value from client hash function" obj))
 
   #| end of module: make-hashtable |# )
 
@@ -601,19 +607,47 @@
   (define who 'string-hash)
   (with-arguments-validation (who)
       ((string	s))
-    (foreign-call "ikrt_string_hash" s)))
+    ($string-hash s)))
+
+(define ($string-hash s)
+  (foreign-call "ikrt_string_hash" s))
+
+;;; --------------------------------------------------------------------
 
 (define (string-ci-hash s)
   (define who 'string-ci-hash)
   (with-arguments-validation (who)
       ((string	s))
-    (foreign-call "ikrt_string_hash" (string-foldcase s))))
+    ($string-ci-hash s)))
+
+(define ($string-ci-hash s)
+  (foreign-call "ikrt_string_hash" (string-foldcase s)))
+
+;;; --------------------------------------------------------------------
 
 (define (symbol-hash s)
   (define who 'symbol-hash)
   (with-arguments-validation (who)
       ((symbol	s))
-    (foreign-call "ikrt_string_hash" (symbol->string s))))
+    ($symbol-hash s)))
+
+(define ($symbol-hash s)
+  (foreign-call "ikrt_string_hash" (symbol->string s)))
+
+;;; --------------------------------------------------------------------
+
+(define (bytevector-hash s)
+  ;;Defined by Vicare.
+  ;;
+  (define who 'bytevector-hash)
+  (with-arguments-validation (who)
+      ((bytevector	s))
+    ($bytevector-hash s)))
+
+(define ($bytevector-hash s)
+  (foreign-call "ikrt_bytevector_hash" s))
+
+;;; --------------------------------------------------------------------
 
 (define (equal-hash s)
   (string-hash (call-with-string-output-port

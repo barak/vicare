@@ -19,16 +19,26 @@
   (export
     make-vector		vector
     subvector		vector-length
+    vector-empty?
     vector-ref		vector-set!
     vector->list	list->vector
     vector-map		vector-for-each
     vector-for-all	vector-exists
     vector-fill!	vector-append
     vector-copy		vector-copy!
-    vector-resize)
+    vector-resize
+
+    ;; unsafe operations
+    $vector-empty?
+    $vector-map1
+    $vector-for-each1
+    $vector-for-all1
+    $vector-exists1
+    )
   (import (except (ikarus)
 		  make-vector		vector
 		  subvector		vector-length
+		  vector-empty?
 		  vector-ref		vector-set!
 		  vector->list		list->vector
 		  vector-map		vector-for-each
@@ -37,7 +47,13 @@
 		  vector-copy		vector-copy!
 		  vector-resize)
     (vicare arguments validation)
-    (vicare unsafe operations))
+    (except (vicare unsafe operations)
+	    $vector-empty?
+	    $vector-map1
+	    $vector-for-each1
+	    $vector-for-all1
+	    $vector-exists1
+	    ))
 
 
 ;;;; arguments validation
@@ -46,25 +62,25 @@
   ;;To be used after INDEX validation.
   ;;
   ($fx<= idx len)
-  (assertion-violation who "start index argument out of range for vector" idx len))
+  (procedure-argument-violation who "start index argument out of range for vector" idx len))
 
 (define-argument-validation (end-index-and-length who idx len)
   ;;To be used after INDEX validation.
   ;;
   ($fx<= idx len)
-  (assertion-violation who "end index argument out of range for vector" idx len))
+  (procedure-argument-violation who "end index argument out of range for vector" idx len))
 
 (define-argument-validation (start-and-end-indices who start end)
   ;;To be used after INDEX validation.
   ;;
   ($fx<= start end)
-  (assertion-violation who "start and end index arguments are in decreasing order" start end))
+  (procedure-argument-violation who "start and end index arguments are in decreasing order" start end))
 
 ;;; --------------------------------------------------------------------
 
 (define-argument-validation (start-index-and-count-and-length who start count len)
   ($fx<= ($fx+ start count) len)
-  (assertion-violation who
+  (procedure-argument-violation who
     (vector-append "count argument out of range for vector of length " (number->string len)
 		   " and start index " (number->string start))
     count))
@@ -73,7 +89,7 @@
 
 (define-argument-validation (vector-of-length who vec len)
   ($fx= len ($vector-length vec))
-  (assertion-violation who "expected vector arguments with the same length" len vec))
+  (procedure-argument-violation who "expected vector arguments with the same length" len vec))
 
 (define-argument-validation (list-of-vectors-of-length who who1 ell len)
   ;;WHO is used  twice in the arguments list because we  need it also in
@@ -87,7 +103,7 @@
 	      ((vector a))
 	    (and ($fx= ($vector-length a) len)
 		 (next-vector ($cdr ell) len))))))
-  (assertion-violation who "expected vector arguments with the same length" len ell))
+  (procedure-argument-violation who "expected vector arguments with the same length" len ell))
 
 
 ;;;; constants
@@ -252,16 +268,16 @@
 	     (cond ((pair? h)
 		    (if (not (eq? h t))
 			(race ($cdr h) ($cdr t) ls ($fx+ n 2))
-		      (assertion-violation who
+		      (procedure-argument-violation who
 			"circular list is invalid as argument" ls)))
 		   ((null? h)
 		    ($fx+ n 1))
 		   (else
-		    (assertion-violation who EXPECTED_PROPER_LIST_AS_ARGUMENT ls)))))
+		    (procedure-argument-violation who EXPECTED_PROPER_LIST_AS_ARGUMENT ls)))))
 	  ((null? h)
 	   n)
 	  (else
-	   (assertion-violation who EXPECTED_PROPER_LIST_AS_ARGUMENT ls))))
+	   (procedure-argument-violation who EXPECTED_PROPER_LIST_AS_ARGUMENT ls))))
 
   (define (fill v i ls)
     (if (null? ls)
@@ -371,7 +387,7 @@
 	   (vector	v1))
 	(let ((n (vector-length v0)))
 	  (unless ($fx= n ($vector-length v1))
-	    (assertion-violation who "length mismatch" v0 v1))
+	    (procedure-argument-violation who "length mismatch" v0 v1))
 	  (let f ((p  p)
 		  (v0 v0)
 		  (v1 v1)
@@ -485,7 +501,7 @@
        (define who '?name)
        (define (iterator-1 proc vec)
 	 (unless (vector? vec)
-	   (assertion-violation who "not a vector" vec))
+	   (procedure-argument-violation who "not a vector" vec))
 	 (let ((len (vector-length vec)))
 	   (if (zero? len)
 	       (?combine) ;not PROC!!!
@@ -502,12 +518,12 @@
 	   (unless (null? vectors)
 	     (if (vector? (car vectors))
 		 (loop (cdr vectors))
-	       (assertion-violation who "not a vector" (car vectors)))))
+	       (procedure-argument-violation who "not a vector" (car vectors)))))
 	 (let ((len (vector-length (car vectors))))
 	   (unless (for-all (lambda (vec)
 			      (= len (vector-length vec)))
 		     (cdr vectors))
-	     (assertion-violation who "length mismatch" vectors))
+	     (procedure-argument-violation who "length mismatch" vectors))
 	   (let ((len-1 (- len 1)))
 	     (let loop ((i 0))
 	       (if (= i len-1)
@@ -707,6 +723,78 @@
 	      (else
 	       (let ((src.end ($fx+ src.start count)))
 		 ($vector-copy! src.vec src.start dst.vec dst.start src.end))))))))
+
+
+(define (vector-empty? vec)
+  ;;Defined by  Vicare.  Return true  if VEC is empty,  otherwise return
+  ;;false.
+  ;;
+  (define who 'vector-empty?)
+  (with-arguments-validation (who)
+      ((vector	vec))
+    ($vector-empty? vec)))
+
+;;FIXME This  should become a  true primitive operation.   (Marco Maggi;
+;;Tue Oct 8, 2013)
+(define ($vector-empty? vec)
+  ($fxzero? ($vector-length vec)))
+
+
+;;;; simplified unsafe operations
+
+(define ($vector-map1 func src)
+  ;;Like VECTOR-MAP, but for only  one vector argument: build and return
+  ;;a new  vector having  the same size  of VEC and  items equal  to the
+  ;;result of applying FUNC to the items of VEC.
+  ;;
+  (let loop ((i   0)
+	     (dst ($make-clean-vector ($vector-length src))))
+    (if ($fx= i ($vector-length src))
+	src
+      (begin
+	($vector-set! dst i (func ($vector-ref src i)))
+	(loop ($fxadd1 i) dst)))))
+
+(define ($vector-for-each1 func vec)
+  ;;Like VECTOR-FOR-EACH, but  for only one vector  argument: apply FUNC
+  ;;to all the items of VEC and discard the return values.
+  ;;
+  (let loop ((i 0))
+    (or ($fx= i ($vector-length vec))
+	(begin
+	  (func ($vector-ref vec i))
+	  (loop ($fxadd1 i))))))
+
+(define ($vector-for-all1 func vec)
+  ;;Like VECTOR-FOR-ALL, but  for only one vector  argument: return true
+  ;;if FUNC returns  true for all the items in  VEC.  If the application
+  ;;of FUNC to the items of VEC returns true up to the penultimate item,
+  ;;the last application is performed as tail call.
+  ;;
+  (or ($fxzero? ($vector-length vec))
+      (let loop ((i     0)
+		 (len-1 ($fxsub1 ($vector-length vec))))
+	(if ($fx= i len-1)
+	    ;;Tail call.
+	    (func ($vector-ref vec i))
+	  (and (func ($vector-ref vec i))
+	       (loop ($fxadd1 i) len-1))))))
+
+(define ($vector-exists1 func vec)
+  ;;Like VECTOR-EXISTS, but  for only one vector  argument: return false
+  ;;if FUNC returns false for all  the items in VEC.  If the application
+  ;;of FUNC  to the  items of  VEC returns false  up to  the penultimate
+  ;;item, the last application is performed as tail call.
+  ;;
+  (if ($fxzero? ($vector-length vec))
+      #f
+    (let loop ((i     0)
+	       (len-1 ($fxsub1 ($vector-length vec))))
+      (if ($fx= i len-1)
+	  ;;Tail call.
+	  (func ($vector-ref vec i))
+	(or (func ($vector-ref vec i))
+	    (loop ($fxadd1 i) len-1))))))
 
 
 ;;;; done

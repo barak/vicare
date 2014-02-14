@@ -2,7 +2,7 @@ dnl @configure_input@
 dnl
 
 AC_PREREQ([2.68])
-AC_INIT([Vicare Scheme],[0.3d4],[marco.maggi-ipsu@poste.it],
+AC_INIT([Vicare Scheme],[0.3d7],[marco.maggi-ipsu@poste.it],
   [vicare-scheme],[http://marcomaggi.github.com/vicare.html])
 AC_CONFIG_SRCDIR([src])
 AC_CONFIG_MACRO_DIR([autotools])
@@ -32,7 +32,10 @@ AC_DEFINE([_GNU_SOURCE],[1],[enable everything GNU])
 if git log -1 >& /dev/null; then
   COMMIT_HASH=$(git rev-parse HEAD)
   BRANCH_NAME=$(git rev-parse --abbrev-ref ${COMMIT_HASH})
-  thetimestamp=$(git show --format=format:'%cd' --date=iso ${COMMIT_HASH} --)
+  if [ -z "${BRANCH_NAME}" ]; then
+    BRANCH_NAME=no-branch
+  fi
+  thetimestamp=$(git show --format=format:'%cd' --date=iso ${COMMIT_HASH} -- | head -1)
 else
   COMMIT_HASH=no-commit
   BRANCH_NAME=no-branch
@@ -94,6 +97,15 @@ AM_COND_IF([WANT_SRFI],
   [AC_DEFINE([VICARE_BUILT_WITH_SRFI_ENABLED],[1],
      [defined if SRFI libraries were requested at configuration time])])
 
+VICARE_ENABLE_OPTION([NAUSICAA],[nausicaa],[yes],
+  [whether to install the Nausicaa libraries],
+  [enable installation of Nausicaa libraries])
+AM_CONDITIONAL([WANT_NAUSICAA],[test "x$vicare_enable_NAUSICAA" = xyes])
+
+AM_COND_IF([WANT_NAUSICAA],
+  [AC_DEFINE([VICARE_BUILT_WITH_NAUSICAA_ENABLED],[1],
+     [defined if Nausicaa libraries were requested at configuration time])])
+
 VICARE_ENABLE_OPTION([POSIX],[posix],[yes],
   [whether POSIX features are enabled],
   [enable POSIX features])
@@ -145,6 +157,11 @@ VICARE_WITH_LIBRARY([PTHREAD],[pthread],[check],
   [link executable with pthread],
   [pthread.h],[pthread],[main])
 AM_CONDITIONAL([WANT_PTHREAD],[test "x$vicare_with_PTHREAD" = xyes])
+
+dnl --------------------------------------------------------------------
+
+PLATFORM_PATHNAME=unix
+AC_SUBST([PLATFORM_PATHNAME])
 
 #page
 #### basic system inspection
@@ -1692,8 +1709,9 @@ AC_CONFIG_FILES(Makefile
                 lib/vicare/platform/constants.sls
                 lib/vicare/platform/errno.sls
                 lib/vicare/platform/words.sls
-                meta/slackware/doinst.sh
-                doc/version.texi)
+                doc/version.texi
+                lib/nausicaa/uri/pathnames.sls
+                meta/slackware/doinst.sh)
 AC_OUTPUT
 
 ### end of file

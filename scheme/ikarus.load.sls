@@ -30,7 +30,7 @@
     (prefix (only (ikarus.posix)
 		  getenv
 		  mkdir/parents
-		  split-file-name
+		  split-pathname-root-and-tail
 		  real-pathname
 		  file-modification-time)
 	    posix.)
@@ -57,7 +57,7 @@
 
 (define-argument-validation (search-path who obj)
   (for-all string? obj)
-  (assertion-violation who
+  (procedure-argument-violation who
     "expected list of strings representing directory pathnames as search path" obj))
 
 
@@ -71,10 +71,16 @@
 
 (define DEFAULT-FASL-DIRECTORY
   (let ((P (posix.getenv "VICARE_FASL_DIRECTORY")))
-    (if (and P (file-exists? P))
+    (if (and P
+	     ;;FILE-EXISTS? will raise an error if P is empty.
+	     (not (zero? (string-length P)))
+	     (file-exists? P))
 	(posix.real-pathname P)
       (let ((P (posix.getenv "HOME")))
-	(if (and P (file-exists? P))
+	(if (and P
+		 ;;FILE-EXISTS? will raise an error if P is empty.
+		 (not (zero? (string-length P)))
+		 (file-exists? P))
 	    (string-append (posix.real-pathname P) "/.vicare/precompiled")
 	  ""))))
   ;;The following  code was the  original in Ikarus.  (Marco  Maggi; Sat
@@ -199,7 +205,7 @@
 	(%display "serialising ")
 	(%display ikfasl)
 	(%display " ... ")
-	(let-values (((dir name) (posix.split-file-name ikfasl)))
+	(let-values (((dir name) (posix.split-pathname-root-and-tail ikfasl)))
 	  (posix.mkdir/parents dir #o755))
 	(let ((port (open-file-output-port ikfasl (file-options no-fail))))
 	  (unwind-protect
@@ -236,9 +242,9 @@
    ((filename eval-proc)
     (define who 'load)
     (unless (string? filename)
-      (assertion-violation who "expected string as filename argument" filename))
+      (procedure-argument-violation who "expected string as filename argument" filename))
     (unless (procedure? eval-proc)
-      (assertion-violation who
+      (procedure-argument-violation who
 	"expected procedure as symbolic expression evaluator argument" eval-proc))
     (let next-form ((ls (read-script-source-file filename)))
       (unless (null? ls)
@@ -257,7 +263,7 @@
   ;;
   (define who 'load-r6rs-script)
   (unless (string? filename)
-    (assertion-violation who "expected string as file name argument" filename))
+    (procedure-argument-violation who "expected string as file name argument" filename))
   (let* ((prog  (read-script-source-file filename))
 	 (thunk (compile-r6rs-top-level prog)))
     (when serialize?
