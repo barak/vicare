@@ -48,6 +48,7 @@ autotools/
 /libtool
 /stamp-h1
 /lib/features
+/lib/nausicaa/uri/pathnames.sls
 /lib/vicare/platform/constants.sls
 /lib/vicare/platform/features.sls
 /meta/slackware/doinst.sh
