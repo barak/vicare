@@ -4,7 +4,7 @@
 @settitle Vicare Scheme
 @c %**end of header
 
-@include version.texi
+@include version-scheme.texi
 @include macros.texi
 
 @c page

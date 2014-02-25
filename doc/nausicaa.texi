@@ -9,7 +9,7 @@
 @c Macros.
 @c ------------------------------------------------------------
 
-@include version.texi
+@include version-nausicaa.texi
 @include macros.texi
 
 @c page

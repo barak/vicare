@@ -36,10 +36,6 @@ doc/stamp-vti
 doc/stamp-*
 doc/texinfo.tex
 doc/version.texi
-doc/version-scheme.texi
-doc/version-libs.texi
-doc/version-nausicaa.texi
-doc/version-mehve.texi
 install-sh
 missing
 mkinstalldirs
@@ -52,6 +48,7 @@ autotools/
 /libtool
 /stamp-h1
 /lib/features
+/lib/nausicaa/uri/pathnames.sls
 /lib/vicare/platform/constants.sls
 /lib/vicare/platform/features.sls
 /meta/slackware/doinst.sh
