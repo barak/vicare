@@ -17,6 +17,8 @@
 .emacs.*
 .gdb_history
 .vimview
+*.vicare-32bit-fasl
+*.vicare-64bit-fasl
 Makefile
 Makefile.in
 aclocal.m4
@@ -31,11 +33,17 @@ config.cache-bare
 configure
 depcomp
 test-driver
+features
+ikarus.config.ss
+bootfileloc.h
+vicare.boot
 doc/mdate-sh
 doc/stamp-vti
 doc/stamp-*
 doc/texinfo.tex
 doc/version.texi
+doc/_region_.log
+doc/_region_.texi
 install-sh
 missing
 mkinstalldirs

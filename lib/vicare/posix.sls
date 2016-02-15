@@ -1,5 +1,5 @@
 ;;;Vicare Scheme -- A compiler for R6RS Scheme.
-;;;Copyright (C) 2011, 2012, 2013 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (C) 2011-2015 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;Copyright (C) 2006,2007,2008  Abdulaziz Ghuloum
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
@@ -18,6 +18,8 @@
 #!vicare
 (library (vicare posix)
   (export
+    cond-expand
+
     ;; errno and h_errno codes handling
     (rename (posix.errno->string	errno->string))
     strerror
@@ -89,9 +91,9 @@
     struct-stat-st_dev			struct-stat-st_nlink
     struct-stat-st_uid			struct-stat-st_gid
     struct-stat-st_size
-    struct-stat-st_atime		struct-stat-st_atime_usec
-    struct-stat-st_mtime		struct-stat-st_mtime_usec
-    struct-stat-st_ctime		struct-stat-st_ctime_usec
+    struct-stat-st_atime		struct-stat-st_atime_nsec
+    struct-stat-st_mtime		struct-stat-st_mtime_nsec
+    struct-stat-st_ctime		struct-stat-st_ctime_nsec
     struct-stat-st_blocks		struct-stat-st_blksize
 
     file-is-directory?			file-is-char-device?
@@ -139,7 +141,7 @@
     directory-stream-pathname		directory-stream-pointer
     directory-stream-fd			directory-stream-closed?
 
-    ;; reexported from (vicare $posix)
+    ;; reexported from (vicare language-extensions posix)
     (deprefix (posix.split-pathname-root-and-tail
 	       posix.search-file-in-environment-path
 	       posix.search-file-in-list-path
@@ -156,7 +158,10 @@
 	       posix.file-bytevector-pathname?
 	       posix.file-colon-search-path?
 	       posix.file-string-colon-search-path?
-	       posix.file-bytevector-colon-search-path?)
+	       posix.file-bytevector-colon-search-path?
+	       posix.list-of-pathnames?
+	       posix.list-of-string-pathnames?
+	       posix.list-of-bytevector-pathnames?)
 	      posix.)
 
     ;; file descriptors
@@ -180,6 +185,15 @@
     truncate				ftruncate
     lockf
 
+    after-fork/prepare-child-file-descriptors
+    after-fork/prepare-child-binary-input/output-ports
+    after-fork/prepare-child-textual-input/output-ports
+    after-fork/prepare-parent-binary-input/output-ports
+    after-fork/prepare-parent-textual-input/output-ports
+    fork-with-fds
+    fork-with-binary-ports
+    fork-with-textual-ports
+
     sizeof-fd-set			make-fd-set-bytevector
     make-fd-set-pointer			make-fd-set-memory-block
     FD_ZERO				FD_SET
@@ -190,6 +204,7 @@
     ;; close-on-exec ports
     port-set-close-on-exec-mode!	port-unset-close-on-exec-mode!
     port-in-close-on-exec-mode?		close-ports-in-close-on-exec-mode
+    flush-ports-in-close-on-exec-mode
 
     ;; memory-mapped input/output
     mmap				munmap
@@ -413,14 +428,13 @@
     file-descriptor.vicare-arguments-validation
     file-descriptor/false.vicare-arguments-validation
     network-port-number.vicare-arguments-validation
-    network-port-number/false.vicare-arguments-validation
-    )
+    network-port-number/false.vicare-arguments-validation)
   (import (except (vicare)
 		  strerror
 		  remove		time
 		  read			write
 		  truncate)
-    (prefix (only (vicare $posix)
+    (prefix (only (vicare language-extensions posix)
 		  errno->string
 		  split-pathname-root-and-tail
 		  search-file-in-environment-path
@@ -438,7 +452,10 @@
 		  file-bytevector-pathname?
 		  file-colon-search-path?
 		  file-string-colon-search-path?
-		  file-bytevector-colon-search-path?)
+		  file-bytevector-colon-search-path?
+		  list-of-pathnames?
+		  list-of-string-pathnames?
+		  list-of-bytevector-pathnames?)
 	    posix.)
     (vicare language-extensions syntaxes)
     (vicare platform constants)
@@ -448,7 +465,8 @@
 	    capi.)
     (vicare unsafe operations)
     (prefix (vicare platform words)
-	    words.))
+	    words.)
+    (vicare language-extensions cond-expand))
 
 
 ;;;; helpers
@@ -1036,19 +1054,24 @@
   (execv filename argv))
 
 (define (execv filename argv)
-  (define who 'execv)
-  (with-arguments-validation (who)
+  (with-arguments-validation (__who__)
       ((pathname	filename)
        (list-of-strings	argv))
     (close-ports-in-close-on-exec-mode)
     (with-pathnames ((filename.bv filename))
       (let ((rv (capi.posix-execv filename.bv (map string->utf8 argv))))
 	(if ($fx< rv 0)
-	    (%raise-errno-error who rv filename argv)
+	    (%raise-errno-error __who__ rv filename argv)
 	  rv)))))
 
-(define (execle filename argv . env)
-  (execve filename argv env))
+(define (execle filename argv0 arg . args)
+  (let loop ((argv (list argv0))
+	     (arg  arg)
+	     (args args))
+    (if (pair? args)
+	(loop (cons arg argv) (car args) (cdr args))
+      ;;If we are here: ARG is the environment.
+      (execve filename (reverse argv) arg))))
 
 (define (execve filename argv env)
   (define who 'execve)
@@ -1084,14 +1107,18 @@
 ;;;; process termination status
 
 (define (waitpid pid options)
-  (define who 'waitpid)
-  (with-arguments-validation (who)
+  (with-arguments-validation (__who__)
       ((pid	pid)
        (fixnum	options))
     (let ((rv (capi.posix-waitpid pid options)))
-      (if ($fx< rv 0)
-	  (%raise-errno-error who rv pid options)
-	rv))))
+      (cond ((not rv)
+	     ;;The flag WNOHANG was used in OPTIONS and no child has exited.
+	     rv)
+	    (($fx< rv 0)
+	     (%raise-errno-error __who__ rv pid options))
+	    (else
+	     ;;Return a fixnum representing the exit status.
+	     rv)))))
 
 (define (wait)
   (define who 'wait)
@@ -1264,9 +1291,9 @@
   ;;
   (st_mode st_ino st_dev st_nlink
 	   st_uid st_gid st_size
-	   st_atime st_atime_usec
-	   st_mtime st_mtime_usec
-	   st_ctime st_ctime_usec
+	   st_atime st_atime_nsec
+	   st_mtime st_mtime_nsec
+	   st_ctime st_ctime_nsec
 	   st_blocks st_blksize))
 
 (define (%struct-stat-printer S port sub-printer)
@@ -1281,11 +1308,11 @@
   (%display " st_gid=")		(%display (struct-stat-st_gid S))
   (%display " st_size=")	(%display (struct-stat-st_size S))
   (%display " st_atime=")	(%display (struct-stat-st_atime S))
-  (%display " st_atime_usec=")	(%display (struct-stat-st_atime_usec S))
+  (%display " st_atime_nsec=")	(%display (struct-stat-st_atime_nsec S))
   (%display " st_mtime=")	(%display (struct-stat-st_mtime S))
-  (%display " st_mtime_usec=")	(%display (struct-stat-st_mtime_usec S))
+  (%display " st_mtime_nsec=")	(%display (struct-stat-st_mtime_nsec S))
   (%display " st_ctime=")	(%display (struct-stat-st_ctime S))
-  (%display " st_ctime_usec=")	(%display (struct-stat-st_ctime_usec S))
+  (%display " st_ctime_nsec=")	(%display (struct-stat-st_ctime_nsec S))
   (%display " st_blocks=")	(%display (struct-stat-st_blocks S))
   (%display " st_blksize=")	(%display (struct-stat-st_blksize S))
   (%display "]"))
@@ -2227,12 +2254,227 @@
 	(%raise-errno-error who rv fd cmd len)))))
 
 
+;;;; handling file descriptors after fork
+
+(define (after-fork/prepare-child-file-descriptors child-stdin child-stdout child-stderr)
+  ;;To  be called  in the  child  process, after  a  fork operation,  to replace  the
+  ;;standard  file  descriptors  0,  1,  2 with  the  file  descriptors  CHILD-STDIN,
+  ;;CHILD-STDOUT,   CHILD-STDERR.   When   successful:  return   unspecified  values;
+  ;;otherwise raise an exception.
+  ;;
+  ;;Perform the following operations:
+  ;;
+  ;;1.   Flush  the  standard  output   ports  returned  by  CONSOLE-OUTPUT-PORT  and
+  ;;CONSOLE-ERROR-PORT.
+  ;;
+  ;;2. Close the standard file descriptors 0, 1, 2.
+  ;;
+  ;;3.   Duplicate the  file descriptors  CHILD-STDIN, CHILD-STDOUT,  CHILD-STDERR so
+  ;;that they become new standard file descriptors 0, 1, 2.
+  ;;
+  ;;4.  Close the file descriptors CHILD-STDIN, CHILD-STDOUT, CHILD-STDERR.
+  ;;
+  ;;Notice that:
+  ;;
+  ;;* All the ports that, before this call, were wrapping the old file descriptors 0,
+  ;;1, 2 after this call will wrap the new file descriptors 0, 1, 2.
+  ;;
+  ;;* It  is responsibility  of the  caller, before the  call to  fork, to  flush the
+  ;;output ports  wrapping the standard file  descriptors, like the ones  returned by
+  ;;STANDARD-OUTPUT-PORT,          STANDARD-ERROR-PORT,          CONSOLE-OUTPUT-PORT,
+  ;;CONSOLE-ERROR-PORT.
+  ;;
+  (begin	;setup stdin
+    (close 0)
+    (dup2  child-stdin 0)
+    (close child-stdin))
+  (begin	;setup stdout
+    (close 1)
+    (dup2  child-stdout 1)
+    (close child-stdout))
+  (begin	;setup stderr
+    (close 2)
+    (dup2  child-stderr 2)
+    (close child-stderr)))
+
+(define (after-fork/prepare-child-binary-input/output-ports)
+  ;;To be  called in  the child  process, after  a fork  operation and  after calling
+  ;;AFTER-FORK/PREPARE-CHILD-FILE-DESCRIPTORS  to  prepare  binary input  and  output
+  ;;ports wrapping the standard file descriptors.  Return 3 values:
+  ;;
+  ;;1. Binary input port reading from the standard file descriptor 0.  It is the port
+  ;;returned by STANDARD-INPUT-PORT.
+  ;;
+  ;;2. Binary input port  writing to the standard file descriptor 1.   It is the port
+  ;;returned by STANDARD-OUTPUT-PORT.
+  ;;
+  ;;3. Binary input port  writing to the standard file descriptor 2.   It is the port
+  ;;returned by STANDARD-ERROR-PORT.
+  ;;
+  (values (standard-input-port)
+	  (standard-output-port)
+	  (standard-error-port)))
+
+(define (after-fork/prepare-child-textual-input/output-ports)
+  ;;To be  called in  the child  process, after  a fork  operation and  after calling
+  ;;AFTER-FORK/PREPARE-CHILD-FILE-DESCRIPTORS  to prepare  textual  input and  output
+  ;;ports wrapping the standard file descriptors.  New textual input and output ports
+  ;;are   built   and   selected    as   values   returned   by   CONSOLE-INPUT-PORT,
+  ;;CONSOLE-OUTPUT-PORT and CONSOLE-ERROR-PORT, we must use these functions to access
+  ;;the new ports.  Return unspecified values.
+  ;;
+  ;;It is  responsibility of the caller  to set the new  ports as top values  for the
+  ;;parameters CURRENT-INPUT-PORT, CURRENT-OUTPUT-PORT, CURRENT-ERROR-PORT.
+  ;;
+  (console-input-port
+   (make-textual-file-descriptor-input-port  0 "*stdin*"  (native-transcoder)))
+  (console-output-port
+   (make-textual-file-descriptor-output-port 1 "*stdout*" (native-transcoder)))
+  (console-error-port
+   (make-textual-file-descriptor-output-port 2 "*stderr*" (native-transcoder)))
+  (void))
+
+;;; --------------------------------------------------------------------
+
+(define (after-fork/prepare-parent-binary-input/output-ports parent->child-stdin parent<-child-stdout parent<-child-stderr)
+  ;;To be  called in the  parent to build  Scheme input/output ports  around standard
+  ;;file descriptors for the child process.  Return 3 values:
+  ;;
+  ;;1. Binary output port  that writes in the stdin of the  child.  Closing this port
+  ;;will also close the underlying file descriptor.
+  ;;
+  ;;2. Binary input port that reads from  the stdout of the child.  Closing this port
+  ;;will also close the underlying file descriptor.
+  ;;
+  ;;3. Binary input port that reads from  the stderr of the child.  Closing this port
+  ;;will also close the underlying file descriptor.
+  ;;
+  (values
+   ;;Output port that writes in the stdin of the child.
+   (make-binary-file-descriptor-output-port parent->child-stdin  "*child-stdin*")
+   ;;Input port that reads from the stdout of the child.
+   (make-binary-file-descriptor-input-port  parent<-child-stdout "*child-stdout*")
+   ;;Input port that reads from the stderr of the child.
+   (make-binary-file-descriptor-input-port  parent<-child-stderr "*child-stderr*")))
+
+(define (after-fork/prepare-parent-textual-input/output-ports parent->child-stdin parent<-child-stdout parent<-child-stderr)
+  ;;To be  called in the  parent to build  Scheme input/output ports  around standard
+  ;;file descriptors for the child process.  Return 3 values:
+  ;;
+  ;;1. Textual output port that writes in  the stdin of the child.  Closing this port
+  ;;will also close the underlying file descriptor.
+  ;;
+  ;;2. Textual input port that reads from the stdout of the child.  Closing this port
+  ;;will also close the underlying file descriptor.
+  ;;
+  ;;3. Textual input port that reads from the stderr of the child.  Closing this port
+  ;;will also close the underlying file descriptor.
+  ;;
+  (values
+   ;;Output port that writes in the stdin of the child.
+   (make-textual-file-descriptor-output-port parent->child-stdin  "*child-stdin*"  (native-transcoder))
+   ;;Input port that reads from the stdout of the child.
+   (make-textual-file-descriptor-input-port  parent<-child-stdout "*child-stdout*" (native-transcoder))
+   ;;Input port that reads from the stderr of the child.
+   (make-textual-file-descriptor-input-port  parent<-child-stderr "*child-stderr*" (native-transcoder))))
+
+
+;;;; advanced fork wrappers
+
+(define (fork-with-fds parent-proc child-thunk)
+  ;;Wrapper for FORK that  sets up the file descriptor pipes  to communicate with the
+  ;;child process.
+  ;;
+  (let-values
+      (((child-stdin          parent->child-stdin) (pipe))
+       ((parent<-child-stdout child-stdout)        (pipe))
+       ((parent<-child-stderr child-stderr)        (pipe)))
+    (flush-output-port (console-output-port))
+    (flush-output-port (console-error-port))
+    (fork
+     (lambda (child-pid)
+       (close child-stdin)
+       (close child-stdout)
+       (close child-stderr)
+       (parent-proc child-pid parent->child-stdin parent<-child-stdout parent<-child-stderr))
+     (lambda ()
+       (guard (E (else
+		  (print-condition E)
+		  (exit 1)))
+	 (close parent->child-stdin)
+	 (close parent<-child-stdout)
+	 (close parent<-child-stderr)
+	 (after-fork/prepare-child-file-descriptors child-stdin child-stdout child-stderr)
+	 (child-thunk))))))
+
+(define (fork-with-binary-ports parent-proc child-thunk)
+  ;;Wrapper for FORK that  sets up the file descriptor pipes  to communicate with the
+  ;;child process.  The  standard file descriptors are wrapped into  binary input and
+  ;;output ports.
+  ;;
+  (let-values
+      (((child-stdin          parent->child-stdin) (pipe))
+       ((parent<-child-stdout child-stdout)        (pipe))
+       ((parent<-child-stderr child-stderr)        (pipe)))
+    (flush-output-port (console-output-port))
+    (flush-output-port (console-error-port))
+    (fork
+     (lambda (child-pid)
+       (close child-stdin)
+       (close child-stdout)
+       (close child-stderr)
+       (receive (stdin-port stdout-port stderr-port)
+	   (after-fork/prepare-parent-binary-input/output-ports parent->child-stdin parent<-child-stdout parent<-child-stderr)
+	 (parent-proc child-pid stdin-port stdout-port stderr-port)))
+     (lambda ()
+       (guard (E (else
+		  (print-condition E)
+		  (exit 1)))
+	 (close parent->child-stdin)
+	 (close parent<-child-stdout)
+	 (close parent<-child-stderr)
+	 (after-fork/prepare-child-file-descriptors child-stdin child-stdout child-stderr)
+	 (after-fork/prepare-child-binary-input/output-ports)
+	 (child-thunk))))))
+
+(define (fork-with-textual-ports parent-proc child-thunk)
+  ;;Wrapper for FORK that  sets up the file descriptor pipes  to communicate with the
+  ;;child process.  The standard file descriptors  are wrapped into textual input and
+  ;;output ports.
+  ;;
+  (let-values
+      (((child-stdin          parent->child-stdin) (pipe))
+       ((parent<-child-stdout child-stdout)        (pipe))
+       ((parent<-child-stderr child-stderr)        (pipe)))
+    (flush-output-port (console-output-port))
+    (flush-output-port (console-error-port))
+    (fork
+     (lambda (child-pid)
+       (close child-stdin)
+       (close child-stdout)
+       (close child-stderr)
+       (receive (stdin-port stdout-port stderr-port)
+	   (after-fork/prepare-parent-textual-input/output-ports parent->child-stdin parent<-child-stdout parent<-child-stderr)
+	 (parent-proc child-pid stdin-port stdout-port stderr-port)))
+     (lambda ()
+       (guard (E (else
+		  (print-condition E)
+		  (exit 1)))
+	 (close parent->child-stdin)
+	 (close parent<-child-stdout)
+	 (close parent<-child-stderr)
+	 (after-fork/prepare-child-file-descriptors child-stdin child-stdout child-stderr)
+	 (after-fork/prepare-child-textual-input/output-ports)
+	 (child-thunk))))))
+
+
 ;;;; ports and "close on exec" status
 
 (module (port-set-close-on-exec-mode!
 	 port-unset-close-on-exec-mode!
 	 port-in-close-on-exec-mode?
-	 close-ports-in-close-on-exec-mode)
+	 close-ports-in-close-on-exec-mode
+	 flush-ports-in-close-on-exec-mode)
   (import (vicare containers weak-hashtables))
 
   (define-constant TABLE
@@ -2274,9 +2516,45 @@
 	((port	port))
       (weak-hashtable-contains? TABLE port)))
 
-  (define (close-ports-in-close-on-exec-mode)
-    (vector-for-each close-port (weak-hashtable-keys TABLE))
-    (weak-hashtable-clear! TABLE))
+  (case-define close-ports-in-close-on-exec-mode
+    (()
+     (vector-for-each (lambda (P)
+			(with-blocked-exceptions
+			    (lambda ()
+			      (close-port P))))
+       (weak-hashtable-keys TABLE))
+     (weak-hashtable-clear! TABLE))
+    ((error-handler)
+     (vector-for-each (lambda (P)
+			(with-blocked-exceptions
+			    (lambda ()
+			      (with-exception-handler
+				  error-handler
+				(lambda ()
+				  (close-port P))))))
+       (weak-hashtable-keys TABLE))
+     (weak-hashtable-clear! TABLE)))
+
+  (case-define flush-ports-in-close-on-exec-mode
+    (()
+     (vector-for-each (lambda (P)
+			(with-blocked-exceptions
+			    (lambda ()
+			      (unless (port-closed? P)
+				(when (output-port? P)
+				  (flush-output-port P))))))
+       (weak-hashtable-keys TABLE)))
+    ((error-handler)
+     (vector-for-each (lambda (P)
+			(with-blocked-exceptions
+			    (lambda ()
+			      (with-exception-handler
+				  error-handler
+				(lambda ()
+				  (unless (port-closed? P)
+				    (when (output-port? P)
+				      (flush-output-port P))))))))
+       (weak-hashtable-keys TABLE))))
 
   #| end of module |# )
 
@@ -3225,22 +3503,26 @@
 				    (%display #f)))
   (%display "]"))
 
-(define (getaddrinfo node service hints)
-  (define who 'getaddrinfo)
-  (with-arguments-validation (who)
-      ((string/bytevector/false	node)
-       (string/bytevector/false	service)
-       (addrinfo/false		hints))
-    (with-bytevectors/or-false ((node.bv	node)
-				(service.bv	service))
-      (let ((rv (capi.posix-getaddrinfo (type-descriptor struct-addrinfo)
-					node.bv service.bv hints)))
-	(if (fixnum? rv)
-	    (raise
-	     (condition (make-who-condition who)
-			(make-message-condition (gai-strerror rv))
-			(make-irritants-condition (list node service hints))))
-	  rv)))))
+(case-define getaddrinfo
+  ((node service)
+   (getaddrinfo node service #f))
+  ((node service hints)
+   (define who 'getaddrinfo)
+   (with-arguments-validation (who)
+       ((string/bytevector/false	node)
+	(string/bytevector/false	service)
+	(addrinfo/false			hints))
+     (with-bytevectors/or-false
+	 ((node.bv	node)
+	  (service.bv	service))
+       (let ((rv (capi.posix-getaddrinfo (type-descriptor struct-addrinfo)
+					 node.bv service.bv hints)))
+	 (if (fixnum? rv)
+	     (raise
+	      (condition (make-who-condition who)
+			 (make-message-condition (gai-strerror rv))
+			 (make-irritants-condition (list node service hints))))
+	   rv))))))
 
 (define (gai-strerror code)
   (define who 'gai-strerror)
@@ -4581,6 +4863,216 @@
   (and (fixnum? N)
        ($fx>= N 1)
        ($fx<= N 65535)))
+
+
+;;;; features cond-expand
+
+(define-cond-expand cond-expand
+  (let ()
+    (import (vicare platform features)
+      (only (vicare language-extensions cond-expand helpers)
+	    define-cond-expand-identifiers-helper))
+    (define-cond-expand-identifiers-helper vicare-posix-features
+      (strerror					HAVE_STRERROR)
+      (getenv					HAVE_GETENV)
+      (setenv					HAVE_SETENV)
+      (unsetenv					HAVE_UNSETENV)
+      (environ					HAVE_DECL_ENVIRON)
+      (getpid					HAVE_GETPID)
+      (getppid					HAVE_GETPPID)
+      (system					HAVE_SYSTEM)
+      (fork					HAVE_FORK)
+      (execv					HAVE_EXECV)
+      (execve					HAVE_EXECVE)
+      (execvp					HAVE_EXECVP)
+      (waitpid					HAVE_WAITPID)
+      (wait					HAVE_WAIT)
+      (wifexited				HAVE_WIFEXITED)
+      (wexitstatus				HAVE_WEXITSTATUS)
+      (wifsignaled				HAVE_WIFSIGNALED)
+      (wtermsig					HAVE_WTERMSIG)
+      (wcoredump				HAVE_WCOREDUMP)
+      (wifstopped				HAVE_WIFSTOPPED)
+      (wstopsig					HAVE_WSTOPSIG)
+      (raise					HAVE_RAISE)
+      (kill					HAVE_KILL)
+      (pause					HAVE_PAUSE)
+      (stat					HAVE_STAT)
+      (lstat					HAVE_LSTAT)
+      (fstat					HAVE_FSTAT)
+      (access					HAVE_ACCESS)
+      (chown					HAVE_CHOWN)
+      (fchown					HAVE_FCHOWN)
+      (chmod					HAVE_CHMOD)
+      (fchmod					HAVE_FCHMOD)
+      (umask					HAVE_UMASK)
+      (umask					HAVE_UMASK)
+      (utime					HAVE_UTIME)
+      (utimes					HAVE_UTIMES)
+      (lutimes					HAVE_LUTIMES)
+      (futimes					HAVE_FUTIMES)
+      (link					HAVE_LINK)
+      (symlink					HAVE_SYMLINK)
+      (readlink					HAVE_READLINK)
+      (realpath					HAVE_REALPATH)
+      (unlink					HAVE_UNLINK)
+      (remove					HAVE_REMOVE)
+      (rename					HAVE_RENAME)
+      (mkdir					HAVE_MKDIR)
+      (rmdir					HAVE_RMDIR)
+      (getcwd					HAVE_GETCWD)
+      (chdir					HAVE_CHDIR)
+      (fchdir					HAVE_FCHDIR)
+      (opendir					HAVE_OPENDIR)
+      (fdopendir				HAVE_FDOPENDIR)
+      (readdir					HAVE_READDIR)
+      (closedir					HAVE_CLOSEDIR)
+      (rewinddir				HAVE_REWINDDIR)
+      (telldir					HAVE_TELLDIR)
+      (seekdir					HAVE_SEEKDIR)
+      (open					HAVE_OPEN)
+      (close					HAVE_CLOSE)
+      (read					HAVE_READ)
+      (pread					HAVE_PREAD)
+      (write					HAVE_WRITE)
+      (pwrite					HAVE_PWRITE)
+      (lseek					HAVE_LSEEK)
+      (readv					HAVE_READV)
+      (writev					HAVE_WRITEV)
+      (select					HAVE_SELECT)
+      (poll					HAVE_POLL)
+      (fcntl					HAVE_FCNTL)
+      (ioctl					HAVE_IOCTL)
+      (dup					HAVE_DUP)
+      (dup2					HAVE_DUP2)
+      (pipe					HAVE_PIPE)
+      (mkfifo					HAVE_MKFIFO)
+      (truncate					HAVE_TRUNCATE)
+      (ftruncate				HAVE_FTRUNCATE)
+      (lockf					HAVE_LOCKF)
+      (mmap					HAVE_MMAP)
+      (munmap					HAVE_MUNMAP)
+      (msync					HAVE_MSYNC)
+      (mremap					HAVE_MREMAP)
+      (madvise					HAVE_MADVISE)
+      (mlock					HAVE_MLOCK)
+      (munlock					HAVE_MUNLOCK)
+      (mlockall					HAVE_MLOCKALL)
+      (munlockall				HAVE_MUNLOCKALL)
+      (mprotect					HAVE_MPROTECT)
+      (inet-aton				HAVE_INET_ATON)
+      (inet-ntoa				HAVE_INET_NTOA)
+      (inet-pton				HAVE_INET_PTON)
+      (inet-ntop				HAVE_INET_NTOP)
+      (gethostbyname				HAVE_GETHOSTBYNAME)
+      (gethostbyname2				HAVE_GETHOSTBYNAME2)
+      (gethostbyaddr				HAVE_GETHOSTBYADDR)
+      (gai-strerror				HAVE_GAI_STRERROR)
+      (getprotobyname				HAVE_GETPROTOBYNAME)
+      (getprotobynumber				HAVE_GETPROTOBYNUMBER)
+      (getservbyname				HAVE_GETSERVBYNAME)
+      (getservbyport				HAVE_GETSERVBYPORT)
+      (getnetbyname				HAVE_GETNETBYNAME)
+      (getnetbyaddr				HAVE_GETNETBYADDR)
+      (socket					HAVE_SOCKET)
+      (shutdown					HAVE_SHUTDOWN)
+      (socketpair				HAVE_SOCKETPAIR)
+      (connect					HAVE_CONNECT)
+      (listen					HAVE_LISTEN)
+      (accept					HAVE_ACCEPT)
+      (bind					HAVE_BIND)
+      (getpeername				HAVE_GETPEERNAME)
+      (getsockname				HAVE_GETSOCKNAME)
+      (send					HAVE_SEND)
+      (recv					HAVE_RECV)
+      (sendto					HAVE_SENDTO)
+      (recvfrom					HAVE_RECVFROM)
+      (getsockopt				HAVE_GETSOCKOPT)
+      (setsockopt				HAVE_SETSOCKOPT)
+      (getuid					HAVE_GETUID)
+      (getgid					HAVE_GETGID)
+      (geteuid					HAVE_GETEUID)
+      (getegid					HAVE_GETEGID)
+      (getgroups				HAVE_GETGROUPS)
+      (seteuid					HAVE_SETEUID)
+      (setuid					HAVE_SETUID)
+      (setreuid					HAVE_SETREUID)
+      (setegid					HAVE_SETEGID)
+      (setgid					HAVE_SETGID)
+      (setregid					HAVE_SETREGID)
+      (getlogin					HAVE_GETLOGIN)
+      (getpwuid					HAVE_GETPWUID)
+      (getpwnam					HAVE_GETPWNAM)
+      (getgrgid					HAVE_GETGRGID)
+      (getgrnam					HAVE_GETGRNAM)
+      (ctermid					HAVE_CTERMID)
+      (setsid					HAVE_SETSID)
+      (getsid					HAVE_GETSID)
+      (getpgrp					HAVE_GETPGRP)
+      (setpgid					HAVE_SETPGID)
+      (tcgetpgrp				HAVE_TCGETPGRP)
+      (tcsetpgrp				HAVE_TCSETPGRP)
+      (tcgetsid					HAVE_TCGETSID)
+      (clock					HAVE_CLOCK)
+      (time					HAVE_TIME)
+      (times					HAVE_TIMES)
+      (gettimeofday				HAVE_GETTIMEOFDAY)
+      (localtime				HAVE_LOCALTIME_R)
+      (gmtime					HAVE_GMTIME_R)
+      (timelocal				HAVE_TIMELOCAL)
+      (timegm					HAVE_TIMEGM)
+      (strftime					HAVE_STRFTIME)
+      (nanosleep				HAVE_NANOSLEEP)
+      (gettimeofday				HAVE_GETTIMEOFDAY)
+      (setitimer				HAVE_SETITIMER)
+      (getitimer				HAVE_GETITIMER)
+      (alarm					HAVE_ALARM)
+      (sysconf					HAVE_SYSCONF)
+      (pathconf					HAVE_PATHCONF)
+      (fpathconf				HAVE_FPATHCONF)
+      (confstr					HAVE_CONFSTR)
+      (mq-open					HAVE_MQ_OPEN)
+      (mq-close					HAVE_MQ_CLOSE)
+      (mq-unlink				HAVE_MQ_UNLINK)
+      (mq-send					HAVE_MQ_SEND)
+      (mq-timedsend				HAVE_MQ_TIMEDSEND)
+      (mq-receive				HAVE_MQ_RECEIVE)
+      (mq-timedreceive				HAVE_MQ_TIMEDRECEIVE)
+      (mq-setattr				HAVE_MQ_SETATTR)
+      (mq-getattr				HAVE_MQ_GETATTR)
+      (clock-getres				HAVE_CLOCK_GETRES)
+      (clock-gettime				HAVE_CLOCK_GETTIME)
+      (clock-settime				HAVE_CLOCK_SETTIME)
+      (clock-getcpuclockid			HAVE_CLOCK_GETCPUCLOCKID)
+      (shm-open					HAVE_SHM_OPEN)
+      (shm-unlink				HAVE_SHM_UNLINK)
+      (sem-open					HAVE_SEM_OPEN)
+      (sem-open					HAVE_SEM_OPEN)
+      (sem-close				HAVE_SEM_CLOSE)
+      (sem-unlink				HAVE_SEM_UNLINK)
+      (sem-init					HAVE_SEM_INIT)
+      (sem-destroy				HAVE_SEM_DESTROY)
+      (sem-post					HAVE_SEM_POST)
+      (sem-wait					HAVE_SEM_WAIT)
+      (sem-trywait				HAVE_SEM_TRYWAIT)
+      (sem-timedwait				HAVE_SEM_TIMEDWAIT)
+      (sem-getvalue				HAVE_SEM_GETVALUE)
+      (timer-create				HAVE_TIMER_CREATE)
+      (timer-delete				HAVE_TIMER_DELETE)
+      (timer-settime				HAVE_TIMER_SETTIME)
+      (timer-gettime				HAVE_TIMER_GETTIME)
+      (timer-getoverrun				HAVE_TIMER_GETOVERRUN)
+      (setrlimit				HAVE_SETRLIMIT)
+      (getrlimit				HAVE_GETRLIMIT)
+      (getrusage				HAVE_GETRUSAGE)
+      (htonl					HAVE_HTONL)
+      (htons					HAVE_HTONS)
+      (ntohl					HAVE_NTOHL)
+      (ntohs					HAVE_NTOHS)
+      (uname					HAVE_UNAME)
+      #| define-cond-expand-identifiers-helper |# )
+
+    vicare-posix-features))
 
 
 ;;;; done

@@ -1,4 +1,4 @@
-;;; -*- coding: utf-8 -*-
+;;; -*- coding: utf-8-unix -*-
 ;;;
 ;;;Part of: Vicare Scheme
 ;;;Contents: augmented Scheme language around (nausicaa)
@@ -8,7 +8,7 @@
 ;;;
 ;;;
 ;;;
-;;;Copyright (c) 2011-2013 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (c) 2011-2015 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
 ;;;it under the terms of the  GNU General Public License as published by
@@ -26,7 +26,8 @@
 
 
 #!vicare
-(library (nausicaa mehve)
+(library (nausicaa mehve (0 4))
+  (options visit-upon-loading)
   (export
 
 ;;;; (rnrs base (6))
@@ -674,6 +675,7 @@
 ;;   (flush-output-port (current-output-port))
 ;;
 
+    !=
     acosh
     add1
     andmap
@@ -741,11 +743,10 @@
     atanh
     base64->bytevector
     begin0
-    begin-returnable
+    returnable
     bignum?
     bignum->bytevector
     break
-    bwp-object?
     bytevector-append
     bytevector-empty?
     bytevector->base64
@@ -820,9 +821,6 @@
     compnum?
     condition-errno
     condition-h_errno
-    conforming-library-name-and-library-reference?
-    conforming-sub-version-and-sub-version-reference?
-    conforming-version-and-version-reference?
     console-error-port
     console-input-port
     console-output-port
@@ -846,12 +844,14 @@
     define-constant
     define-constant-values
     define-fluid-syntax
+    define-fluid-override
     define-inline
     define-inline-constant
     define-integrable
-    define-returnable
     define-struct
     define-syntax-rule
+    define-syntax*
+    define-alias
     ;;Replaced by the binding from (nausicaa language oopp).
     ;;
     ;;define-values
@@ -870,6 +870,11 @@
 ;;; &errno
     errno-condition?
     exact-integer?
+    zero-exact-integer?
+    negative-exact-integer?
+    positive-exact-integer?
+    non-negative-exact-integer?
+    non-positive-exact-integer?
     exit-hooks
     expand-form-to-core-language
     expand-library
@@ -881,10 +886,7 @@
     f8b-list->bytevector
     f8l-list->bytevector
     f8n-list->bytevector
-    fasl-directory
-    fasl-path
     fasl-read
-    fasl-search-path
     fasl-write
     filename->string-func
     fixnum->string
@@ -969,7 +971,6 @@
     input-file-buffer-size
     input/output-file-buffer-size
     input/output-socket-buffer-size
-    installed-libraries
     integer->machine-word
     integer->pointer
     interaction-environment
@@ -983,33 +984,9 @@
     keyword?
     keyword-hash
     keyword->symbol
-    lambda-returnable
     last-pair
     library
-    library-extensions
-    library-name<=?
-    library-name<?
-    library-name=?
-    library-name?
-    library-name-decompose
-    library-name->identifiers
-    library-name-identifiers=?
-    library-name->version
-    library-path
-    library-reference?
-    library-reference-decompose
-    library-reference->identifiers
-    library-reference-identifiers=?
-    library-reference->version-reference
-    library-sub-version-reference?
-    library-version<=?
-    library-version<?
-    library-version=?
-    library-version-number?
-    library-version-numbers?
-    library-version-reference?
     load
-    load-r6rs-script
     lookahead-two-u8
     machine-word->integer
     make-binary-file-descriptor-input/output-port
@@ -1021,6 +998,8 @@
     make-binary-socket-input/output-port
     make-binary-socket-input/output-port*
     make-compile-time-value
+    compile-time-value?
+    compile-time-value-object
     make-errno-condition
     make-file-options
     make-guardian
@@ -1084,7 +1063,7 @@
     parametrise
     pathname->string-func
     pointer<=?
-    pointer<>?
+    pointer!=?
     pointer<?
     pointer=?
     pointer>=?
@@ -1200,12 +1179,15 @@
     record-reset
     record-and-rtd?
     record-type-and-record?
+    record-type-field-ref
+    record-type-field-set!
+    $record-type-field-ref
+    $record-type-field-set!
     register-to-avoid-collecting
     remprop
     replace-to-avoid-collecting
     reset-input-port!
     reset-output-port!
-    reset-symbol-proc!
     retrieve-to-avoid-collecting
     return
     run-compensations
@@ -1320,9 +1302,7 @@
     syntax-object-expression
     syntax-object-marks
     syntax-object-source-objects
-    syntax-object-substs
-    syntax-transpose
-    system-value
+    syntax-object-ribs
     tanh
     time
     time<=?
@@ -1339,7 +1319,6 @@
     time-it
     time-nanosecond
     time-second
-    top-level-value
     let*-syntax
     let-constants
     let*-constants
@@ -1363,7 +1342,6 @@
     u64l-list->bytevector
     u64n-list->bytevector
     unicode-printable-char?
-    uninstall-library
     until
     unwind-protect
     utf-16be-codec
@@ -1401,12 +1379,14 @@
     with-output-to-string
     would-block-object
     would-block-object?
+    unbound-object
+    unbound-object?
+    bwp-object
+    bwp-object?
     xor
 
     char-in-ascii-range?
     fixnum-in-character-range?
-
-    define-syntax*
 
     ;;; syntax utilities
     identifier->string
@@ -1462,6 +1442,7 @@
     syntax-clause-spec-max-number-of-arguments
     syntax-clause-spec-mutually-inclusive
     syntax-clause-spec-mutually-exclusive
+    syntax-clause-spec-custom-data
     syntax-clauses-single-spec
     syntax-clauses-fold-specs
     syntax-clauses-validate-specs
@@ -1480,6 +1461,15 @@
     machine-name
     os-name
     os-version
+
+    ;; configuration inspection
+    vicare-built-with-ffi-enabled
+    vicare-built-with-iconv-enabled
+    vicare-built-with-posix-enabled
+    vicare-built-with-glibc-enabled
+    vicare-built-with-linux-enabled
+    vicare-built-with-srfi-enabled
+    vicare-built-with-arguments-validation-enabled
 
     ;; condition types
 ;;; Redefined by (nausicaa language conditions)
@@ -1506,6 +1496,21 @@
     least-positive-bignum
     greatest-negative-bignum
 
+    ;; bytevector validation predicates
+    list-of-bytevectors?
+    bytevector-length?			bytevector-index?
+    bytevector-word-size?		bytevector-word-count?
+    bytevector-index-for-word?
+    bytevector-index-for-word8?
+    bytevector-index-for-word16?
+    bytevector-index-for-word32?
+    bytevector-index-for-word64?
+    bytevector-start-index-and-count-for-word?
+    bytevector-start-index-and-count-for-word8?
+    bytevector-start-index-and-count-for-word16?
+    bytevector-start-index-and-count-for-word32?
+    bytevector-start-index-and-count-for-word64?
+
     ;; raw octets and strings
     octets->string			string->octets
     octets-encoded-bytevector?		octets-encoded-string?
@@ -1525,18 +1530,51 @@
     uri-encoded-bytevector?		percent-encoded-bytevector?
     uri-encoded-string?			percent-encoded-string?
 
+    ;; syntax parameters
+    define-syntax-parameter
+    syntax-parametrise
+    syntax-parameterise
+    syntax-parameterize
+    syntax-parameter-value
+
+    ;; input/output predicates
+    binary-input-port?
+    textual-input-port?
+    binary-output-port?
+    textual-output-port?
+    binary-input/output-port?
+    textual-input/output-port?
+
     ;; misc
     set-cons!
     eval-for-expand
-    record-type-field-ref
-    record-type-field-set!
-    $record-type-field-ref
-    $record-type-field-set!
+    struct-type-and-struct?
+    struct-type-field-ref
+    struct-type-field-set!
+    $struct-type-field-ref
+    $struct-type-field-set!
+    splice-first-expand
+    syntactic-binding-putprop
+    syntactic-binding-getprop
+    syntactic-binding-remprop
+    syntactic-binding-property-list
     values->list
     define*
     lambda*
     case-lambda*
     case-define*
+    __who__
+    __file__
+    __line__
+    brace
+    type-of
+    expansion-of
+    visit-code-of
+
+    ++ --
+    pre-incr!		post-incr!
+    pre-decr!		post-decr!
+    infix factorial
 
 
 ;;;; bindings from (nausicaa language oopp)
@@ -1572,6 +1610,7 @@
     let-values/tags		let*-values/tags
     receive/tags
     do/tags			do*/tags
+    tag-case
     set!/tags
     with-label-shadowing	with-tagged-arguments-validation
     <-
@@ -1711,24 +1750,6 @@
     <common-conditions>
 
 
-;;;; bindings from (nausicaa language increments)
-
-    incr!		decr!
-    pre-incr!		post-incr!
-    pre-decr!		post-decr!
-    $incr!		$decr!
-    $pre-incr!		$post-incr!
-    $pre-decr!		$post-decr!
-
-;;;; bindings from (nausicaa language infix)
-    infix
-    % ? :
-    && !! ^^ ~~
-    ++ --
-    & ! ^ ~
-    << >>
-    fx& fx! fx^ fx~ fx<< fx>>
-
 ;;;; bindings from (nausicaa language simple-match)
     match
 
@@ -1745,12 +1766,10 @@
 
 ;;;; done exports
 
-   initialise-mehve
-
 )
 
 
-  (import (for (except (nausicaa)
+  (import (for (except (nausicaa (0 4))
 		       ;; redefined by numeric predicates
 		       = < > <= >=
 		       zero? positive? negative? non-negative? non-positive?
@@ -1774,39 +1793,13 @@
 		       make-rectangular make-polar complex-conjugate
 
 		       ;; redefined by input/output
-		       display write
-
-		       ;; redefined by infix
-		       infix)
+		       display write)
 	    expand run)
-    (for (nausicaa mehve language numerics predicates)		expand run)
-    (for (nausicaa mehve language numerics arithmetics)		expand run)
-    (for (nausicaa mehve language numerics parts)		expand run)
-    (for (nausicaa mehve language numerics transcendental)	expand run)
-    (for (nausicaa mehve language infix)			expand run)
-    (for (nausicaa mehve language input-output)			expand run))
-
-
-;;;; component libraris initialisation
-
-(define initialise-mehve
-  (let ((done? #f))
-    (lambda ()
-      ;;These   initialisation  function   calls  are   needed  because,
-      ;;according   to   R6RS,   the  expander   might   delay   library
-      ;;instantiation  until  a  binding  from an  imported  library  is
-      ;;actually used.  This  does not play well  with initialisation of
-      ;;multimethods.
-      ;;
-      (unless done?
-	(set! done? #t)
-	(initialise-mehve-numerics-predicates)
-	(initialise-mehve-numerics-arithmetics)
-	(initialise-mehve-numerics-parts)
-	(initialise-mehve-numerics-transcendental)
-	(initialise-mehve-input-output)))))
-
-(initialise-mehve)
+    (for (nausicaa mehve language numerics predicates (0 4))		expand run)
+    (for (nausicaa mehve language numerics arithmetics (0 4))		expand run)
+    (for (nausicaa mehve language numerics parts (0 4))			expand run)
+    (for (nausicaa mehve language numerics transcendental (0 4))	expand run)
+    (for (nausicaa mehve language input-output (0 4))			expand run))
 
 
 ;;;; done

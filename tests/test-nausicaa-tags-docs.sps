@@ -7,7 +7,7 @@
 ;;;
 ;;;
 ;;;
-;;;Copyright (C) 2012, 2013 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (C) 2012, 2013, 2014 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
 ;;;it under the terms of the  GNU General Public License as published by
@@ -24,10 +24,11 @@
 ;;;
 
 
-#!r6rs
-(import (vicare)
-  (nausicaa language oopp)
-  (nausicaa language builtins)
+#!vicare
+(import (except (vicare (0 4))
+		is-a? slot-ref slot-set!)
+  (nausicaa language oopp (0 4))
+  (nausicaa language builtins (0 4))
   (vicare checks))
 
 (check-set-mode! 'report-failed)
@@ -118,35 +119,35 @@
       (fields (mutable v)))
 
     (define-class <beta>
-      (fields (immutable (a <alpha>))))
+      (fields (immutable {a <alpha>})))
 
     (define-class <gamma>
-      (fields (immutable (b <beta>))))
+      (fields (immutable {b <beta>})))
 
     (<alpha> A (<> (1)))
     (<beta>  B (<> (A)))
     (<gamma> O (<> (B)))
 
     (check
-	((<gamma>) O)
+	((<gamma> #:predicate) O)
       => #t)
 
     (check
-    	((<beta>) (O b))
+    	((<beta> #:predicate) (O b))
       => #t)
 
     (check
-    	((<alpha>) (O b a))
+    	((<alpha> #:predicate) ((O b) a))
       => #t)
 
     (check
-    	(O b a v)
+    	(((O b) a) v)
       => 1)
 
-    (set!/tags (O b a v) 2)
+    (set!/tags (((O b) a) v) 2)
 
     (check
-    	(O b a v)
+    	(((O b) a) v)
       => 2)
 
     #f)
@@ -156,55 +157,55 @@
   (let ()
 
     (define-label <vector>
-      (getter (lambda (stx)
+      (getter (lambda (stx tag)
 		(syntax-case stx ()
 		  ((?var ((?idx)))
 		   #'(vector-ref ?var ?idx)))))
-      (setter (lambda (stx)
+      (setter (lambda (stx tag)
 		(syntax-case stx ()
 		  ((?var ((?idx)) ?expr)
 		   #'(vector-set! ?var ?idx ?expr))))))
 
     (define-class <alpha>
-      (fields (immutable (v <vector>))))
+      (fields (immutable {v <vector>})))
 
     (define-class <beta>
-      (fields (immutable (a <alpha>))))
+      (fields (immutable {a <alpha>})))
 
     (define-class <gamma>
-      (fields (immutable (b <beta>))))
+      (fields (immutable {b <beta>})))
 
     (<alpha> A (<> ((vector 1 2 3))))
     (<beta>  B (<> (A)))
     (<gamma> O (<> (B)))
 
     (check
-	((<gamma>) O)
+	((<gamma> #:predicate) O)
       => #t)
     (check
-	((<beta>) (O b))
+	((<beta> #:predicate) (O b))
       => #t)
     (check
-	((<alpha>) (O b a))
+	((<alpha> #:predicate) ((O b) a))
       => #t)
     (check
-	(O b a v)
+    	(((O b) a) v)
       => '#(1 2 3))
     (check
-	(O b a v[0])
+    	((((O b) a) v)[0])
       => 1)
     (check
-	(O b a v[1])
+    	((((O b) a) v)[1])
       => 2)
     (check
-	(O b a v[2])
+    	((((O b) a) v)[2])
       => 3)
 
-    (set!/tags (O b a v[0]) 10)
-    (set!/tags (O b a v[1]) 20)
-    (set!/tags (O b a v[2]) 30)
+    (set!/tags ((((O b) a) v)[0]) 10)
+    (set!/tags ((((O b) a) v)[1]) 20)
+    (set!/tags ((((O b) a) v)[2]) 30)
     (check
-	(O b a v)
+    	(((O b) a) v)
       => '#(10 20 30))
 
     #f)
@@ -230,10 +231,10 @@
 
     (<pair> O (<> (1 2)))
 
-    (check ((<pair>) O)            => #t)
-    (check ((<car-and-cdr>)  O)    => #t)
-    (check ((<car>)  O)            => #t)
-    (check ((<top>)  O)            => #t)
+    (check ((<pair> #:predicate) O)            => #t)
+    (check ((<car-and-cdr> #:predicate)  O)    => #t)
+    (check ((<car> #:predicate)  O)            => #t)
+    (check ((<top> #:predicate)  O)            => #t)
 
     (check (O car)                 => 1)
     (check (O cdr)                 => 2)
@@ -252,24 +253,24 @@
       (predicate <alpha>?)
       (protocol (lambda () make-<alpha>))
       (virtual-fields (immutable sum
-				 (lambda/tags ((O <beta>))
+				 (lambda/tags ({O <beta>})
 				   (+ (O a) (O b))))))
 
     (<beta> O (<> (1 2)))
 
-    (check ((<beta>)  O)           => #t)
-    (check ((<alpha>) O)           => #t)
-    (check ((<top>)   O)           => #t)
+    (check ((<beta> #:predicate)  O)           => #t)
+    (check ((<alpha> #:predicate) O)           => #t)
+    (check ((<top> #:predicate)   O)           => #t)
 
     (check (O a)                   => 1)
     (check (O b)                   => 2)
     (check (O sum)                 => 3)
 
-    (let/tags (((O <beta>) (make-<beta> 1 2)))
+    (let/tags (({O <beta>} (make-<beta> 1 2)))
 
-      (check ((<beta>)  O)           => #t)
-      (check ((<alpha>) O)           => #t)
-      (check ((<top>)   O)           => #t)
+      (check ((<beta> #:predicate)  O)           => #t)
+      (check ((<alpha> #:predicate) O)           => #t)
+      (check ((<top> #:predicate)   O)           => #t)
 
       (check (O a)                   => 1)
       (check (O b)                   => 2)
@@ -287,13 +288,13 @@
   (let ()	;getter
 
     (define-label <vector>
-      (getter (lambda (stx)
+      (getter (lambda (stx tag)
 		(syntax-case stx ()
 		  ((?var ((?idx)))
 		   #'(vector-ref ?var ?idx))))))
 
     (define-label <matrix>
-      (getter (lambda (stx)
+      (getter (lambda (stx tag)
 		(syntax-case stx ()
 		  ((?var ((?row) (?col)))
 		   #'(vector-ref
@@ -321,13 +322,13 @@
   (let ()	;setter
 
     (define-label <vector>
-      (setter (lambda (stx)
+      (setter (lambda (stx tag)
 		(syntax-case stx ()
 		  ((?var ((?idx)) ?expr)
 		   #'(vector-set! ?var ?idx ?expr))))))
 
     (define-label <matrix>
-      (setter (lambda (stx)
+      (setter (lambda (stx tag)
 		(syntax-case stx ()
 		  ((?var ((?row) (?col)) ?expr)
 		   #'(vector-set!
@@ -351,6 +352,29 @@
 	  (set!/tags (M[1][1]) 99)
 	  M)
       => '#(#(1 2 77) #(4 99 6)))
+
+    #f)
+
+;;; --------------------------------------------------------------------
+
+  (let ()	;nested OOPP syntax
+    (define-label <a-string>
+      (getter (lambda (stx tag)
+		(syntax-case stx ()
+		  ((?expr ((?idx)))
+		   #'(<char> #:nested-oopp-syntax (string-ref ?expr ?idx)))))))
+
+    (check
+	(let ()
+	  (define/tags {S <a-string>} "abc")
+	  (list (S[0]) (S[1]) (S[2])))
+      => '(#\a #\b #\c))
+
+    (check
+	(let ()
+	  (define/tags {S <a-string>} "abc")
+	  ((S[1]) upcase))
+      => #\B)
 
     #f)
 
@@ -410,14 +434,14 @@
 	  (fields a b))
 	(define A (<alpha> (1 2)))
 	(define V 123)
-	(with-tags ((A <alpha>)
-		    (V <top>))
+	(with-tags ({A <alpha>}
+		    {V <top>})
 	  (vector (A a) V)))
     => '#(1 123))
 
   (check
-      (let*/tags (((a <number>) 123)
-		  ((b <string>) (a string)))
+      (let*/tags (({a <number>} 123)
+		  ({b <string>} (a string)))
 	b)
     => "123")
 
@@ -427,7 +451,7 @@
       (let ()
 	(define f
 	  (case-lambda/tags
-	   (((a <number>))
+	   (({a <number>})
 	    (a string))))
 	(f 123))
     => "123")
@@ -436,8 +460,8 @@
       (let ()
 	(define g
 	  (case-lambda/tags
-	   (#(args <list>)
-	    (args length))))
+	    ({args <list>}
+	     (args length))))
 	(g 1 2 3))
     => 3)
 
@@ -447,7 +471,7 @@
   (check
       (let ()
 	(define f
-	  (lambda/tags ((a <number>))
+	  (lambda/tags ({a <number>})
 	    (a string)))
 	(f 123))
     => "123")
@@ -455,7 +479,7 @@
   (check
       (let ()
 	(define f
-	  (lambda/tags ((a <number>) (b <number>))
+	  (lambda/tags ({a <number>} {b <number>})
 	    (list (a string) (b string))))
 	(f 1 2))
     => '("1" "2"))
@@ -463,7 +487,7 @@
   (check
       (let ()
 	(define g
-	  (lambda/tags #(args <list>)
+	  (lambda/tags {args <list>}
 	    (args length)))
 	(g 1 2 3))
     => 3)
@@ -471,7 +495,7 @@
   (check	;untagged rest argument
       (let ()
 	(define g
-	  (lambda/tags ((a <number>) (b <number>) . args)
+	  (lambda/tags ({a <number>} {b <number>} . args)
 	    (list (a string)
 		  (b string)
 		  (length args))))
@@ -481,7 +505,7 @@
   (check	;rest argument
       (let ()
 	(define g
-	  (lambda/tags ((a <number>) (b <number>) . #(args <list>))
+	  (lambda/tags ({a <number>} {b <number>} . {args <list>})
 	    (list (a string)
 		  (b string)
 		  (args length))))
@@ -493,28 +517,28 @@
 
   (check
       (let ()
-	(define/tags (f (a <number>))
+	(define/tags (f {a <number>})
 	  (a string))
 	(f 123))
     => "123")
 
   (check
       (let ()
-	(define/tags (f (a <number>) (b <number>))
+	(define/tags (f {a <number>} {b <number>})
 	  (list (a string) (b string)))
 	(f 1 2))
     => '("1" "2"))
 
   (check
       (let ()
-	(define/tags (g . #(args <list>))
+	(define/tags (g . {args <list>})
 	  (args length))
 	(g 1 2 3))
     => 3)
 
   (check	;untagged rest argument
       (let ()
-	(define/tags (g (a <number>) (b <number>) . args)
+	(define/tags (g {a <number>} {b <number>} . args)
 	  (list (a string)
 		(b string)
 		(length args)))
@@ -523,7 +547,7 @@
 
   (check	;rest argument
       (let ()
-	(define/tags (g (a <number>) (b <number>) . #(args <list>))
+	(define/tags (g {a <number>} {b <number>} . {args <list>})
 	  (list (a string)
 		(b string)
 		(args length)))
@@ -532,16 +556,206 @@
 
   (check
       (let ()
-	(define/tags #(a <number>) 123)
+	(define/tags {a <number>} 123)
 	(a string))
     => "123")
 
   (check
       (let ()
-	(define/tags #(a <number>))
+	(define/tags {a <number>})
 	(set! a 123)
 	(a string))
     => "123")
+
+  #t)
+
+
+(parametrise ((check-test-name	'keywords))
+
+  (check
+      (<fixnum> #:oopp-syntax (123 positive?))
+    => #t)
+
+  (check
+      (<string> #:oopp-syntax ("123" length))
+    => 3)
+
+  (check
+      (<string> #:oopp-syntax ("01234" substring 1 3))
+    => "12")
+
+;;; --------------------------------------------------------------------
+
+  (check
+      ((<fixnum> #:nested-oopp-syntax 123) positive?)
+    => #t)
+
+  (check
+      ((<string> #:nested-oopp-syntax "01234") length)
+    => 5)
+
+  (check
+      ((<string> #:nested-oopp-syntax "01234") [3])
+    => #\3)
+
+  #t)
+
+
+(parametrise ((check-test-name	'nesting))
+
+  (let ()
+    (<spine> L '(0 1 2 3 4))
+
+    (check (L car)				=> 0)
+    (check (L cdr)				=> '(1 2 3 4))
+    (check ((L cdr) car)			=> 1)
+    (check ((L cdr) cdr)			=> '(2 3 4))
+    (check (((L cdr) cdr) car)			=> 2)
+    (check (((L cdr) cdr) cdr)			=> '(3 4))
+    (check ((((L cdr) cdr) cdr) car)		=> 3)
+    (check ((((L cdr) cdr) cdr) cdr)		=> '(4))
+    (check (((((L cdr) cdr) cdr) cdr) car)	=> 4)
+    (check (((((L cdr) cdr) cdr) cdr) cdr)	=> '())
+
+    (void))
+
+  (let ()
+    (define-label <vector-of-vectors>
+      (parent <vector>)
+      (getter
+       (lambda (stx tag)
+	 (syntax-case stx ()
+	   ((?expr ((?idx)))
+	    #'(<vector> #:nested-oopp-syntax
+			(vector-ref ?expr ?idx)))))))
+
+    (<vector-of-vectors> V '#(#(11 12 13)
+			      #(21 22 23)
+			      #(31 32 33)))
+
+    (check (V[0])				=> '#(11 12 13))
+    (check (V[1])				=> '#(21 22 23))
+    (check (V[2])				=> '#(31 32 33))
+
+    (check ((V[0]) [0])				=> 11)
+    (check ((V[0]) [1])				=> 12)
+    (check ((V[0]) [2])				=> 13)
+
+    (check ((V[2]) [2])				=> 33)
+
+    (void))
+
+  (let ()	;<procedure> does not splice
+    (define-class <alpha>
+      (fields (immutable {fun <procedure>})))
+
+    (<alpha> A (<> (+)))
+
+    (check
+	((A fun) 1 2 3)
+      => 6)
+
+    (void))
+
+  (let ()	;<top> does not splice
+    (define-class <beta>
+      (fields (immutable {fun <top>})))
+
+    (<beta> A (<> (*)))
+
+    (check
+	((A fun) 1 2 3)
+      => 6)
+
+    (void))
+
+  (let ()	;untagged is like <top> and does not splice
+    (define-class <gamma>
+      (fields (immutable fun)))
+
+    (<gamma> G (<> (*)))
+
+    (check
+	((G fun) 1 2 3)
+      => 6)
+
+    (void))
+
+  (let ()
+
+    (define/tags ({the-str <string>})
+      "ciao")
+
+    (check
+	((the-str) upcase)
+      => "CIAO")
+
+    (check
+	((the-str) [1])
+      => #\i)
+
+    (void))
+
+;;; --------------------------------------------------------------------
+
+  (let ()
+
+    (define-label <fixnum-vector>
+      (parent <vector>)
+      (getter
+       (lambda (stx tag)
+	 (syntax-case stx ()
+	   ((?expr ((?index)))
+	    #'(<fixnum> #:nested-oopp-syntax (vector-ref ?expr ?index)))))))
+
+    (<fixnum-vector> O '#(0 1 2 3))
+
+    (check ((O[1]) string)		=> "1")
+    (check ((O[1]) odd?)		=> #t)
+    (check ((O[2]) * 10)		=> 20)
+
+    (void))
+
+  #t)
+
+
+(parametrise ((check-test-name	'methods))
+
+  (check	;method with tagged return value
+      (let ()
+	(import (nausicaa))
+	(define-class <stuff>
+	  (fields {a <exact-integer>}
+		  {b <exact-integer>})
+	  (methods ({sum <exact-integer>} <stuff>-sum)))
+
+	(define (<stuff>-sum {S <stuff>})
+	  (+ (S a) (S b)))
+
+	(define {S <stuff>}
+	  (<> (1 2)))
+
+	(values (S sum)
+		((S sum) positive?)))
+    => 3 #t)
+
+  (check	;method with tagged return value in the function
+      (let ()
+	(import (nausicaa))
+	(define-class <stuff>
+	  (fields {a <exact-integer>}
+		  {b <exact-integer>})
+	  (methods (sum <stuff>-sum)))
+
+	(define ({<stuff>-sum <exact-integer>} {S <stuff>})
+	  (+ (S a) (S b)))
+
+	(define {S <stuff>}
+	  (<> (1 2)))
+
+	(values (S sum)
+		((S sum) positive?)))
+    => 3 #t)
 
   #t)
 

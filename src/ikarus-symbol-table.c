@@ -121,11 +121,14 @@ static ikptr
 iku_make_symbol (ikptr s_pretty_string, ikptr s_unique_string, ikpcb* pcb)
 {
   ikptr s_sym = ik_unsafe_alloc(pcb, symbol_record_size) | record_tag;
+  /* There is no need to update the dirty vector about mutating "s_sym":
+     "s_sym" has  just been created,  so all the  values that go  in its
+     slots are older. */
   IK_REF(s_sym, -record_tag)               = symbol_tag;
   IK_REF(s_sym, off_symbol_record_string)  = s_pretty_string;
   IK_REF(s_sym, off_symbol_record_ustring) = s_unique_string;
   IK_REF(s_sym, off_symbol_record_value)   = IK_UNBOUND_OBJECT;
-  IK_REF(s_sym, off_symbol_record_proc)    = s_pretty_string;
+  IK_REF(s_sym, off_symbol_record_proc)    = IK_UNBOUND_OBJECT;
   IK_REF(s_sym, off_symbol_record_plist)   = IK_NULL_OBJECT;
   return s_sym;
 }
@@ -158,7 +161,7 @@ intern_string (ikptr s_unique_string, ikptr s_symbol_table, ikpcb* pcb)
   { /* Mark the  page containing  the bucket slot  to be scanned  by the
        garbage collector. */
     ik_ulong bucket_slot_pointer = s_symbol_table + off_vector_data + bucket_index * wordsize;
-    ((int*)(long)pcb->dirty_vector)[IK_PAGE_INDEX(bucket_slot_pointer)] = -1;
+    IK_SIGNAL_DIRT_IN_PAGE_OF_POINTER(pcb, bucket_slot_pointer);
   }
   return s_sym;
 }
@@ -198,7 +201,7 @@ intern_unique_string (ikptr s_pretty_string, ikptr s_unique_string, ikptr s_symb
   { /* Mark the  page containing  the bucket slot  to be scanned  by the
        garbage collector. */
     ik_ulong bucket_slot_pointer = s_symbol_table + off_vector_data + bucket_index * wordsize;
-    ((int*)(long)pcb->dirty_vector)[IK_PAGE_INDEX(bucket_slot_pointer)] = -1;
+    IK_SIGNAL_DIRT_IN_PAGE_OF_POINTER(pcb,bucket_slot_pointer);
   }
   return s_sym;
 }
@@ -242,7 +245,7 @@ ikrt_intern_gensym (ikptr s_sym, ikpcb* pcb)
   { /* Mark the  page containing  the bucket slot  to be scanned  by the
        garbage collector. */
     ik_ulong bucket_slot_pointer = s_gensym_table + off_vector_data + bucket_index * wordsize;
-    ((int*)(long)pcb->dirty_vector)[IK_PAGE_INDEX(bucket_slot_pointer)] = -1;
+    IK_SIGNAL_DIRT_IN_PAGE_OF_POINTER(pcb,bucket_slot_pointer);
   }
   return IK_TRUE_OBJECT;
 }
@@ -252,7 +255,7 @@ ikrt_unintern_gensym (ikptr s_sym, ikpcb* pcb)
    object if  the table exists and  S_SYM is present,  else return false
    object. */
 {
-  fprintf(stderr, "removing gensym\n");
+  /* fprintf(stderr, "removing gensym\n"); */
   ikptr gensym_table = pcb->gensym_table;
   if (0 == gensym_table) {
     /* no symbol table */

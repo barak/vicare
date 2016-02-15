@@ -1,5 +1,5 @@
 ;;;Ikarus Scheme -- A compiler for R6RS Scheme.
-;;;Copyright (C) 2011, 2012, 2013 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (C) 2011-2014 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;Copyright (C) 2006,2007,2008  Abdulaziz Ghuloum
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
@@ -15,6 +15,7 @@
 ;;;along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+#!vicare
 (library (ikarus.posix)
   (export
 
@@ -24,6 +25,7 @@
 
     ;; file operations
     file-exists?
+    directory-exists?
     delete-file
     real-pathname
 
@@ -33,9 +35,16 @@
     file-bytevector-pathname?
     file-absolute-pathname?
     file-relative-pathname?
+    file-string-absolute-pathname?
+    file-string-relative-pathname?
+    file-bytevector-absolute-pathname?
+    file-bytevector-relative-pathname?
     file-colon-search-path?
     file-string-colon-search-path?
     file-bytevector-colon-search-path?
+    list-of-pathnames?
+    list-of-string-pathnames?
+    list-of-bytevector-pathnames?
 
     ;; file attributes
     file-modification-time
@@ -62,13 +71,14 @@
     ;; program name
     vicare-argv0
     vicare-argv0-string)
-  (import (except (ikarus)
+  (import (except (vicare)
 		  ;; errno handling
 		  strerror
 		  errno->string
 
 		  ;; file operations
 		  file-exists?
+		  directory-exists?
 		  delete-file
 		  real-pathname
 
@@ -78,9 +88,16 @@
 		  file-bytevector-pathname?
 		  file-absolute-pathname?
 		  file-relative-pathname?
+		  file-string-absolute-pathname?
+		  file-string-relative-pathname?
+		  file-bytevector-absolute-pathname?
+		  file-bytevector-relative-pathname?
 		  file-colon-search-path?
 		  file-string-colon-search-path?
 		  file-bytevector-colon-search-path?
+		  list-of-pathnames?
+		  list-of-string-pathnames?
+		  list-of-bytevector-pathnames?
 
 		  ;; file attributes
 		  file-modification-time
@@ -112,8 +129,7 @@
 	    capi.)
     (vicare unsafe operations)
     (vicare language-extensions syntaxes)
-    (vicare arguments validation)
-    #;(ikarus.emergency))
+    (vicare arguments validation))
 
 
 ;;;; arguments validation
@@ -183,26 +199,33 @@
 (let-syntax
     ((make-errno-vector
       (lambda (stx)
+	(define who 'make-errno-vector)
 	(define (%mk-vector)
-	  (let* ((max	(fold-left (lambda (max pair)
-				     (let ((code (cdr pair)))
-				       (cond ((not code)
-					      max)
-					     ((< max (fx- code))
-					      (fx- code))
-					     (else
-					      max))))
-			  0 errno-alist))
-		 (vec.len	(fx+ 1 max))
-		 ;;All the unused positions are set to #f.
-		 (vec	(make-vector vec.len #f)))
-	    (for-each (lambda (pair)
-			(when (cdr pair)
-			  (vector-set! vec (fx- (cdr pair)) (car pair))))
-	      errno-alist)
-	    vec))
+	  (let* ((max-code (fold-left
+			       (lambda (max-code pair)
+				 (let ((code (cdr pair)))
+				   (cond ((fixnum? code)
+					  (let ((ncode (fx- code)))
+					    (if (< max-code ncode)
+						ncode
+					      max-code)))
+					 ((boolean? code)
+					  max-code)
+					 (else
+					  (syntax-violation who
+					    "invalid errno code specification" pair)))))
+			     0 errno-alist)))
+	    (receive-and-return (vec)
+		;;All the unused positions are set to #f.
+		(make-vector (fx+ 1 max-code) #f)
+	      (for-each (lambda (pair)
+			  (let ((code (cdr pair)))
+			    (when (fixnum? code)
+			      (vector-set! vec (fx- code) (car pair)))))
+		errno-alist))))
 	(define errno-alist
-	  `(("E2BIG"		. ,E2BIG)
+          `(;;;("EFAKE"		. ciao) ;for debugging purposes
+	    ("E2BIG"		. ,E2BIG)
 	    ("EACCES"		. ,EACCES)
 	    ("EADDRINUSE"	. ,EADDRINUSE)
 	    ("EADDRNOTAVAIL"	. ,EADDRNOTAVAIL)
@@ -411,24 +434,29 @@
 
 ;;;; file predicates
 
-(define (file-exists? pathname)
+(define* (file-exists? {pathname file-pathname?})
   ;;Defined by R6RS.
   ;;
-  (define who 'file-exists?)
-  (with-arguments-validation (who)
-      ((file-pathname	pathname))
-    ($file-exists? pathname)))
+  ($file-exists? pathname))
 
-(define ($file-exists? pathname)
-  (define who 'file-exists?)
+(define* ($file-exists? pathname)
   (with-pathnames ((pathname.bv pathname))
-    ;; (emergency-write pathname)
-    ;; (emergency-write (utf8->string pathname.bv))
-    ;; (emergency-write (if (capi.posix-file-exists? pathname.bv) "yes" "no"))
     (let ((rv (capi.posix-file-exists? pathname.bv)))
       (if (boolean? rv)
 	  rv
-	(%raise-errno-error/filename who rv pathname)))))
+	(%raise-errno-error/filename __who__ rv pathname)))))
+
+;;; --------------------------------------------------------------------
+
+(define* (directory-exists? {pathname file-pathname?})
+  ($directory-exists? pathname))
+
+(define* ($directory-exists? pathname)
+  (with-pathnames ((pathname.bv pathname))
+    (let ((rv (capi.posix-directory-exists? pathname.bv)))
+      (if (boolean? rv)
+	  rv
+	(%raise-errno-error/filename __who__ rv pathname)))))
 
 ;;; --------------------------------------------------------------------
 
@@ -465,7 +493,7 @@
 
 ;;; --------------------------------------------------------------------
 
-(define (file-absolute-pathname? pathname)
+(define* (file-absolute-pathname? {pathname file-pathname?})
   ;;The argument PATHNAME must be a  string or bytevector.  Return #t if
   ;;PATHNAME starts  with a "/"  character, which  means it is  valid as
   ;;Unix-style absolute pathname; otherwise return #f.
@@ -473,16 +501,19 @@
   ;;This function only acts upon  its argument, never accessing the file
   ;;system.
   ;;
-  (define who 'file-absolute-pathname?)
-  (with-arguments-validation (who)
-      ((file-pathname	pathname))
-    ($file-absolute-pathname? pathname)))
+  ($file-absolute-pathname? pathname))
+
+(define* (file-string-absolute-pathname? {pathname file-string-pathname?})
+  ($file-absolute-pathname? pathname))
+
+(define* (file-bytevector-absolute-pathname? {pathname file-bytevector-pathname?})
+  ($file-absolute-pathname? pathname))
 
 (define ($file-absolute-pathname? pathname)
   (with-pathnames ((pathname.bv pathname))
     ($fx= ASCII-SLASH-FX ($bytevector-u8-ref pathname.bv 0))))
 
-(define (file-relative-pathname? pathname)
+(define* (file-relative-pathname? {pathname file-pathname?})
   ;;The argument PATHNAME must be a  string or bytevector.  Return #t if
   ;;PATHNAME does  not start  with a  "/" character,  which means  it is
   ;;valid as Unix-style relative pathname; otherwise return #f.
@@ -490,10 +521,13 @@
   ;;This function only acts upon  its argument, never accessing the file
   ;;system.
   ;;
-  (define who 'file-relative-pathname?)
-  (with-arguments-validation (who)
-      ((file-pathname	pathname))
-    ($file-relative-pathname? pathname)))
+  ($file-relative-pathname? pathname))
+
+(define* (file-string-relative-pathname? {pathname file-string-pathname?})
+  ($file-relative-pathname? pathname))
+
+(define* (file-bytevector-relative-pathname? {pathname file-bytevector-pathname?})
+  ($file-relative-pathname? pathname))
 
 (define ($file-relative-pathname? pathname)
   (with-pathnames ((pathname.bv pathname))
@@ -709,6 +743,20 @@
 	    (loop ($cdr dirs)))))))
 
   #| end of module |# )
+
+;;; --------------------------------------------------------------------
+
+(define (list-of-pathnames? obj)
+  (and (list? obj)
+       (for-all file-pathname? obj)))
+
+(define (list-of-string-pathnames? obj)
+  (and (list? obj)
+       (for-all file-string-pathname? obj)))
+
+(define (list-of-bytevector-pathnames? obj)
+  (and (list? obj)
+       (for-all file-string-pathname? obj)))
 
 ;;; --------------------------------------------------------------------
 

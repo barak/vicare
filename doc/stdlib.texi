@@ -1924,7 +1924,7 @@ definition and can appear anywhere any other @meta{definition} can
 appear.
 
 
-@deffn Syntax define-record-type @meta{name-spec} @arbno{@meta{record clause}}
+@deffn Syntax define-record-type @meta{name-spec} @arbno{@meta{record-clause}}
 @c @deffnx {Auxiliary Syntax} fields
 @c @deffnx {Auxiliary Syntax} mutable
 @c @deffnx {Auxiliary Syntax} immutable
@@ -2090,6 +2090,11 @@ generated every time a @func{define-record-type} form is evaluated:
   ((f #t) (f #f)))
 @result{} #f
 @end example
+
+@quotation
+@strong{NOTE} On @value{PRJNAME}: the @code{value} slot of the symbol
+object used as @meta{uid} holds the record--type descriptor object.
+@end quotation
 @end deffn
 
 
@@ -2957,6 +2962,7 @@ as described when it is called as a result of a call to @func{raise} or
 @end deffn
 
 
+@anchor{guard}
 @deffn Syntax guard (@meta{variable} @metai{cond-clause} @metaii{cond-clause} @dots{}) @meta{body}
 @deffnx {Auxiliary Syntax} {=>}
 @deffnx {Auxiliary Syntax} else
@@ -5437,8 +5443,12 @@ to the operating system that the program exited normally.
 If an argument is supplied, the @func{exit} procedure should translate
 the argument into an appropriate exit value for the operating system.
 If @var{obj} is @false{}, the exit is assumed to be abnormal.
-@end deffn
 
+@quotation
+@strong{NOTE} @value{PRJNAME} implements exit hooks that can be
+evaluated whenever @func{exit} is called; @ref{iklib misc, exit-hooks}.
+@end quotation
+@end deffn
 
 @c page
 @node stdlib arithmetic

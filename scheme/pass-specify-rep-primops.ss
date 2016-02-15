@@ -107,6 +107,16 @@
      (K #f)))
 
  (define (dirty-vector-set address)
+   ;;FIXME Why in hell do we do:
+   ;;
+   ;;   (prm 'sll (prm 'srl address (K pageshift)) (K shift-bits))
+   ;;
+   ;;rather than just:
+   ;;
+   ;;   (prm 'srl address (K pageshift))
+   ;;
+   ;;as is done in  C code to compute the page  index of ADDRESS? (Marco
+   ;;Maggi; Sun Dec 14, 2014)
    (define shift-bits 2)
    (prm 'mset32
 	(prm 'mref pcr (K pcb-dirty-vector))
@@ -131,17 +141,19 @@
  (module (mem-assign)
 
    (define (mem-assign v base offset)
-     ;;Store V at OFFSET from BASE.
+     ;;Generate low level recordized code  needed to store the result of
+     ;;evaluating V at OFFSET from the base heap address BASE.
      ;;
-     ;;V must be a struct instance representing recordized code.
+     ;;V must be  a struct instance representing recordized  code.  If V
+     ;;is recognised as fixnum or immediate  value (a value that fits in
+     ;;a single machine word): there is  no need to signal this mutation
+     ;;in the dirty vector.
      ;;
      ;;BASE must be  a struct instance representing  a (possibly tagged)
      ;;base address.
      ;;
-     ;;OFFSET must be an exact integer representing an offset in bytes.
-     ;;
-     ;;Generate low level recordized code  needed to store the result of
-     ;;evaluating V at OFFSET from the base heap address BASE.
+     ;;OFFSET must be an exact  integer representing an offset in number
+     ;;of bytes.
      ;;
      (struct-case v
        ((constant value)
@@ -159,6 +171,9 @@
 	(%slow-mem-assign v base offset))))
 
    (define (%slow-mem-assign v base offset)
+     ;;Generate recordised code to  perform the memory location mutation
+     ;;and to signal dirt in the corresponding slot of the dirty vector.
+     ;;
      (with-tmp ((t (prm 'int+ base (K offset))))
        (make-seq (prm 'mset t (K 0) (T v))
 		 (dirty-vector-set t))))
@@ -188,7 +203,7 @@
 	  (nop)
 	(interrupt)))
      ((known x.expr x.type)
-      (case-symbols (T:fixnum? x.type)
+      (case (T:fixnum? x.type)
 	((yes) (nop))
 	((no)  (interrupt))
 	(else  (assert-fixnum x.expr))))
@@ -202,7 +217,7 @@
 	  (nop)
 	(interrupt)))
      ((known expr type)
-      (case-symbols (T:string? type)
+      (case (T:string? type)
 	((yes)
 	 (record-optimization 'assert-string x)
 	 (nop))
@@ -329,7 +344,7 @@
  (define-primop bwp-object? safe
    ;;This is the implementation of the Scheme function BWP-OBJECT?.
    ;;
-   ((P x) (prm '= (T x) (K bwp-object)))
+   ((P x) (prm '= (T x) (K BWP-OBJECT)))
    ((E x) (nop)))
 
  (define-primop $forward-ptr? unsafe
@@ -526,7 +541,7 @@
    ;;
    (struct-case x
      ((known expr type)
-      (case-symbols (T:pair? type)
+      (case (T:pair? type)
 	((yes)
 	 (record-optimization 'assert-pair expr) (nop))
 	((no)
@@ -753,7 +768,7 @@
      ;;
      (struct-case maybe-vector
        ((known expr type)
-	(case-symbols (T:vector? type)
+	(case (T:vector? type)
 	  ((yes)
 	   (record-optimization 'check-vector expr)
 	   (%check-vector expr maybe-idx))
@@ -786,7 +801,7 @@
 	      (%check-fx maybe-vector maybe-idx)
 	    (%check-? maybe-vector maybe-idx)))
 	 ((known expr type)
-	  (case-symbols (T:fixnum? type)
+	  (case (T:fixnum? type)
 	    ((yes)
 	     (%check-fx maybe-vector expr))
 	    ((maybe)
@@ -1017,7 +1032,7 @@
    ((V vec)
     (struct-case vec
       ((known vec.expr vec.type)
-       (case-symbols (T:vector? vec.type)
+       (case (T:vector? vec.type)
 	 ((yes)
 	  (record-optimization 'vector-length vec.expr)
 	  (cogen-value-$vector-length vec.expr))
@@ -1035,7 +1050,7 @@
    ((E vec)
     (struct-case vec
       ((known vec.expr vec.type)
-       (case-symbols (T:vector? vec.type)
+       (case (T:vector? vec.type)
 	 ((yes)
 	  (record-optimization 'vector-length vec.expr)
 	  (nop))
@@ -1213,6 +1228,17 @@
 
 ;;; --------------------------------------------------------------------
 
+ ;;NOTE Whenever binary code performs a call to a global closure object,
+ ;;it does the following:
+ ;;
+ ;;* From the relocation vector of the current code object: retrieve the
+ ;;  loc gensym of the procedure to call.
+ ;;
+ ;;* From the loc gensym: extract the value of the "proc" slot, which is
+ ;;  meant to be a closure object.
+ ;;
+ ;;* Actually call the closure object.
+ ;;
  (define-primop $symbol-proc unsafe
    ((V x)
     (prm 'mref (T x) (K off-symbol-record-proc)))
@@ -1966,7 +1992,7 @@
 	    (check-flonums ($cdr ls) code)
 	  (interrupt)))
        ((known expr type)
-	(case-symbols (T:flonum? type)
+	(case (T:flonum? type)
 	  ((yes)
 	   (record-optimization 'check-flonum expr)
 	   (check-flonums ($cdr ls) code))
@@ -2522,7 +2548,7 @@
        ((constant x.val)
 	(fx? x.val))
        ((known x.expr x.type)
-	(case-symbols (T:fixnum? x.type)
+	(case (T:fixnum? x.type)
 	  ((yes)
 	   (record-optimization 'assert-fixnum x.expr)
 	   #t)
@@ -3093,7 +3119,13 @@
 
  (define-primop $make-struct unsafe
    ;;Allocate a  new data structure of  type STD capable of  holding LEN
-   ;;words/fields.  The returned struct has the fields uninitialised.
+   ;;words/fields.
+   ;;
+   ;;NOTE This operation initialises only the std field, leaving all the
+   ;;other fields set to a machine word  with all the bits set to 1.  We
+   ;;must be  careful not to  trigger a garbage collection  before those
+   ;;fields are  initialised with  valid values,  else the  behaviour is
+   ;;undefined.
    ;;
    ((V std len)
     (struct-case len
@@ -3128,7 +3160,96 @@
    ((E stru)
     (nop))
    ((P stru)
-    #t))
+    (K #t)))
+
+;;; --------------------------------------------------------------------
+;;; struct type descriptor accessor
+
+ (define-primop $std-std unsafe
+   ((V stru)
+    (prm 'mref (T stru) (K off-std-std)))
+   ((E stru)
+    (nop))
+   ((P stru)
+    (K #t)))
+
+ (define-primop $std-name unsafe
+   ((V stru)
+    (prm 'mref (T stru) (K off-std-name)))
+   ((E stru)
+    (nop))
+   ((P stru)
+    (K #t)))
+
+ (define-primop $std-length unsafe
+   ((V stru)
+    (prm 'mref (T stru) (K off-std-length)))
+   ((E stru)
+    (nop))
+   ((P stru)
+    (K #t)))
+
+ (define-primop $std-fields unsafe
+   ((V stru)
+    (prm 'mref (T stru) (K off-std-fields)))
+   ((E stru)
+    (nop))
+   ((P stru)
+    (K #t)))
+
+ (define-primop $std-printer unsafe
+   ((V stru)
+    (prm 'mref (T stru) (K off-std-printer)))
+   ((E stru)
+    (nop)))
+
+ (define-primop $std-symbol unsafe
+   ((V stru)
+    (prm 'mref (T stru) (K off-std-symbol)))
+   ((E stru)
+    (nop))
+   ((P stru)
+    ;;The UID is always set.
+    (K #t)))
+
+ (define-primop $std-destructor unsafe
+   ((V stru)
+    (prm 'mref (T stru) (K off-std-destructor)))
+   ((E stru)
+    (nop)))
+
+;;; --------------------------------------------------------------------
+;;; struct type descriptor mutators
+
+ ;;NOTE Remember that when mutating a storage location we have to update
+ ;;the dirty  vector; for this reason  we use the MEM-ASSIGN  which does
+ ;;the right thing.  (Marco Maggi; Fri Feb 28, 2014)
+ (let-syntax
+     ((define-std-mutator (syntax-rules ()
+			    ((_ ?who ?off)
+			     (define-primop ?who unsafe
+			       ((V stru v)
+				(multiple-forms-sequence
+				 (mem-assign v (T stru) ?off)
+				 (K void-object)))
+			       ((E stru v)
+				(mem-assign v (T stru) ?off))
+			       ((P stru v)
+				(multiple-forms-sequence
+				 (mem-assign v (T stru) ?off)
+				 (K #t)))
+			       ))
+			    )))
+   (define-std-mutator $set-std-std!		off-std-std)
+   (define-std-mutator $set-std-name!		off-std-name)
+   (define-std-mutator $set-std-length!		off-std-length)
+   (define-std-mutator $set-std-fields!		off-std-fields)
+   (define-std-mutator $set-std-printer!	off-std-printer)
+   (define-std-mutator $set-std-symbol!		off-std-symbol)
+   (define-std-mutator $set-std-destructor!	off-std-destructor)
+   #| end of LET-SYNTAX |# )
+
+;;; --------------------------------------------------------------------
 
  (define-primop $struct-ref unsafe
    ;;Return the  word in the  field at index  I.  Accessing a  struct is
@@ -3994,7 +4115,7 @@
 	 (prm 'u< (T idx) (cogen-value-$string-length str)))
 	(cogen-value-$string-ref str idx)))
       ((known idx.expr idx.type)
-       (case-symbols (T:fixnum? idx.type)
+       (case (T:fixnum? idx.type)
 	 ((yes)
 	  (multiple-forms-sequence
 	   (assert-string str)
@@ -4166,7 +4287,8 @@
    ;;
    ;;ATTRS must be a struct instance representing recordized code which,
    ;;when  evaluated, must  return a  fixnum representing  the attribute
-   ;;bits.
+   ;;bits.  We  do not need to  update the dirty vector  because the new
+   ;;value is always a fixnum.
    ;;
    ((E port attrs)
     (prm 'mset (T port) (K off-port-attrs)

@@ -8,7 +8,7 @@
 ;;;
 ;;;
 ;;;
-;;;Copyright (C) 2011, 2013 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (C) 2011, 2013, 2014 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
 ;;;it under the terms of the  GNU General Public License as published by
@@ -25,8 +25,9 @@
 ;;;
 
 
-#!r6rs
+#!vicare
 (library (nausicaa containers iterators)
+  (options visit-upon-loading)
   (export
     <iterator>
     <spine-iterator>
@@ -75,7 +76,7 @@
      (lambda (subject)
        ((make-top) subject THE-SENTINEL))))
 
-  (method (current (I <iterator>))
+  (method (current {I <iterator>})
     ;;We do not  want to expose a mutable "current"  field in the public
     ;;API.   So we  access  the field  through a  method,  which is,  of
     ;;course, read-only.
@@ -93,7 +94,7 @@
 
 (define-condition-type &stop-iteration
   (parent &serious)
-  (fields ((iterator <iterator>))))
+  (fields ({iterator <iterator>})))
 
 
 (module (<spine-iterator>)
@@ -102,11 +103,11 @@
     (nongenerative nausicaa:containers:iterators:<spine-iterator>)
     (parent <iterator>)
 
-    (fields (mutable   (spine	<spine>))
-	    (immutable (stride	<positive-fixnum>)))
+    (fields (mutable   {spine	<spine>})
+	    (immutable {stride	<positive-fixnum>}))
 
     (protocol (lambda (make-iterator)
-		(lambda ((subject <spine>) (stride <positive-fixnum>))
+		(lambda ({subject <spine>} {stride <positive-fixnum>})
 		  ((make-iterator subject) subject stride))))
 
     (maker    (lambda (stx)
@@ -122,16 +123,16 @@
     ((subject:	(void)	(mk.mandatory))
      (stride:	+1)))
 
-  (define-method (iterator-more? (I <spine-iterator>))
+  (define-method (iterator-more? {I <spine-iterator>})
     (let loop ((i           1)
-	       ((L <spine>) (I $spine)))
+	       ({L <spine>} (I $spine)))
       (and (not (L null?))
 	   (or (= i (I $stride))
 	       (loop (+ 1 i) (L $cdr))))))
 
-  (define-method (iterator-next (I <spine-iterator>))
+  (define-method (iterator-next {I <spine-iterator>})
     (let loop ((i           1)
-	       ((L <spine>) (I $spine)))
+	       ({L <spine>} (I $spine)))
       (cond ((L null?)
 	     (set! (I $spine) L)
 	     (raise (&stop-iteration (I))))
@@ -158,15 +159,15 @@
     (abstract)
     (parent <iterator>)
 
-    (fields (immutable (getter	<procedure>))
-	    (mutable   (index	<index>))
-	    (immutable (past	<index>))
-	    (immutable (stride	<nonzero-fixnum>)))
+    (fields (immutable {getter	<procedure>})
+	    (mutable   {index	<index>})
+	    (immutable {past	<index>})
+	    (immutable {stride	<nonzero-fixnum>}))
 
     (super-protocol
      (lambda (make-iterator)
-       (lambda (subject (sequence.getter <procedure>) (sequence.length <nonnegative-fixnum>)
-		   (start <index>) (past <index>) (stride <nonzero-fixnum>))
+       (lambda (subject {sequence.getter <procedure>} {sequence.length <nonnegative-fixnum>}
+		   {start <index>} {past <index>} {stride <nonzero-fixnum>})
 	 (define who 'make-<sequence-iterator>)
 	 (with-arguments-validation (who)
 	     ((length-start-past-stride		sequence.length start past stride))
@@ -199,17 +200,17 @@
 
 ;;; --------------------------------------------------------------------
 
-  (define-method (iterator-more? (I <sequence-iterator>))
+  (define-method (iterator-more? {I <sequence-iterator>})
     (if ($fxpositive? (I $stride))
 	($fx< (I $index) (I $past))
       ($fx> (I $index) (I $past))))
 
-  (define-method (iterator-next (I <sequence-iterator>))
+  (define-method (iterator-next {I <sequence-iterator>})
     (if (I more?)
 	(receive-and-return (retval)
 	    ((I $getter) (I $index))
 	  (set! (I $%current) retval)
-	  (incr! (I $index) (I $stride)))
+	  (set! (I $index) (+ (I $index) (I $stride))))
       (raise (&stop-iteration (I)))))
 
 ;;; --------------------------------------------------------------------
@@ -220,11 +221,11 @@
     ;;This tagged  virtual field references the  untagged concrete field
     ;;in "<iterator>"; its  only purpose is to provide  tagged access to
     ;;the subject.
-    (virtual-fields (immutable (subject <container>)
-			       (lambda ((I <iterator>)) (I $subject))))
+    (virtual-fields (immutable {subject <container>}
+			       (lambda ({I <iterator>}) (I $subject))))
 
     (protocol (lambda (make-sequence-iterator)
-		(lambda ((subject <container>) start past (stride <nonzero-fixnum>))
+		(lambda ({subject <container>} start past {stride <nonzero-fixnum>})
 		  (let ((start (or start
 				   (if ($fxnegative? stride)
 				       ($fx+ -1 (subject $length))
@@ -249,8 +250,8 @@
 	     (<container>		<string>)
 	     (%the-getter		$string-ref)))
 
-    (virtual-fields (immutable (current <char>)
-			       (lambda ((I <iterator>)) (I $%current))))
+    (virtual-fields (immutable {current <char>}
+			       (lambda ({I <iterator>}) (I $%current))))
 
     (maker (lambda (stx)
 	     (syntax-case stx ()

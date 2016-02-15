@@ -7,7 +7,7 @@
 ;;;
 ;;;
 ;;;
-;;;Copyright (c) 2009, 2010, 2013 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (c) 2009, 2010, 2013, 2014 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
 ;;;it under the terms of the  GNU General Public License as published by
@@ -24,8 +24,9 @@
 ;;;
 
 
-#!r6rs
+#!vicare
 (library (nausicaa containers stacks)
+  (options visit-upon-loading)
   (export
     <stack>
     (rename (stack.vicare-arguments-validation
@@ -38,12 +39,12 @@
     (protocol (lambda () make-stack))
     (predicate stack?)
     (virtual-fields
-     (immutable (empty?		<boolean>)	stack-empty?)
-     (immutable ($empty?	<boolean>)	$stack-empty?)
-     (immutable (not-empty?	<boolean>)	stack-not-empty?)
-     (immutable ($not-empty?	<boolean>)	$stack-not-empty?)
-     (immutable (size		<integer>)	stack-size)
-     (immutable ($size		<integer>)	$stack-size))
+     (immutable {empty?		<boolean>}	stack-empty?)
+     (immutable {$empty?	<boolean>}	$stack-empty?)
+     (immutable {not-empty?	<boolean>}	stack-not-empty?)
+     (immutable {$not-empty?	<boolean>}	$stack-not-empty?)
+     (immutable {size		<integer>}	stack-size)
+     (immutable {$size		<integer>}	$stack-size))
     (methods
      (hash		stack-hash)
      ($hash		$stack-hash)

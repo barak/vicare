@@ -7,7 +7,7 @@
 ;;;
 ;;;
 ;;;
-;;;Copyright (C) 2012, 2013 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (C) 2012, 2013, 2014 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
 ;;;it under the terms of the  GNU General Public License as published by
@@ -24,8 +24,8 @@
 ;;;
 
 
-#!r6rs
-(import (nausicaa)
+#!vicare
+(import (nausicaa (0 4))
   (rnrs mutable-pairs)
   (rnrs mutable-strings)
   (vicare numerics constants)
@@ -78,17 +78,17 @@
 		  (immutable length length))
   (methods (reverse reverse)
 	   (append append))
-  (getter (lambda (stx)
+  (getter (lambda (stx tag)
 	    (syntax-case stx ()
 	      ((?var ((?index)))
 	       #'(list-ref ?var ?index)))))
-  (setter (lambda (stx)
+  (setter (lambda (stx tag)
 	    (syntax-case stx ()
 	      ((?var ((?index)) ?val)
 	       #'(%list-set! ?var ?index ?val))))))
 
-  (define (%list-set! (ell <the-list>) idx val)
-    (let loop (((L <the-list>) ell) (i 0) (j idx))
+  (define (%list-set! {ell <the-list>} idx val)
+    (let loop (({L <the-list>} ell) (i 0) (j idx))
       (if (= i j)
 	  (set! (L car) val)
 	(loop (L cdr) (+ 1 i) j))))
@@ -98,8 +98,8 @@
 (define-label <the-pair>
   (protocol (lambda ()
 	      cons))
-  (virtual-fields (mutable (car <the-pair>) car set-car!)
-		  (mutable (cdr <the-pair>) cdr set-cdr!)))
+  (virtual-fields (mutable {car <the-pair>} car set-car!)
+		  (mutable {cdr <the-pair>} cdr set-cdr!)))
 
 
 (parametrise ((check-test-name	'internal-definition-bindings))
@@ -128,18 +128,24 @@
   (check	;predicate
       (let ()
   	(<the-list> b (<the-list> (1 2 3)))
-        ((<the-list>) b))
+        ((<the-list> #:predicate) b))
+    => #t)
+
+  (check	;predicate application
+      (let ()
+  	(<the-list> b (<the-list> (1 2 3)))
+        (<the-list> #:is-a? b))
     => #t)
 
   (check	;predicate
-      (for-all (<the-list>)
+      (for-all (<the-list> #:predicate)
 	'((1 2) (3 4) (5 6)))
     => #t)
 
   (check	;internal definition syntax
       (let ()
   	(<the-list> b (<> (1 2 3)))
-        ((<the-list>) b))
+        ((<the-list> #:predicate) b))
     => #t)
 
   (check	;access to fields
@@ -276,35 +282,35 @@
   (check	;recursive access to fields
       (let ()
   	(<the-pair> b '((1 . 2) . (3 . 4)))
-	(vector (b car car) (b car cdr)
-		(b cdr car) (b cdr cdr)))
+	(vector ((b car) car) ((b car) cdr)
+		((b cdr) car) ((b cdr) cdr)))
     => '#(1 2 3 4))
 
   (check	;recursive access to fields
       (let ()
   	(<the-pair> b '(((1 . 2) . (3 . 4)) . ((5 . 6) . (7 . 8))))
-	(vector (b car car car)
-		(b car car cdr)
+	(vector (((b car) car) car)
+		(((b car) car) cdr)
 
-		(b car cdr car)
-		(b car cdr cdr)
+		(((b car) cdr) car)
+		(((b car) cdr) cdr)
 
-		(b cdr car car)
-		(b cdr car cdr)
+		(((b cdr) car) car)
+		(((b cdr) car) cdr)
 
-		(b cdr cdr car)
-		(b cdr cdr cdr)))
+		(((b cdr) cdr) car)
+		(((b cdr) cdr) cdr)))
     => '#(1 2 3 4 5 6 7 8))
 
   (check	;recursive mutation of fields
       (let ()
   	(<the-pair> b (cons (cons 1 2) (cons 3 4)))
-	(set! (b car car) 19)
-	(set! (b car cdr) 29)
-	(set! (b cdr car) 39)
-	(set! (b cdr cdr) 49)
-	(vector (b car car) (b car cdr)
-		(b cdr car) (b cdr cdr)))
+	(set! ((b car) car) 19)
+	(set! ((b car) cdr) 29)
+	(set! ((b cdr) car) 39)
+	(set! ((b cdr) cdr) 49)
+	(vector ((b car) car) ((b car) cdr)
+		((b cdr) car) ((b cdr) cdr)))
     => '#(19 29 39 49))
 
   (check	;recursive mutation of fields
@@ -314,17 +320,17 @@
 			    (cons (cons 5 6)
 				  (cons 7 8))))
 
-	(set! (b car car car) 19)
-	(set! (b car car cdr) 29)
+	(set! (((b car) car) car) 19)
+	(set! (((b car) car) cdr) 29)
 
-	(set! (b car cdr car) 39)
-	(set! (b car cdr cdr) 49)
+	(set! (((b car) cdr) car) 39)
+	(set! (((b car) cdr) cdr) 49)
 
-	(set! (b cdr car car) 59)
-	(set! (b cdr car cdr) 69)
+	(set! (((b cdr) car) car) 59)
+	(set! (((b cdr) car) cdr) 69)
 
-	(set! (b cdr cdr car) 79)
-	(set! (b cdr cdr cdr) 89)
+	(set! (((b cdr) cdr) car) 79)
+	(set! (((b cdr) cdr) cdr) 89)
 
 	b)
     => '(((19 . 29) . (39 . 49)) . ((59 . 69) . (79 . 89))))
@@ -335,61 +341,61 @@
 (parametrise ((check-test-name	'let-style-bindings))
 
   (check	;access to binding
-      (let (((b <the-list>) '(1 2 3)))
+      (let (({b <the-list>} '(1 2 3)))
 	b)
     => '(1 2 3))
 
   (check	;mutation of binding
-      (let (((a <the-list>) '(1 2 3)))
+      (let (({a <the-list>} '(1 2 3)))
 	(set! a '(4 5 6))
 	a)
     => '(4 5 6))
 
   (check	;maker
-      (let (((b <the-list>) (<the-list> (1 2 3))))
+      (let (({b <the-list>} (<the-list> (1 2 3))))
         b)
     => '(1 2 3))
 
   (check	;predicate
-      (let (((b <the-list>) (<the-list> (1 2 3))))
-        ((<the-list>) b))
+      (let (({b <the-list>} (<the-list> (1 2 3))))
+        ((<the-list> #:predicate) b))
     => #t)
 
   (check	;access to fields
-      (let (((b <the-list>) '(1 2 3)))
+      (let (({b <the-list>} '(1 2 3)))
 	(vector (b car) (b cdr) (b length)))
     => '#(1 (2 3) 3))
 
   (check	;field mutation
-      (let (((b <the-list>) (list 1 2 3)))
+      (let (({b <the-list>} (list 1 2 3)))
 	(set! (b car) 99)
 	(set! (b cdr) 88)
 	b)
     => '(99 . 88))
 
   (check	;method call
-      (let (((b <the-list>) '(1 2 3)))
+      (let (({b <the-list>} '(1 2 3)))
 	(b reverse))
     => '(3 2 1))
 
   (check	;method call
-      (let (((b <the-list>) '(1 2 3)))
+      (let (({b <the-list>} '(1 2 3)))
 	(b append '(4 5 6)))
     => '(1 2 3 4 5 6))
 
   (check	;getter
-      (let (((b <the-list>) '(1 2 3)))
+      (let (({b <the-list>} '(1 2 3)))
 	(vector (b[0]) (b[1]) (b[2])))
     => '#(1 2 3))
 
   (check	;setter, syntax 1
-      (let (((b <the-list>) (list 1 2 3)))
+      (let (({b <the-list>} (list 1 2 3)))
 	(set! (b[0]) 1099)
 	b)
     => '(1099 2 3))
 
   (check	;setter, syntax 2
-      (let (((b <the-list>) (list 1 2 3)))
+      (let (({b <the-list>} (list 1 2 3)))
 	(set! b[0] 99)
 	b)
     => '(99 2 3))
@@ -402,18 +408,18 @@
   (define-label <a-vector>
     (predicate vector?)
     (virtual-fields (immutable length vector-length))
-    (getter (lambda (stx)
+    (getter (lambda (stx tag)
 	      (syntax-case stx ()
 		((?var ((?index)))
 		 #'(vector-ref ?var ?index)))))
-    (setter (lambda (stx)
+    (setter (lambda (stx tag)
 	      (syntax-case stx ()
 		((?var ((?index)) ?val)
 		 #'(vector-set! ?var ?index ?val))))))
 
   (define-label <a-vector-of-numbers>
     (parent <a-vector>)
-    (predicate (lambda ((V <a-vector>))
+    (predicate (lambda ({V <a-vector>})
 		 (let loop ((i 0))
 		   (or (= i (V length))
 		       (and (number? (V (i)))
@@ -421,7 +427,7 @@
 
   (define-label <a-vector-of-integers>
     (parent <a-vector-of-numbers>)
-    (predicate (lambda ((V <a-vector>))
+    (predicate (lambda ({V <a-vector>})
 		 (let loop ((i 0))
 		   (or (= i (V length))
 		       (and (integer? (V (i)))
@@ -432,15 +438,15 @@
 
   (check (is-a? '(1 2 3) <a-vector>)			=> #f)
   (check (is-a? '#(1 2 3) <a-vector>)			=> #t)
-  (check ((<a-vector>) '(1 2 3))			=> #f)
-  (check ((<a-vector>) '#(1 2 3))			=> #t)
+  (check ((<a-vector> #:predicate) '(1 2 3))			=> #f)
+  (check ((<a-vector> #:predicate) '#(1 2 3))			=> #t)
 
   (check (is-a? '(1 2 3) <a-vector-of-numbers>)		=> #f)
   (check (is-a? '#(1 #\2 3) <a-vector-of-numbers>)	=> #f)
   (check (is-a? '#(1 2 3) <a-vector-of-numbers>)	=> #t)
-  (check ((<a-vector-of-numbers>) '(1 2 3))		=> #f)
-  (check ((<a-vector-of-numbers>) '#(1 #\2 3))		=> #f)
-  (check ((<a-vector-of-numbers>) '#(1 2 3))		=> #t)
+  (check ((<a-vector-of-numbers> #:predicate) '(1 2 3))		=> #f)
+  (check ((<a-vector-of-numbers> #:predicate) '#(1 #\2 3))		=> #f)
+  (check ((<a-vector-of-numbers> #:predicate) '#(1 2 3))		=> #t)
 
   (check (is-a? '(1 2 3) <a-vector-of-integers>)	=> #f)
   (check (is-a? '#(1 #\2 3) <a-vector-of-integers>)	=> #f)
@@ -451,19 +457,19 @@
 ;;; getters and setters
 
   (check
-      (let (((o <a-vector>) (vector 1 2 3)))
+      (let (({o <a-vector>} (vector 1 2 3)))
 	(set! o[1] #\a)
 	(list (o[0]) (o[1]) (o[2])))
     => '(1 #\a 3))
 
   (check
-      (let (((o <a-vector-of-numbers>) (vector 1 2 3)))
+      (let (({o <a-vector-of-numbers>} (vector 1 2 3)))
 	(set! o[1] #\a)
 	(list (o [0]) (o [1]) (o [2])))
     => '(1 #\a 3))
 
   (check
-      (let (((o <a-vector-of-integers>) (vector 1 2 3)))
+      (let (({o <a-vector-of-integers>} (vector 1 2 3)))
 	(set! o[1] #\a)
 	(list (o [0]) (o [1]) (o [2])))
     => '(1 #\a 3))
@@ -504,15 +510,15 @@
   (check
       (let ((E (&my-warning ())))
 	(list (warning? E)
-	      ((&my-warning) E)
+	      ((&my-warning #:predicate) E)
 	      (is-a? E &my-warning)
 	      ))
     => '(#t #t #t))
 
   (check
-      (let (((E &warning-with-fields) (&warning-with-fields (1 2))))
+      (let (({E &warning-with-fields} (&warning-with-fields (1 2))))
 	(list (warning-with-fields? E)
-	      ((&warning-with-fields) E)
+	      (&warning-with-fields #:is-a? E)
 	      (is-a? E &warning-with-fields)
 	      (warning? E)
 	      (warning-with-fields-a E)
@@ -537,7 +543,7 @@
       (mixins <pair-stuff>))
 
     (check
-	(let (((o <a-list>) '(1 2 3)))
+	(let (({o <a-list>} '(1 2 3)))
 	  (vector (o car) (o cdr) (o length)))
       => '#(1 (2 3) 3))
 
@@ -556,7 +562,7 @@
       (mixins <car-stuff> <cdr-stuff>))
 
     (check
-	(let (((o <a-list>) '(1 2 3)))
+	(let (({o <a-list>} '(1 2 3)))
 	  (vector (o car) (o cdr) (o length)))
       => '#(1 (2 3) 3))
 
@@ -576,7 +582,7 @@
       (mixins <pair-stuff>))
 
     (check
-	(let (((o <a-list>) '(1 2 3)))
+	(let (({o <a-list>} '(1 2 3)))
 	  (vector (o car) (o cdr) (o length)))
       => '#(1 (2 3) 3))
 
@@ -599,7 +605,7 @@
       (mixins <pair-stuff>))
 
     (check
-	(let (((o <a-list>) '(1 2 3)))
+	(let (({o <a-list>} '(1 2 3)))
 	  (vector (o car) (o cdr) (o length)))
       => '#(1 (2 3) 3))
 
@@ -614,7 +620,7 @@
 
     (define-label <alpha>
       (virtual-fields a)
-      (getter (lambda (stx)
+      (getter (lambda (stx tag)
 		(syntax-case stx ()
 		  ((?var ((?key)))
 		   #'123))))
@@ -622,28 +628,28 @@
 	(cons 456 n)))
 
     (define-label <beta>
-      (virtual-fields (b <alpha>)))
+      (virtual-fields {b <alpha>}))
 
     (define-label <gamma>
-      (virtual-fields (c <beta>)))
+      (virtual-fields {c <beta>}))
 
     (define (<alpha>-a o) 'a)
     (define (<beta>-b  o) 'b)
     (define (<gamma>-c o) 'c)
 
     (check
-	(let (((O <gamma>) #f))
-	  (list (O c b a) (O c b) (O c)))
+	(let (({O <gamma>} #f))
+	  (list (((O c) b) a) ((O c) b) (O c)))
       => '(a b c))
 
     (check
-	(let (((O <gamma>) #f))
-	  (O c b[99]))
+	(let (({O <gamma>} #f))
+	  (((O c) b)[99]))
       => 123)
 
     (check
-	(let (((O <gamma>) #f))
-	  (O c b doit 99))
+	(let (({O <gamma>} #f))
+	  (((O c) b) doit 99))
       => '(456 . 99))
 
     #f)
@@ -652,7 +658,7 @@
 
     (define-label <base>
       (virtual-fields a)
-      (getter (lambda (stx)
+      (getter (lambda (stx tag)
 		(syntax-case stx ()
 		  ((?var ((?key)))
 		   #'123))))
@@ -663,28 +669,28 @@
       (parent <base>))
 
     (define-label <beta>
-      (virtual-fields (b <alpha>)))
+      (virtual-fields {b <alpha>}))
 
     (define-label <gamma>
-      (virtual-fields (c <beta>)))
+      (virtual-fields {c <beta>}))
 
     (define (<base>-a  o) 'a)
     (define (<beta>-b  o) 'b)
     (define (<gamma>-c o) 'c)
 
     (check
-	(let (((O <gamma>) #f))
-	  (list (O c b a) (O c b) (O c)))
+	(let (({O <gamma>} #f))
+	  (list (((O c) b) a) ((O c) b) (O c)))
       => '(a b c))
 
     (check
-	(let (((O <gamma>) #f))
-	  (O c b[99]))
+	(let (({O <gamma>} #f))
+	  (((O c) b)[99]))
       => 123)
 
     (check
-	(let (((O <gamma>) #f))
-	  (O c b doit 99))
+	(let (({O <gamma>} #f))
+	  (((O c) b) doit 99))
       => '(456 . 99))
 
     #f)
@@ -698,16 +704,16 @@
 
     (define-label <alpha>
       (virtual-fields (mutable a))
-      (setter (lambda (stx)
+      (setter (lambda (stx tag)
 		(syntax-case stx ()
 		  ((?var ((?key)) ?val)
 		   #'(list 123 ?key ?val))))))
 
     (define-label <beta>
-      (virtual-fields (mutable (b <alpha>))))
+      (virtual-fields (mutable {b <alpha>})))
 
     (define-label <gamma>
-      (virtual-fields (mutable (c <beta>))))
+      (virtual-fields (mutable {c <beta>})))
 
     (define (<alpha>-a o) 'a)
     (define (<beta>-b  o) 'b)
@@ -717,15 +723,15 @@
     (define (<gamma>-c-set! o v) 'C)
 
     (check
-	(let (((O <gamma>) #f))
-	  (list (set! (O c b a) 1)
-		(set! (O c b) 2)
+	(let (({O <gamma>} #f))
+	  (list (set! (((O c) b) a) 1)
+		(set! ((O c) b) 2)
 		(set! (O c) 3)))
       => '(A B C))
 
     (check
-	(let (((O <gamma>) #f))
-	  (set! (O c b[777]) 999))
+	(let (({O <gamma>} #f))
+	  (set! (((O c) b)[777]) 999))
       => '(123 777 999))
 
     #f)
@@ -734,7 +740,7 @@
 
     (define-label <base>
       (virtual-fields (mutable a))
-      (setter (lambda (stx)
+      (setter (lambda (stx tag)
 		(syntax-case stx ()
 		  ((?var ((?key)) ?val)
 		   #'(list 123 ?key ?val))))))
@@ -743,10 +749,10 @@
       (parent <base>))
 
     (define-label <beta>
-      (virtual-fields (mutable (b <alpha>))))
+      (virtual-fields (mutable {b <alpha>})))
 
     (define-label <gamma>
-      (virtual-fields (mutable (c <beta>))))
+      (virtual-fields (mutable {c <beta>})))
 
     (define (<base>-a o) 'a)
     (define (<beta>-b  o) 'b)
@@ -756,15 +762,20 @@
     (define (<gamma>-c-set! o v) 'C)
 
     (check
-	(let (((O <gamma>) #f))
-	  (list (set! (O c b a) 1)
-		(set! (O c b) 2)
+	(let (({O <gamma>} #f))
+	  (list (set! (((O c) b) a) 1)
+		(set! ((O c) b) 2)
 		(set! (O c) 3)))
       => '(A B C))
 
     (check
-	(let (((O <gamma>) #f))
-	  (set! (O c b[777]) 999))
+	(let (({O <gamma>} #f))
+	  (set! (((O c) b)[777]) 999))
+      => '(123 777 999))
+
+    (check
+	(let (({O <gamma>} #f))
+	  (set! ((O c) b) [777] 999))
       => '(123 777 999))
 
     #f)
@@ -779,8 +790,8 @@
     (define-label <the-pair>
       (protocol (lambda ()
 		  cons))
-      (virtual-fields (immutable (car <the-pair>) car)
-		      (immutable (cdr <the-pair>) cdr)))
+      (virtual-fields (immutable {car <the-pair>} car)
+		      (immutable {cdr <the-pair>} cdr)))
 
     (check
 	(let ()
@@ -795,8 +806,8 @@
     (define-label <the-pair>
       (public-protocol (lambda ()
 			 cons))
-      (virtual-fields (immutable (car <the-pair>) car)
-		      (immutable (cdr <the-pair>) cdr)))
+      (virtual-fields (immutable {car <the-pair>} car)
+		      (immutable {cdr <the-pair>} cdr)))
 
     (check
 	(let ()
@@ -814,8 +825,8 @@
       (protocol (lambda ()
 		  (lambda args
 		    '(3 . 4))))
-      (virtual-fields (immutable (car <the-pair>) car)
-		      (immutable (cdr <the-pair>) cdr)))
+      (virtual-fields (immutable {car <the-pair>} car)
+		      (immutable {cdr <the-pair>} cdr)))
 
     (check
 	(let ()
@@ -840,19 +851,27 @@
 
 
   (check
-      (let (((o <a-pair>) (<a-pair> (1 2))))
+      (let (({o <a-pair>} (<a-pair> (1 2))))
 	o)
     => '(1 . 2))
 
   (check
-      (let (((o <a-pair>) (<a-pair> (1 2))))
+      (let (({o <a-pair>} (<a-pair> (1 2))))
 	(o car))
     => 1)
 
   (check
-      (let (((o <a-pair>) (<a-pair> (1 2))))
+      (let (({o <a-pair>} (<a-pair> (1 2))))
 	(o cdr))
     => 2)
+
+  (check	;nested
+      ((<a-pair> (1 2)) cdr)
+    => 2)
+
+  (check	;nested
+      ((<a-pair> (1 2)) car)
+    => 1)
 
   #t)
 
@@ -875,16 +894,16 @@
     (define M '(a b c))
     (define N "abc")
 
-    (check ((<list>) L)			=> #t)
-    (check ((<list-of-numbers>) L)	=> #t)
+    (check ((<list> #:predicate) L)		=> #t)
+    (check ((<list-of-numbers> #:predicate) L)	=> #t)
     (check (<list>? L)			=> #t)
     (check (<list-of-numbers>? L)	=> #t)
 
-    (check ((<list>) M)			=> #t)
-    (check ((<list-of-numbers>) M)	=> #f)
+    (check ((<list> #:predicate) M)			=> #t)
+    (check ((<list-of-numbers> #:predicate) M)	=> #f)
 
-    (check ((<list>) N)			=> #f)
-    (check ((<list-of-numbers>) N)	=> #f)
+    (check ((<list> #:predicate) N)			=> #f)
+    (check ((<list-of-numbers> #:predicate) N)	=> #f)
 
     #f)
 
@@ -939,8 +958,8 @@
     (satisfies general-label-constraint)
     (parent <top>)
     (nongenerative the-uid-of-<label-with-everything>)
-    (virtual-fields (mutable (c <a-tag>) c-accessor c-mutator)
-		    (immutable (d <d-tag>) d-accessor))
+    (virtual-fields (mutable {c <a-tag>} c-accessor c-mutator)
+		    (immutable {d <d-tag>} d-accessor))
     (setter (lambda args #f))
     (getter (lambda args #f))
     (method (doit obj)
