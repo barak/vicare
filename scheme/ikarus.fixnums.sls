@@ -45,13 +45,16 @@
     fxarithmetic-shift
 
     fx=			fx=?
+    fx!=		fx!=?
     fx<			fx<?
     fx<=		fx<=?
     fx>			fx>?
     fx>=		fx>=?
     fxmin		fxmax
 
+    fixnum->char	char->fixnum
     fixnum->string
+    fixnum-in-character-range?
 
 ;;; --------------------------------------------------------------------
 
@@ -76,7 +79,7 @@
     error@fxsub1
     error@fxarithmetic-shift-left
     error@fxarithmetic-shift-right)
-  (import (except (ikarus)
+  (import (except (vicare)
 		  fxzero?
 		  fxpositive?		fxnegative?
 		  fxnonnegative?	fxnonpositive?
@@ -100,6 +103,7 @@
 		  fxsll			fxsra
 
 		  fx=			fx=?
+		  fx!=			fx!=?
 		  fx<			fx<?
 		  fx<=			fx<=?
 		  fx>			fx>?
@@ -114,11 +118,13 @@
 		  fxarithmetic-shift-right
 		  fxarithmetic-shift
 
-		  fixnum->string)
-    (prefix (only (ikarus)
+		  fixnum->char	char->fixnum
+		  fixnum->string
+		  fixnum-in-character-range?)
+    (prefix (only (vicare)
 		  fx+ fx* fx-)
 	    sys:)
-    (except (ikarus system $fx)
+    (except (vicare system $fx)
 	    $fxpositive?	$fxnegative?
 	    $fxnonpositive?	$fxnonnegative?
 	    $fxeven?		$fxodd?
@@ -130,9 +136,9 @@
 	    $fxdiv-and-mod	$fxdiv0-and-mod0
 	    $fxabs
 	    $fixnum->string)
-    (ikarus system $chars)
-    (ikarus system $pairs)
-    (ikarus system $strings)
+    (vicare system $chars)
+    (vicare system $pairs)
+    (vicare system $strings)
     (vicare arguments validation)
     (vicare language-extensions syntaxes))
 
@@ -297,17 +303,17 @@
 ;;; --------------------------------------------------------------------
 
 (define (fxarithmetic-shift-right x y)
-  (import (ikarus))
+  (import (vicare))
   (fxarithmetic-shift-right x y))
 
 (define (fxarithmetic-shift-left x y)
-  (import (ikarus))
+  (import (vicare))
   (fxarithmetic-shift-left x y))
 
 (module (fxarithmetic-shift)
 
   (define (fxarithmetic-shift x y)
-    (import (ikarus))
+    (import (vicare))
     (define who 'fxarithmetic-shift)
     (with-arguments-validation (who)
 	((fixnum	x)
@@ -371,11 +377,11 @@
    ((x)   (sys:fx- x))))
 
 (define (fxadd1 n)
-  (import (ikarus))
+  (import (vicare))
   (fxadd1 n))
 
 (define (fxsub1 n)
-  (import (ikarus))
+  (import (vicare))
   (fxsub1 n))
 
 ;;; --------------------------------------------------------------------
@@ -385,7 +391,35 @@
 	 error@fx*
 	 error@fxadd1
 	 error@fxsub1)
-
+  ;;Some core primitives are implemented both as:
+  ;;
+  ;;* Proper procedures.   There exists a loc gensym whose  "value" slot references a
+  ;;  closure  object, which in turn  references a code object  implementing the core
+  ;;  primitive as machine code.
+  ;;
+  ;;*  Primitive  operations.  There  exist  functions  that  the compiler  calls  to
+  ;;  integrate assembly instructions implemented the core primitive.
+  ;;
+  ;;When the core primitive is used as argument as in:
+  ;;
+  ;;   (map fx+ a* b*)
+  ;;
+  ;;the closure  object implementation is  used; when the  core primitive is  used as
+  ;;first subform of an application form as in:
+  ;;
+  ;;   (fx+ 1 2)
+  ;;
+  ;;the primitive operation is used.
+  ;;
+  ;;Let's  consider FX+.   When the  code object  implementation detects  overflow or
+  ;;underflow: it raises an exception.  When the primitive operation detects overflow
+  ;;or  underflow what  should  it do?   The answer  is:  every integrated  primitive
+  ;;operation  assembly code  will  jump to  the  same routine  which  will raise  an
+  ;;exception.
+  ;;
+  ;;Such exception-raising routines are the  ones below; they are called ERROR@?PRIM,
+  ;;where ?PRIM is the name of the core primitive.
+  ;;
   (define (make-fx-error who)
     (case-lambda
      ((x y)
@@ -459,7 +493,11 @@
 	    #| end of module |# )
 	  ))))
 
+  (define ($fx!= fx1 fx2)
+    (not ($fx= fx1 fx2)))
+
   (define-fxcmp fx=?	fx=	$fx=)
+  (define-fxcmp fx!=?	fx!=	$fx!=)
   (define-fxcmp fx<?	fx<	$fx<)
   (define-fxcmp fx<=?	fx<=	$fx<=)
   (define-fxcmp fx>?	fx>	$fx>)
@@ -617,10 +655,26 @@
      (sra (- (- fx1 fx2) (+ s0 fx3)) (fixnum-width)))))
 
 
+;;;; conversion
+
+(define (fixnum-in-character-range? obj)
+  ;;Defined by Vicare.  Return #t  if OBJ is a fixnum and its value  is in one of the
+  ;;ranges acceptable by Unicode code points; otherwise return #f.
+  ;;
+  (and (fixnum? obj)
+       (or (and ($fx>= obj 0)
+		($fx<  obj #xD800))
+	   (and ($fx>  obj #xDFFF)
+		($fx<= obj #x10FFFF)))))
+
+(define* (fixnum->char {fx fixnum-in-character-range?})
+  ($fixnum->char fx))
+
+(define* (char->fixnum {ch char?})
+  ($char->fixnum ch))
+
 (module (fixnum->string
 	 $fixnum->string)
-  (import (ikarus.emergency))
-
   (define who 'fixnum->string)
 
   (define fixnum->string
@@ -632,7 +686,7 @@
      ((x r)
       (with-arguments-validation (who)
 	  ((fixnum	x))
-	(case-fixnums r
+	(case r
 	  ((2)  ($fixnum->string x 2))
 	  ((8)  ($fixnum->string x 8))
 	  ((10) ($fixnum->string x 10))
@@ -851,7 +905,7 @@
     $fxsll		$fxsra
     $fxlogor		$fxlogand
     $fxlognot)
-  (import (ikarus))
+  (import (vicare))
   (define $fxzero? fxzero?)
   #;(define $fxpositive? fxpositive?)
   #;(define $fxnegative? fxnegative?)

@@ -15,6 +15,7 @@
 ;;;along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+#!vicare
 (library (ikarus bignums)
   (export
     bignum-positive?
@@ -31,7 +32,7 @@
 	    ($bignum-negative?	$bignum-non-positive?))
     $bignum-even?	$bignum-odd?
     $bignum->flonum)
-  (import (except (ikarus)
+  (import (except (vicare)
 		  bignum-positive?
 		  bignum-negative?
 		  bignum-non-negative?
@@ -40,12 +41,12 @@
 		  bignum-even?
 		  least-positive-bignum
 		  greatest-negative-bignum)
-    (except (ikarus system $bignums)
+    (except (vicare system $bignums)
 	    $bignum-positive?		$bignum-negative?
 	    $bignum-non-positive?	$bignum-non-negative?
 	    $bignum-even?		$bignum-odd?
 	    $bignum->flonum)
-    (ikarus system $flonums)
+    (vicare system $flonums)
     (vicare arguments validation))
 
 
@@ -63,11 +64,8 @@
 (define-syntax define-bn-operation/one
   (syntax-rules ()
     ((_ ?safe-who ?unsafe-who)
-     (define (?safe-who x)
-       (define who (quote ?safe-who))
-       (with-arguments-validation (who)
-	   ((bignum	x))
-	 (?unsafe-who x))))))
+     (define* (?safe-who {x bignum?})
+       (?unsafe-who x)))))
 
 (define-bn-operation/one bignum-positive?	$bignum-positive?)
 (define-bn-operation/one bignum-negative?	$bignum-negative?)
@@ -97,6 +95,10 @@
 
 ;;;; done
 
-)
+;; #!vicare
+;; (define dummy
+;;   (foreign-call "ikrt_print_emergency" #ve(ascii "ikarus.bignums")))
+
+#| end of file |# )
 
 ;;; end of file

@@ -1,5 +1,5 @@
 ;;;
-;;;Part of: Nausicaa/Scheme
+;;;Part of: Vicare Scheme
 ;;;Contents: tags implementation
 ;;;Date: Fri May 18, 2012
 ;;;
@@ -12,7 +12,7 @@
 ;;;	using "void  *" pointers in the  C language and  casting them to
 ;;;	some structure pointer type when needed.
 ;;;
-;;;Copyright (C) 2012, 2013 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (C) 2012-2014 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
 ;;;it under the terms of the  GNU General Public License as published by
@@ -29,8 +29,9 @@
 ;;;
 
 
-#!r6rs
-(library (nausicaa language oopp)
+#!vicare
+(library (nausicaa language oopp (0 4))
+  (options visit-upon-loading)
   (export
     define-label		define-class		define-mixin
     make-from-fields		is-a?
@@ -46,11 +47,13 @@
     let-values/tags		let*-values/tags
     receive/tags		receive-and-return/tags
     do/tags			do*/tags
+    tag-case
     set!/tags
     with-label-shadowing
     with-tagged-arguments-validation
 
     <top> <top>? <top>-unique-identifiers
+    <procedure>
 
     ;; conditions
     &tagged-binding-violation
@@ -58,50 +61,37 @@
     tagged-binding-violation?
 
     ;; auxiliary syntaxes
-    =>
-    (rename (aux.parent			parent)
-	    (aux.nongenerative		nongenerative)
-	    (aux.abstract		abstract)
-	    (aux.sealed			sealed)
-	    (aux.opaque			opaque)
-	    (aux.predicate		predicate)
-	    (aux.fields			fields)
-	    (aux.virtual-fields		virtual-fields)
-	    (aux.mutable		mutable)
-	    (aux.immutable		immutable)
-	    (aux.method			method)
-	    (aux.method-syntax		method-syntax)
-	    (aux.methods		methods)
-	    (aux.protocol		protocol)
-	    (aux.public-protocol	public-protocol)
-	    (aux.super-protocol		super-protocol)
-	    (aux.maker			maker)
-	    (aux.finaliser		finaliser)
-	    (aux.getter			getter)
-	    (aux.setter			setter)
-	    (aux.shadows		shadows)
-	    (aux.satisfies		satisfies)
-	    (aux.mixins			mixins)
-	    (aux.<>			<>)
-	    (aux.<-			<-)))
-  (import (except (vicare)
-		  define-syntax)
-    (prefix (only (rnrs)
-		  define-syntax)
-	    rnrs.)
-    (nausicaa language oopp auxiliary-syntaxes)
-    (for (prefix (nausicaa language oopp helpers)
-		 help.)
+    => brace
+    (deprefix (aux.parent		aux.nongenerative	aux.abstract
+	       aux.sealed		aux.opaque		aux.predicate
+	       aux.fields		aux.virtual-fields
+	       aux.mutable		aux.immutable		aux.method
+	       aux.method-syntax	aux.methods		aux.protocol
+	       aux.public-protocol	aux.super-protocol	aux.maker
+	       aux.finaliser		aux.getter		aux.setter
+	       aux.shadows		aux.satisfies		aux.mixins
+	       aux.<>			aux.<-)
+	      aux.))
+  (import (vicare (0 4))
+    (for (prefix (vicare expander object-type-specs)
+		 typ.)
+      expand)
+    (prefix (only (vicare expander tags)
+		  <top>)
+	    typ.)
+    (nausicaa language oopp auxiliary-syntaxes (0 4))
+    (nausicaa language oopp conditions (0 4))
+    (for (prefix (nausicaa language oopp oopp-syntax-helpers (0 4))
+    		 syntax-help.)
+    	 expand)
+    (for (prefix (nausicaa language oopp definition-parser-helpers (0 4))
+		 parser-help.)
 	 expand)
-    (for (only (nausicaa language oopp helpers)
-	       case-symbol
-	       case-identifier)
-	 expand)
-    (for (prefix (only (nausicaa language oopp configuration)
+    (for (prefix (only (nausicaa language oopp configuration (0 4))
 		       validate-tagged-values?)
 		 config.)
 	 expand)
-    (prefix (only (nausicaa language auxiliary-syntaxes)
+    (prefix (only (nausicaa language auxiliary-syntaxes (0 4))
 		  <>			<-
 		  parent		nongenerative
 		  sealed		opaque
@@ -115,48 +105,6 @@
 		  mixins		maker			finaliser)
 	    aux.)
     (vicare unsafe operations))
-
-
-;;;; helpers
-
-(rnrs.define-syntax define-syntax
-  ;;This is  like DEFINE-SYNTAX from  (vicare), but in  addition defines
-  ;;the function SYNNER as helper to raise syntax violations.
-  ;;
-  (lambda (stx)
-    (syntax-case stx ()
-      ((_ ?name)
-       (identifier? #'?name)
-       #'(rnrs.define-syntax ?name))
-      ((_ ?name ?lambda)
-       (identifier? #'?name)
-       #'(rnrs.define-syntax ?name ?lambda))
-      ((_ (?name ?stx) ?body0 ?body ...)
-       (and (identifier? #'?name)
-	    (identifier? #'?stx))
-       (with-syntax ((SYNNER (datum->syntax #'?name 'synner)))
-	 #'(rnrs.define-syntax ?name
-	     (lambda (?stx)
-	       (define SYNNER
-		 (case-lambda
-		  ((message)
-		   (SYNNER message #f))
-		  ((message subform)
-		   (syntax-violation '?name message ?stx subform))))
-	       ?body0 ?body ...))))
-      )))
-
-(define-condition-type &tagged-binding-violation
-    &assertion
-  make-tagged-binding-violation
-  tagged-binding-violation?)
-
-(define (tagged-binding-violation who message . irritants)
-  (raise
-   (condition (make-who-condition who)
-	      (make-message-condition message)
-	      (make-tagged-binding-violation)
-	      (make-irritants-condition irritants))))
 
 
 (define-record-type (<top>-record-type make-<top> <top>?)
@@ -188,11 +136,6 @@
      (lambda ()
        (make-instance '())))))
 
-(define <top>-unique-ids
-  ;;This is the list of UIDs for the type "<top>".
-  ;;
-  '(nausicaa:builtin:<top>))
-
 (define (<top>-predicate obj)
   ;;This  function is  used as  predicate for  "<top>" in  place of  the
   ;;predefined  "<top>?".   By  convention:   all  the  objects  in  the
@@ -200,1055 +143,852 @@
   ;;
   #t)
 
-(define-syntax (<top> stx)
-  ;;Tag syntax  for "<top>",  all the operations  involving this  tag go
-  ;;through this syntax.  This tag is  the supertag of all the class and
-  ;;label tags.
-  ;;
-  ;;In all the branches:
-  ;;
-  ;;* ?EXPR must be an expression  to be evaluated only once; its result
-  ;;must be an instance of the  subtag type.  ?EXPR can be an identifier
-  ;;but also the application of an accessor to an instance.
-  ;;
-  ;;*  ?VAR  must  be  the  identifier  bound  to  the  instance  syntax
-  ;;dispatcher.
-  ;;
-  (syntax-case stx ( ;;
-		    :define :let :make :make-from-fields :is-a?
-		    :dispatch :accessor :mutator :getter :setter
-		    :insert-parent-clause define-record-type
-		    :insert-constructor-fields lambda
-		    :super-constructor-descriptor :assert-type-and-return
-		    :assert-procedure-argument :assert-expression-return-value
-		    :append-unique-id :list-of-unique-ids
-		    :predicate-function :accessor-function :mutator-function
-		    aux.<>)
-    ((_ :define ?var ?expr)
-     (identifier? #'?var)
-     #'(define ?var ?expr))
+(define-syntax <top>
+  (let ()
+    (typ.set-identifier-object-type-spec! #'<top>
+      (typ.make-object-type-spec #'<top> #'typ.<top> #'<top>-predicate))
+    (lambda (stx)
+      ;;Tag syntax for "<top>", all the operations involving this tag go
+      ;;through this syntax.  This tag is  the supertag of all the class
+      ;;and label tags.
+      ;;
+      ;;In all the branches:
+      ;;
+      ;;* ?EXPR  must be an  expression to  be evaluated only  once; its
+      ;;result must be an instance of  the subtag type.  ?EXPR can be an
+      ;;identifier  but  also  the  application of  an  accessor  to  an
+      ;;instance.
+      ;;
+      ;;*  ?VAR must  be the  identifier  bound to  the instance  syntax
+      ;;dispatcher.
+      ;;
+      (case-define synner
+	((message)
+	 (syntax-violation '<top> message stx #f))
+	((message subform)
+	 (syntax-violation '<top> message stx subform)))
+      (syntax-case stx ( ;;
+			:flat-oopp-syntax
+			:define :make :make-from-fields :is-a?
+			:dispatch :mutator :getter :setter
+			:insert-parent-clause define-record-type
+			:insert-constructor-fields lambda
+			:super-constructor-descriptor :assert-type-and-return
+			:assert-procedure-argument :assert-expression-return-value
+			:append-unique-id :list-of-unique-ids
+			:predicate-function :accessor-function :mutator-function
+			aux.<>)
 
-    ((_ :define ?var)
-     (identifier? #'?var)
-     #'(define ?var))
+	;;This is special for "<top>":
+	;;
+	((_ #:oopp-syntax (??expr ??arg ...))
+	 (synner "undefined OOPP syntax"))
 
-    ((_ :let ??expr ??var ??body0 ??body ...)
-     #'(let ((??var ??expr))
-	 ??body0 ??body ...))
+	;;This is special for "<top>":
+	;;
+	((_ :flat-oopp-syntax ??expr)
+	 #'??expr)
+	((_ :flat-oopp-syntax ??expr ??arg ...)
+	 #'(??expr ??arg ...))
 
-    ((_ :make . ?args)
-     (synner "invalid maker call syntax for <top> tag"))
+	((_ :define ?var ?expr)
+	 (identifier? #'?var)
+	 #'(define ?var ?expr))
 
-    ((_ :make-from-fields . ?args)
-     (synner "invalid :make-from-fields call syntax for <top> tag"))
+	((_ :define ?var)
+	 (identifier? #'?var)
+	 #'(define ?var))
 
-    ;;Every  object  is of  type  "<top>"  by  definition.  We  have  to
-    ;;evaluate the given expression for its side effects.
-    ((_ :is-a? ?expr)
-     #'(begin
-	 ?expr
-	 #t))
+	((_ :make . ?args)
+	 (synner "invalid maker call syntax for <top> tag"))
 
-    ;;If a "<top>" value receives a dispatch request: what do we do?
-    ;;
-    ;;Creative solution: just interpret it as a function application.
-    ;;
-    ;; ((_ :dispatch ?expr (?var . ?args))
-    ;;  (identifier? #'?var)
-    ;;  #'(?expr . ?args))
-    ;;
-    ;;Logic solution: raise an error.
-    ((_ :dispatch ?expr (?var . ?args))
-     (identifier? #'?var)
-     (synner "invalid tag member"))
+	((_ :make-from-fields . ?args)
+	 (synner "invalid :make-from-fields call syntax for <top> tag"))
 
-    ((_ :accessor ?expr (?var . ?args))
-     (synner "invalid tag-syntax field-accessor request"))
+	;;Every  object  is of  type  "<top>"  by  definition.  We  have  to
+	;;evaluate the given expression for its side effects.
+	((_ :is-a? aux.<>)
+	 #'<top>-predicate)
+	((_ :is-a? ?expr)
+	 #'(begin
+	     ?expr
+	     #t))
 
-    ((_ :mutator ?expr ?keys ?value)
-     (synner "invalid tag-syntax field-mutator request"))
+	;;If a  "<top>" value receives  a dispatch  request: what do  we do?
+	;;Raise an error because "<top>" has no members.
+	((_ :dispatch (?expr . ?args))
+	 (synner "invalid tag member"))
 
-    ((_ :getter ?expr (?var . ?args))
-     (synner "invalid tag-syntax getter request"))
+	((_ :mutator ?expr ?field-name ?value)
+	 (synner "invalid tag-syntax field-mutator request"))
 
-    ((_ :setter ?expr (?var . ?args))
-     (synner "invalid tag-syntax setter request"))
+	((_ :getter (?expr . ?args))
+	 (synner "invalid tag-syntax getter request"))
 
-    ;;Given an R6RS record type definition: insert an appropriate PARENT
-    ;;clause so that the type is derived from "<top>-record-type".
-    ((_ :insert-parent-clause (define-record-type ?name . ?clauses))
-     #'(define-record-type ?name (parent <top>-record-type) . ?clauses))
+	((_ :setter (?expr . ?args))
+	 (synner "invalid tag-syntax setter request"))
 
-    ;;For common  tags: this rule should  insert the field names  in the
-    ;;appropriate  position  in  the  definition of  a  custom  protocol
-    ;;function.   But this  is the  "<top>" tag  which keeps  hidden its
-    ;;fields, so just return the input expression.
-    ((_ :insert-constructor-fields (lambda (make-parent-1)
-				     (lambda (V ...)
-				       ((make-parent-2 W ...) Z ...))))
-     #'(lambda (make-parent-1)
-	 (lambda (V ...)
-	   ((make-parent-2 W ...) Z ...))))
+	;;Given an R6RS record type definition: insert an appropriate PARENT
+	;;clause so that the type is derived from "<top>-record-type".
+	((_ :insert-parent-clause (define-record-type ?name . ?clauses))
+	 #'(define-record-type ?name (parent <top>-record-type) . ?clauses))
 
-    ((_ :super-constructor-descriptor)
-     #'<top>-super-rcd)
+	;;For common  tags: this rule should  insert the field names  in the
+	;;appropriate  position  in  the  definition of  a  custom  protocol
+	;;function.   But this  is the  "<top>" tag  which keeps  hidden its
+	;;fields, so just return the input expression.
+	((_ :insert-constructor-fields (lambda (make-parent-1)
+					 (lambda (V ...)
+					   ((make-parent-2 W ...) Z ...))))
+	 #'(lambda (make-parent-1)
+	     (lambda (V ...)
+	       ((make-parent-2 W ...) Z ...))))
 
-    ;;This is  used for values  validation by tagged variables;  it must
-    ;;work like the  R6RS ASSERT syntax.  By convention:  all the values
-    ;;are of type "<top>", so we just evaluate the expression and return
-    ;;its value.
-    ((_ :assert-type-and-return ?expr)
-     #'?expr)
-    ((_ :assert-procedure-argument ?expr)
-     #'(void))
-    ((_ :assert-expression-return-value ?expr)
-     #'?expr)
+	((_ :super-constructor-descriptor)
+	 #'<top>-super-rcd)
 
-    ((_ :append-unique-id (?id ...))
-     #'(quote (?id ... nausicaa:builtin:<top>)))
+	;;This is  used for values  validation by tagged variables;  it must
+	;;work like the  R6RS ASSERT syntax.  By convention:  all the values
+	;;are of type "<top>", so we just evaluate the expression and return
+	;;its value.
+	((_ :assert-type-and-return ?expr)
+	 #'?expr)
+	((_ :assert-procedure-argument ?expr)
+	 #'(void))
+	((_ :assert-expression-return-value ?expr)
+	 #'?expr)
 
-    ((_ :list-of-unique-ids)
-     #'<top>-unique-ids)
+	((_ :append-unique-id (?id ...))
+	 #'(quote (?id ... nausicaa:builtin:<top>)))
 
-    ((_ :predicate-function)
-     #'<top>-predicate)
+	((_ :list-of-unique-ids)
+	 ;;This is the list of UIDs for the type "<top>".
+	 #'(quote (nausicaa:builtin:<top>)))
 
-    ;;The tag "<top>" has no accessible fields.
-    ((_ :accessor-function ?field-name)
-     (identifier? #'?field-name)
-     (synner "invalid tag-syntax field accessor function request" #'?field-name))
+	((_ :predicate-function)
+	 #'<top>-predicate)
 
-    ;;The tag "<top>" has no accessible fields.
-    ((_ :mutator-function ?field-name)
-     (identifier? #'?field-name)
-     (synner "invalid tag-syntax field mutator function request" #'?field-name))
+	;;The tag "<top>" has no accessible fields.
+	((_ :accessor-function ?field-name)
+	 (identifier? #'?field-name)
+	 (synner "invalid tag-syntax field accessor function request" #'?field-name))
 
-    ;;Define an  internal variable with initialisation  expression using
-    ;;the tag constructor.  The syntax use:
-    ;;
-    ;;   (<top> ?var (<> (?arg ...)))
-    ;;
-    ;;is equivalent to:
-    ;;
-    ;;   (define ?var (<top> (?arg ...)))
-    ;;
-    ;;and the constructor of "<top>" will raise an error.
-    ((?tag ?var (aux.<> (?arg ...)))
-     (identifier? #'?var)
-     #'(define ?var (?tag (?arg ...))))
+	;;The tag "<top>" has no accessible fields.
+	((_ :mutator-function ?field-name)
+	 (identifier? #'?field-name)
+	 (synner "invalid tag-syntax field mutator function request" #'?field-name))
 
-    ;;Define an  internal variable with initialisation  expression.  The
-    ;;syntax use:
-    ;;
-    ;;   (<top> ?var ?expr)
-    ;;
-    ;;just defines a common internal binding.
-    ((_ ?var ?expr)
-     (identifier? #'?var)
-     #'(define ?var ?expr))
-
-    ;;Define an  internal variable  without initialisation.   The syntax
-    ;;use:
-    ;;
-    ;;   (<top> ?var)
-    ;;
-    ;;just defines a common internal binding.
-    ((_ ?var)
-     (identifier? #'?var)
-     #'(define ?var))
-
-    ;;Constructor call syntax.
-    ((_ (?arg ...))
-     (synner "invalid maker call syntax for <top> tag"))
-
-    ;;Predicate reference.  It is meant to be used as:
-    ;;
-    ;;  ((<top>) ?expr) => #t
-    ;;
-    ((_)
-     #'<top>-predicate)
-
-    (_
-     (synner "invalid tag syntax"))))
+	(_
+	 (syntax-help.tag-public-syntax-transformer stx #f #'set!/tags synner))))))
 
 
-(define-syntax (define-label stx)
+;;;; procedure label
+
+(define <procedure>-list-of-uids
+  ;;We really want a binding for this list.
+  ;;
+  (<top> :append-unique-id (nausicaa:builtin:<procedure>)))
+
+(define-syntax <procedure>
+  (let ()
+    (typ.set-identifier-object-type-spec! #'<procedure>
+      (typ.make-object-type-spec #'<procedure> #'<top> #'procedure?))
+    (lambda (stx)
+      (case-define synner
+	((message)
+	 (syntax-violation '<procedure> message stx #f))
+	((message subform)
+	 (syntax-violation '<procedure> message stx subform)))
+      (define (%the-setter-and-getter . args)
+	(synner "invalid OOPP syntax"))
+      (syntax-case stx ( ;;
+			:make :dispatch :mutator :append-unique-id
+			:accessor-function :mutator-function
+			:process-shadowed-identifier)
+
+	;;This clause is special for "<procedure>".
+	((_ #:nested-oopp-syntax ?expr)
+	 #'?expr)
+
+	((_ :dispatch (?expr ?id . ?args))
+	 (synner "invalid OOPP syntax"))
+
+	((_ :mutator ?expr ?field-name ?value)
+	 (synner "invalid OOPP syntax"))
+
+	((_ :make ?expr)
+	 #'?expt)
+
+	((_ :append-unique-id (?id ...))
+	 #'(<top> :append-unique-id (?id ... nausicaa:builtin:<procedure>)))
+
+	((_ :accessor-function ?field-name)
+	 (synner "invalid OOPP syntax"))
+
+	((_ :mutator-function ?field-name)
+	 (synner "invalid OOPP syntax"))
+
+	((_ :process-shadowed-identifier ?body0 ?body ...)
+	 (synner "invalid OOPP syntax"))
+
+	(_
+	 (syntax-help.tag-private-common-syntax-transformer
+	  stx #f #'values #'procedure? #'<procedure>-list-of-uids
+	  %the-setter-and-getter %the-setter-and-getter
+	  (lambda ()
+	    (syntax-help.tag-public-syntax-transformer stx #f #'set!/tags synner))))))))
+
+
+(define-syntax* (define-label stx)
   ;;Define a new label type.  After  all the processing: expand to a set
   ;;of syntax definitions and  miscellaneous bindings for predicates and
   ;;constructors.
   ;;
-  ;;In this  macro transformer we  only process the MIXINS  clauses, the
-  ;;actual label definition is performed by another macro.
-  ;;
-  (syntax-case stx ()
-    ((_ ?name ?clause ...)
-     (receive (mixins-clauses other-clauses)
-	 (help.filter-and-validate-mixins-clauses #'(?clause ...) synner)
-       (if (null? mixins-clauses)
-	   #`(define-label/after-mixins-processing ?name . #,other-clauses)
-	 (with-syntax ((((MIXIN (FROM TO) ...) MIXIN-SPEC ...) mixins-clauses))
-	   #`(MIXIN :insert-mixin-clauses
-		    (define-label/after-mixins-processing ?name . #,other-clauses)
-		    ((FROM TO) ...)
-		    (MIXIN-SPEC ...))))))
-    (_
-     (synner "invalid syntax in label definition"))))
-
-(define-syntax (define-label/after-mixins-processing stx)
-  (define spec   (help.parse-label-definition stx #'<top> #'lambda/tags synner))
-  (define tag-id (help.<parsed-spec>-name-id spec))
-  (with-syntax
-      ((THE-TAG			tag-id)
-       (THE-PARENT		(help.<parsed-spec>-parent-id spec))
-       (THE-PUBLIC-CONSTRUCTOR	(help.<parsed-spec>-public-constructor-id spec))
-       (THE-PUBLIC-PREDICATE	(help.<parsed-spec>-public-predicate-id   spec))
-       (THE-PRIVATE-PREDICATE	(help.<parsed-spec>-private-predicate-id  spec))
-
-       (THE-LIST-OF-UIDS	(help.tag-id->list-of-uids-id tag-id))
-       (NONGENERATIVE-UID	(help.<parsed-spec>-nongenerative-uid     spec))
-
-       (((IMMUTABLE-FIELD IMMUTABLE-ACCESSOR IMMUTABLE-TAG) ...)
-	(help.<parsed-spec>-immutable-fields-data spec))
-
-       (((MUTABLE-FIELD MUTABLE-ACCESSOR MUTABLE-MUTATOR MUTABLE-TAG) ...)
-	(help.<parsed-spec>-mutable-fields-data spec))
-
-       (((METHOD-NAME METHOD-RV-TAG METHOD-IMPLEMENTATION) ...)
-	(help.<parsed-spec>-methods-table spec))
-
-       (SHADOWED-IDENTIFIER
-	(help.<parsed-spec>-shadowed-identifier spec))
-
-       ((DEFINITION ...)
-	(help.<parsed-spec>-definitions spec))
-
-       (ACCESSOR-TRANSFORMER
-	(help.<parsed-spec>-accessor-transformer spec))
-
-       (MUTATOR-TRANSFORMER
-	(help.<parsed-spec>-mutator-transformer  spec))
-
-       (MAKER-TRANSFORMER
-	(help.<parsed-spec>-maker-transformer spec))
-
-       ((SATISFACTION ...)
-	(help.<parsed-spec>-satisfactions spec))
-       (SATISFACTION-CLAUSES
-	(help.<label-spec>-satisfaction-clauses spec))
-
-       (WRONG-TYPE-ERROR-MESSAGE
-	(string-append "invalid expression result, expected value of type "
-		       (symbol->string (syntax->datum tag-id)))))
+  (lambda (ctv-retriever)
+    (define spec   (parser-help.parse-label-definition stx #'<top> #'lambda/tags ctv-retriever synner))
+    (define tag-id (parser-help.<parsed-spec>-name-id spec))
     (with-syntax
-	((THE-PUBLIC-PROTOCOL-EXPR
-	  ;;Labels   have  no   record-type  descriptor,   so,  strictly
-	  ;;speaking,  we do not  need to  follow the  same construction
-	  ;;protocol of R6RS records; but uniformity makes understanding
-	  ;;easier, so  the label construction protocols  are similar to
-	  ;;those of proper records.
-	  (or (help.<parsed-spec>-public-protocol spec)
-	      (help.<parsed-spec>-common-protocol spec)
-	      #'(lambda ()
-		  (lambda args
-		    (assertion-violation 'THE-TAG
-		      "no constructor defined for label" 'THE-TAG args)))))
+	((THE-TAG			tag-id)
+	 (THE-PARENT			(parser-help.<parsed-spec>-parent-id spec))
+	 (THE-PUBLIC-CONSTRUCTOR	(parser-help.<parsed-spec>-public-constructor-id spec))
+	 (THE-PUBLIC-PREDICATE		(parser-help.<parsed-spec>-public-predicate-id   spec))
+	 (THE-PRIVATE-PREDICATE		(parser-help.<parsed-spec>-private-predicate-id  spec))
+	 (THE-LIST-OF-UIDS		(parser-help.<parsed-spec>-list-of-uids-id       spec))
+	 (NONGENERATIVE-UID		(parser-help.<parsed-spec>-nongenerative-uid     spec))
 
-	 (PREDICATE-EXPR
-	  ;;The  predicate  expression  must   evaluate  to  a  function
-	  ;;predicate for  instances of this  tag.  We must  check first
-	  ;;the  parent tag's  predicate,  then the  predicate for  this
-	  ;;label; the "<top>" tag has no predicate.
-	  ;;
-	  ;;NOTE Remember that the PREDICATE  clause can also select the
-	  ;;binding  of a  syntax;  we  have no  way  to distinguish  if
-	  ;;THE-PRIVATE-PREDICATE  is a  syntax's  keyword or  something
-	  ;;else, so we always have to create a function here, we cannot
-	  ;;just return THE-PRIVATE-PREDICATE when it is an identifier.
-	  (let ((has-priv-id? (syntax->datum #'THE-PRIVATE-PREDICATE)))
-	    (cond ((free-identifier=? #'THE-PARENT #'<top>)
-		   ;;The parent is  "<top>": we just use  for this tag's
-		   ;;predicate, if any was selected.
-		   (if has-priv-id?
-		       #'(lambda (obj)
-			   (THE-PRIVATE-PREDICATE obj))
-		     #'(lambda (obj) #t)))
-		  (has-priv-id?
-		   ;;The parent  is not "<top>" and  this tag definition
-		   ;;selects a  predicate: apply the  parent's predicate
-		   ;;first, than this tag's one.
-		   #'(lambda (obj)
-		       (and (THE-PARENT :is-a? obj)
-			    (THE-PRIVATE-PREDICATE obj))))
-		  (else
-		   ;;The parent  is not "<top>" and  this tag definition
-		   ;;does  not  select  a   predicate:  just  apply  the
-		   ;;parent's predicate.
-		   #'(lambda (obj)
-		       (THE-PARENT :is-a? obj))))))
+	 (((IMMUTABLE-FIELD IMMUTABLE-ACCESSOR IMMUTABLE-TAG) ...)
+	  (parser-help.<parsed-spec>-immutable-fields-data spec))
 
-	 (GETTER-TRANSFORMER
-	  ;;If no getter  syntax is defined for this  label: use the one
-	  ;;of  the  parent.  The  getter  of  "<top>"  raises a  syntax
-	  ;;violation error.
-	  (or (help.<parsed-spec>-getter spec)
-	      #`(lambda (stx)
-		  (syntax-case stx ()
-		    (?form
-		     #'(THE-PARENT :getter #f ?form))))))
+	 (((MUTABLE-FIELD MUTABLE-ACCESSOR MUTABLE-MUTATOR MUTABLE-TAG) ...)
+	  (parser-help.<parsed-spec>-mutable-fields-data spec))
 
-	 (SETTER-TRANSFORMER
-	  ;;If no setter  syntax is defined for this  label: use the one
-	  ;;of  the  parent.  The  setter  of  "<top>"  raises a  syntax
-	  ;;violation error.
-	  (or (help.<parsed-spec>-setter spec)
-	      #`(lambda (stx)
-		  (syntax-case stx ()
-		    (?form
-		     #'(THE-PARENT :setter #f ?form)))))))
-      #'(begin
+	 (((METHOD-NAME METHOD-RV-TAG METHOD-IMPLEMENTATION) ...)
+	  (parser-help.<parsed-spec>-methods-table spec))
 
-	  (define THE-PUBLIC-CONSTRUCTOR
-	    (THE-PUBLIC-PROTOCOL-EXPR))
+	 (SHADOWED-IDENTIFIER
+	  (parser-help.<parsed-spec>-shadowed-identifier spec))
 
-	  (define THE-PUBLIC-PREDICATE PREDICATE-EXPR)
+	 ((DEFINITION ...)
+	  (parser-help.<parsed-spec>-definitions spec))
 
-	  (define THE-LIST-OF-UIDS
-	    (THE-PARENT :append-unique-id (NONGENERATIVE-UID)))
+	 (ACCESSOR-TRANSFORMER
+	  (syntax-help.make-accessor-transformer spec))
 
-	  (define-syntax THE-TAG
-	    ;;Tag  syntax,  all the  operations  involving  this tag  go
-	    ;;through this syntax.  For all the patterns:
+	 (MUTATOR-TRANSFORMER
+	  (syntax-help.make-mutator-transformer  spec))
+
+	 (MAKER-TRANSFORMER
+	  (parser-help.<parsed-spec>-maker-transformer spec))
+
+	 ((SATISFACTION ...)
+	  (parser-help.<parsed-spec>-satisfactions spec))
+	 (SATISFACTION-CLAUSES
+	  (parser-help.<label-spec>-satisfaction-clauses spec)))
+      (with-syntax
+	  ((THE-PUBLIC-PROTOCOL-EXPR
+	    ;;Labels  have  no   record-type  descriptor,  so,  strictly
+	    ;;speaking, we do  not need to follow  the same construction
+	    ;;protocol   of   R6RS   records;   but   uniformity   makes
+	    ;;understanding easier, so  the label construction protocols
+	    ;;are similar to those of proper records.
+	    (or (parser-help.<parsed-spec>-public-protocol spec)
+		(parser-help.<parsed-spec>-common-protocol spec)
+		#'(lambda ()
+		    (lambda args
+		      (assertion-violation 'THE-TAG
+			"no constructor defined for label" 'THE-TAG args)))))
+
+	   (PREDICATE-EXPR
+	    ;;The  predicate  expression  must evaluate  to  a  function
+	    ;;predicate for instances of this  tag.  We must check first
+	    ;;the parent  tag's predicate,  then the predicate  for this
+	    ;;label; the "<top>" tag has no predicate.
 	    ;;
-	    ;;* ??EXPR must be an  expression to be evaluated only once;
-	    ;;its result  must be an  instance of the tag  type.  ??EXPR
-	    ;;can  be  an identifier  but  also  the  application of  an
-	    ;;accessor to an instance.
+	    ;;NOTE Remember  that the  PREDICATE clause can  also select
+	    ;;the binding of a syntax; we  have no way to distinguish if
+	    ;;THE-PRIVATE-PREDICATE is  a syntax's keyword  or something
+	    ;;else,  so we  always have  to create  a function  here, we
+	    ;;cannot  just return  THE-PRIVATE-PREDICATE when  it is  an
+	    ;;identifier.
+	    (let ((has-priv-id? (syntax->datum #'THE-PRIVATE-PREDICATE)))
+	      (cond ((free-identifier=? #'THE-PARENT #'<top>)
+		     ;;The parent is "<top>": we just use for this tag's
+		     ;;predicate, if any was selected.
+		     (if has-priv-id?
+			 #'(lambda (obj)
+			     (THE-PRIVATE-PREDICATE obj))
+		       #'(lambda (obj) #t)))
+		    (has-priv-id?
+		     ;;The parent is not "<top>" and this tag definition
+		     ;;selects a predicate: apply the parent's predicate
+		     ;;first, than this tag's one.
+		     #'(lambda (obj)
+			 (and (THE-PARENT :is-a? obj)
+			      (THE-PRIVATE-PREDICATE obj))))
+		    (else
+		     ;;The parent is not "<top>" and this tag definition
+		     ;;does  not  select  a predicate:  just  apply  the
+		     ;;parent's predicate.
+		     #'(lambda (obj)
+			 (THE-PARENT :is-a? obj))))))
+
+	   (GETTER-TRANSFORMER
+	    ;;If no getter syntax is defined for this label: use the one
+	    ;;of  the parent.   The getter  of "<top>"  raises a  syntax
+	    ;;violation error.
+	    (or (parser-help.<parsed-spec>-getter spec)
+		#'(lambda (stx unused-tag)
+		    #`(THE-PARENT :getter #,stx))))
+
+	   (SETTER-TRANSFORMER
+	    ;;If no setter syntax is defined for this label: use the one
+	    ;;of  the parent.   The setter  of "<top>"  raises a  syntax
+	    ;;violation error.
+	    (or (parser-help.<parsed-spec>-setter spec)
+		#'(lambda (stx unused-tag)
+		    #`(THE-PARENT :setter #,stx)))))
+
+	#'(begin
+
+	    (define THE-PUBLIC-CONSTRUCTOR
+	      (THE-PUBLIC-PROTOCOL-EXPR))
+
+	    (define THE-PUBLIC-PREDICATE PREDICATE-EXPR)
+
+	    (define THE-LIST-OF-UIDS
+	      (THE-PARENT :append-unique-id (NONGENERATIVE-UID)))
+
+	    (define-syntax THE-TAG
+	      ;;Tag  syntax, all  the operations  involving this  tag go
+	      ;;through this syntax.  For all the patterns:
+	      ;;
+	      ;;*  ??EXPR must  be an  expression to  be evaluated  only
+	      ;;once; its  result must be  an instance of the  tag type.
+	      ;;??EXPR can be an identifier  but also the application of
+	      ;;an accessor to an instance.
+	      ;;
+	      ;;* ??VAR  must be  the identifier  bound to  the instance
+	      ;;syntax dispatcher.
+	      ;;
+	      (let ((%the-getter	(lambda (stx)
+					  (GETTER-TRANSFORMER stx #'THE-TAG)))
+		    (%the-setter	(lambda (stx)
+					  (SETTER-TRANSFORMER stx #'THE-TAG)))
+		    (%the-accessor	ACCESSOR-TRANSFORMER)
+		    (%the-mutator	MUTATOR-TRANSFORMER)
+		    (%the-maker		MAKER-TRANSFORMER))
+		(let ()
+		  (define (%constructor-maker input-form.stx)
+		    #f)
+		  (define (%accessor-maker field.sym input-form.stx)
+		    #f)
+		  (define (%mutator-maker field.sym input-form.stx)
+		    #f)
+		  (define (%getter-maker keys.stx input-form.stx)
+		    #f)
+		  (define (%setter-maker keys.stx input-form.stx)
+		    #f)
+		  (define %caster-maker #f)
+		  (define (%dispatcher method-sym arg*.stx input-form-stx)
+		    #f)
+		  (define type-spec
+		    (typ.make-object-type-spec #'THE-TAG #'THE-PARENT #'THE-PUBLIC-PREDICATE
+					       %constructor-maker
+					       %accessor-maker %mutator-maker
+					       %getter-maker %setter-maker
+					       %caster-maker %dispatcher))
+		  (typ.set-identifier-object-type-spec! #'THE-TAG type-spec))
+
+		(lambda (stx)
+		  (define (synner message subform)
+		    (syntax-violation 'THE-TAG message stx subform))
+		  (syntax-case stx ( ;;
+				    :dispatch :mutator :append-unique-id
+				    :accessor-function :mutator-function
+				    :process-shadowed-identifier
+				    aux.<>)
+
+		    ;;Try to  match the tagged-variable use  to a method
+		    ;;call  for  the  tag;  if no  method  name  matches
+		    ;;??MEMBER-ID,  try to  match  a field  name; if  no
+		    ;;field name matches ??MEMBER-ID, hand everything to
+		    ;;the parent tag.
+		    ((_ :dispatch (??expr ??member-id . ??args))
+		     (identifier? #'??member-id)
+		     (case (syntax->datum #'??member-id)
+		       ((METHOD-NAME)
+			(syntax-help.process-method-application #'METHOD-RV-TAG #'(METHOD-IMPLEMENTATION ??expr . ??args)))
+		       ...
+		       (else
+			(%the-accessor stx #'??expr #'??member-id #'??args synner))))
+
+		    ;;Invoke the mutator syntax transformer.  The syntax
+		    ;;use:
+		    ;;
+		    ;;   (set!/tags (?var ?field-name) ?new-val)
+		    ;;
+		    ;;is expanded to:
+		    ;;
+		    ;;   (?var :mutator ?field-name ?new-val)
+		    ;;
+		    ;;and then to:
+		    ;;
+		    ;;   (THE-TAG :mutator SRC-VAR ?field-name ?new-val)
+		    ;;
+		    ;;where  SRC-VAR  is  the identifier  bound  to  the
+		    ;;actual  instance.   Then,  depending on  the  ?ARG
+		    ;;forms, the  mutator can expand to:  a simple field
+		    ;;mutator  invocation,  or  to  a  subfield  mutator
+		    ;;invocation, or to a submethod invocation.
+		    ;;
+		    ((_ :mutator ??expr ??field-name ??new-value)
+		     (if (identifier? #'?field-name)
+			 (%the-mutator stx #'??expr #'??field-name #'??new-value)
+		       (synner "expected identifier as field name for mutator" #'??field-name)))
+
+		    ((_ :append-unique-id (??id (... ...)))
+		     #'(THE-PARENT :append-unique-id (??id (... ...) NONGENERATIVE-UID)))
+
+		    ((_ :accessor-function ??field-name)
+		     (if (identifier? #'??field-name)
+			 (case (syntax->datum #'??field-name)
+			   ((IMMUTABLE-FIELD)	#'(lambda (obj) (IMMUTABLE-ACCESSOR obj)))
+			   ...
+			   ((MUTABLE-FIELD)	#'(lambda (obj) (MUTABLE-ACCESSOR   obj)))
+			   ...
+			   (else
+			    #'(THE-PARENT :accessor-function ??field-name)))
+		       (synner "expected identifier as field name for accessor function" #'??field-name)))
+
+		    ((_ :mutator-function ??field-name)
+		     (if (identifier? #'??field-name)
+			 (case (syntax->datum #'??field-name)
+			   ((MUTABLE-FIELD)
+			    #'(lambda (obj val) (MUTABLE-MUTATOR obj val)))
+			   ...
+			   ((IMMUTABLE-FIELD)
+			    (synner "request of mutator function for immutable field" #'IMMUTABLE-FIELD))
+			   ...
+			   (else
+			    #'(THE-PARENT :mutator-function ??field-name)))
+		       (synner "expected identifier as field name for mutator function" #'??field-name)))
+
+		    ;;Replace  all the  occurrences of  ??SRC-ID in  the
+		    ;;??BODY forms  with the identifier selected  by the
+		    ;;SHADOWS  clause.  This  allows a  label tag  to be
+		    ;;used to handle some other entity type.
+		    ;;
+		    ;;Notice that we really substitute ??SRC-ID from the
+		    ;;input form rather than THE-TAG.
+		    ;;
+		    ;;SHADOWED-IDENTIFIER has #f as datum if no shadowed
+		    ;;identifier was specified in the label definition.
+		    ;;
+		    ((??src-id :process-shadowed-identifier ??body0 ??body (... ...))
+		     (syntax-help.process-shadowed-identifier #'??src-id #'SHADOWED-IDENTIFIER
+							      #'(begin ??body0 ??body (... ...))))
+
+		    (_
+		     (syntax-help.tag-private-common-syntax-transformer
+		      stx #f #'THE-PUBLIC-CONSTRUCTOR #'THE-PUBLIC-PREDICATE #'THE-LIST-OF-UIDS
+		      %the-getter %the-setter
+		      (lambda ()
+			(syntax-help.tag-public-syntax-transformer stx %the-maker #'set!/tags synner))))))
+		))
+
+	    DEFINITION ...
+	    (module () (SATISFACTION . SATISFACTION-CLAUSES) ...)
+	    ;;NOTE  Just  in  case  putting  the  satisfactions  into  a
+	    ;;module's body  turns out not to  be right, we can  use the
+	    ;;following  definition instead.   What's important  is that
+	    ;;the  whole  sequence  of  forms  resulting  from  a  label
+	    ;;definition expansion is a sequence of definitions.  (Marco
+	    ;;Maggi; Tue Jul 16, 2013)
 	    ;;
-	    ;;*  ??VAR must  be  the identifier  bound  to the  instance
-	    ;;syntax dispatcher.
-	    ;;
-	    (let ((%the-getter		GETTER-TRANSFORMER)
-		  (%the-setter		SETTER-TRANSFORMER)
-		  (%the-accessor	ACCESSOR-TRANSFORMER)
-		  (%the-mutator		MUTATOR-TRANSFORMER)
-		  (%the-maker		MAKER-TRANSFORMER))
-	      (lambda (stx)
-		(define (synner message subform)
-		  (syntax-violation 'THE-TAG message stx subform))
+	    ;; (define dummy-for-satisfactions
+	    ;;   (let ()
+	    ;;     (SATISFACTION . SATISFACTION-CLAUSES) ...
+	    ;;     #f))
 
-		(syntax-case stx ( ;;
-				  :define :let :make :is-a?
-				  :dispatch :accessor :mutator :getter :setter
-				  :assert-type-and-return
-				  :assert-procedure-argument :assert-expression-return-value
-				  :append-unique-id :list-of-unique-ids
-				  :predicate-function :accessor-function :mutator-function
-				  :process-shadowed-identifier
-				  aux.<>)
-
-		  ;;Try  to match  the tagged-variable  use to  a method
-		  ;;call for  the tag; if  no method name  matches ??ID,
-		  ;;try to match a field name.
-		  ((_ :dispatch ??expr (??var ??id . ??args))
-		   (and (identifier? #'??var)
-			(identifier? #'??id))
-		   (case-symbol (syntax->datum #'??id)
-		     ((METHOD-NAME)
-		      (help.process-method-application #'let/tags #'METHOD-RV-TAG
-						       #'(METHOD-IMPLEMENTATION ??expr . ??args)))
-		     ...
-		     (else
-		      (%the-accessor stx #'??expr #'??var (cons #'??id #'??args)))))
-
-		  ((_ :accessor ??expr (??var . ??args))
-		   (identifier? #'??var)
-		   (%the-accessor stx #'??expr #'??var #'??args))
-
-		  ;;Invoke the  mutator syntax transformer.   The syntax
-		  ;;use:
-		  ;;
-		  ;;   (set!/tags (?var ?field-name ?arg ...) ?val)
-		  ;;
-		  ;;is expanded to:
-		  ;;
-		  ;;   (?var :mutator (?field-name ?arg ...) ?val)
-		  ;;
-		  ;;and then to:
-		  ;;
-		  ;;   (THE-TAG :mutator SRC-VAR (?field-name ?arg ...) ?val)
-		  ;;
-		  ;;where SRC-VAR is the  identifier bound to the actual
-		  ;;instance.  Then,  depending on  the ?ARG  forms, the
-		  ;;mutator  can  expand  to:  a  simple  field  mutator
-		  ;;invocation, or to a  subfield mutator invocation, or
-		  ;;to a submethod invocation.
-		  ;;
-		  ((_ :mutator ??expr ??keys ??value)
-		   (%the-mutator stx #'??expr #'??keys #'??value))
-
-		  ;;Invoke  the  getter   transformer  function  without
-		  ;;nested member use.
-		  ((_ :getter ??expr (??var ((??key0 (... ...))
-					     (??key (... ...))
-					     (... ...))))
-		   (identifier? #'??var)
-		   (%the-getter #'(??var ((??key0 (... ...))
-					  (??key  (... ...))
-					  (... ...)))))
-		  ;;Invoke the  getter transformer function  with nested
-		  ;;member use.
-		  ((_ :getter ??expr (??var ((??key0 (... ...))
-					     (??key (... ...))
-					     (... ...))
-					    => ?form0 ?form (... ...)))
-		   (identifier? #'??var)
-		   (%the-getter #'(??var ((??key0 (... ...))
-					  (??key  (... ...))
-					  (... ...))
-					 => ?form0 ?form (... ...))))
-
-		  ((_ :setter ??expr (??var ((??key0 (... ...))
-					     (??key (... ...))
-					     (... ...))
-					    ??value))
-		   (identifier? #'??var)
-		   (%the-setter #'(??var ((??key0 (... ...))
-					  (??key (... ...))
-					  (... ...))
-					 ??value)))
-
-		  ((_ :assert-type-and-return ??expr)
-		   (if config.validate-tagged-values?
-		       #'(receive-and-return (val)
-			     ??expr
-			   (unless (THE-TAG :is-a? val)
-			     (tagged-binding-violation 'THE-TAG
-			       WRONG-TYPE-ERROR-MESSAGE
-			       '(expression: ??expr)
-			       `(result: ,val))))
-		     #'??expr))
-
-		  ((_ :assert-procedure-argument ??id)
-		   (identifier? #'??id)
-		   ;;This DOES NOT return the value.
-		   (if config.validate-tagged-values?
-		       #'(unless (THE-TAG :is-a? ??id)
-			   (procedure-argument-violation 'THE-TAG
-			     "tagged procedure argument of invalid type" ??id))
-		     #'(void)))
-
-		  ((_ :assert-expression-return-value ??expr)
-		   ;;This DOES return the value.
-		   (if config.validate-tagged-values?
-		       #'(receive-and-return (val)
-			     ??expr
-			   (unless (THE-TAG :is-a? val)
-			     (expression-return-value-violation 'THE-TAG
-			       "tagged expression return value of invalid type" val)))
-		     #'??expr))
-
-		  ;; public API: auxiliary syntaxes
-
-		  ;;Define  internal  bindings  for a  tagged  variable.
-		  ;;Without initialisation expression.
-		  ((_ :define ??var)
-		   (identifier? #'??var)
-		   #'(begin
-		       (define src-var)
-		       (define-syntax ??var
-			 (help.make-tagged-variable-transformer #'THE-TAG #'src-var))))
-
-		  ;;Define  internal  bindings  for a  tagged  variable.
-		  ;;With initialisation expression.
-		  ((_ :define ??var ??expr)
-		   (identifier? #'??var)
-		   #'(begin
-		       (define src-var (THE-TAG :assert-type-and-return ??expr))
-		       (define-syntax ??var
-			 (help.make-tagged-variable-transformer #'THE-TAG #'src-var))))
-
-		  ((_ :let ??expr ??var ??body0 ??body (... ...))
-		   #'(let ((src-var ??expr))
-		       (let-syntax ((??var (help.make-tagged-variable-transformer #'THE-TAG #'src-var)))
-			 ??body0 ??body (... ...))))
-
-		  ((_ :make . ??args)
-		   #'(THE-PUBLIC-CONSTRUCTOR . ??args))
-
-		  ((_ :is-a? . ??args)
-		   #'(THE-PUBLIC-PREDICATE . ??args))
-
-		  ((_ :append-unique-id (??id (... ...)))
-		   #'(THE-PARENT :append-unique-id (??id (... ...) NONGENERATIVE-UID)))
-
-		  ((_ :list-of-unique-ids)
-		   #'THE-LIST-OF-UIDS)
-
-		  ((_ :predicate-function)
-		   #'THE-PUBLIC-PREDICATE)
-
-		  ((_ :accessor-function ??field-name)
-		   (identifier? #'??field-name)
-		   (case-symbol (syntax->datum #'??field-name)
-		     ((IMMUTABLE-FIELD)	#'(lambda (obj) (IMMUTABLE-ACCESSOR obj))) ...
-		     ((MUTABLE-FIELD)	#'(lambda (obj) (MUTABLE-ACCESSOR   obj))) ...
-		     (else
-		      #'(THE-PARENT :mutator-function ??field-name))))
-
-		  ((_ :mutator-function ??field-name)
-		   (identifier? #'??field-name)
-		   (case-symbol (syntax->datum #'??field-name)
-		     ((MUTABLE-FIELD)
-		      #'(lambda (obj val) (MUTABLE-MUTATOR obj val)))
-		     ...
-		     ((IMMUTABLE-FIELD)
-		      (synner "request of mutator function for immutable field" #'IMMUTABLE-FIELD))
-		     ...
-		     (else
-		      #'(THE-PARENT :mutator-function ??field-name))))
-
-		  ;;Replace  all  the  occurrences of  ??SRC-ID  in  the
-		  ;;??BODY  forms with  the identifier  selected by  the
-		  ;;SHADOWS clause.  This allows a  label tag to be used
-		  ;;to handle some other entity type.
-		  ;;
-		  ;;Notice  that we really  substitute ??SRC-ID  from the
-		  ;;input form rather than THE-TAG.
-		  ((??src-id :process-shadowed-identifier ??body0 ??body (... ...))
-		   (let ((dst-id	#'SHADOWED-IDENTIFIER)
-			 (body		#'(begin ??body0 ??body (... ...))))
-		     (if (syntax->datum dst-id)
-			 (help.single-identifier-subst #'??src-id dst-id body)
-		       body)))
-
-		  ;;Define  an  internal  variable  with  initialisation
-		  ;;expression using the tag constructor.
-		  ((??tag ??var (aux.<> (??arg (... ...))))
-		   (identifier? #'??var)
-		   #'(??tag ??var (??tag (??arg (... ...)))))
-
-		  ;;Internal definition with initialisation expression.
-		  ((_ ??var ??expr)
-		   (identifier? #'??var)
-		   #'(THE-TAG :define ??var ??expr))
-
-		  ;;Internal     definition    without    initialisation
-		  ;;expression.
-		  ((_ ??var)
-		   (identifier? #'??var)
-		   #'(THE-TAG :define ??var))
-
-		  ;;Constructor  call.   If   a  maker  transformer  was
-		  ;;defined:  use it,  otherwise default  to the  public
-		  ;;constructor.
-		  ((_ (??arg (... ...)))
-		   (if %the-maker
-		       (%the-maker stx)
-		     #'(THE-PUBLIC-CONSTRUCTOR ??arg (... ...))))
-
-		  ;;Predicate reference.  It is meant to be used as:
-		  ;;
-		  ;;  ((<vector>) '#()) => #t
-		  ;;  ((<vector>) 1234) => #f
-		  ;;
-		  ((_)
-		   #'THE-PUBLIC-PREDICATE)
-
-		  (_
-		   (synner "invalid tag syntax" #f))))
-	      ))
-
-	  DEFINITION ...
-	  (module () (SATISFACTION . SATISFACTION-CLAUSES) ...)
-	  ;;NOTE Just in case putting  the satisfactions into a module's
-	  ;;body turns  out not to  be right,  we can use  the following
-	  ;;definition  instead.  What's  important  is  that the  whole
-	  ;;sequence  of   forms  resulting  from  a   label  definition
-	  ;;expansion is  a sequence of definitions.   (Marco Maggi; Tue
-	  ;;Jul 16, 2013)
-	  ;;
-	  ;; (define dummy-for-satisfactions
-	  ;;   (let ()
-	  ;;     (SATISFACTION . SATISFACTION-CLAUSES) ...
-	  ;;     #f))
-
-	  ))))
+	    )))))
 
 
-(define-syntax (define-class stx)
+(define-syntax* (define-class stx)
   ;;Define a new class type.  After  all the processing: expand to a set
   ;;of syntax definitions and  miscellaneous bindings for predicates and
   ;;constructors.
   ;;
-  ;;In this  macro transformer we  only process the MIXINS  clauses, the
-  ;;actual class definition is performed by another macro.
-  ;;
-  (syntax-case stx ()
-    ((_ ?name ?clause ...)
-     (receive (mixins-clauses other-clauses)
-	 (help.filter-and-validate-mixins-clauses #'(?clause ...) synner)
-       (if (null? mixins-clauses)
-	   #`(define-class/after-mixins-processing ?name . #,other-clauses)
-	 (with-syntax ((((MIXIN (FROM TO) ...) MIXIN-SPEC ...) mixins-clauses))
-	   #`(MIXIN :insert-mixin-clauses
-		    (define-class/after-mixins-processing ?name . #,other-clauses)
-		    ((FROM TO) ...)
-		    (MIXIN-SPEC ...))))))
-    (_
-     (synner "invalid syntax in class definition"))))
-
-(define-syntax (define-class/after-mixins-processing stx)
-  (define spec		(help.parse-class-definition stx #'<top> #'lambda/tags synner))
-  (define tag-id	(help.<parsed-spec>-name-id spec))
-  (define abstract?	(help.<parsed-spec>-abstract? spec))
-  (with-syntax
-      ((THE-TAG					tag-id)
-       (THE-RECORD-TYPE				(help.<class-spec>-record-type-id spec))
-       (THE-PREDICATE				(help.<parsed-spec>-public-predicate-id spec))
-       (THE-PARENT				(help.<parsed-spec>-parent-id spec))
-       (THE-DEFAULT-PROTOCOL			(help.tag-id->default-protocol-id tag-id))
-       (THE-FROM-FIELDS-CONSTRUCTOR		(help.tag-id->from-fields-constructor-id tag-id))
-       (THE-PUBLIC-CONSTRUCTOR			(help.<parsed-spec>-public-constructor-id spec))
-
-       (THE-LIST-OF-UIDS			(help.tag-id->list-of-uids-id tag-id))
-       (NONGENERATIVE-UID			(help.<parsed-spec>-nongenerative-uid spec))
-
-       (SEALED?
-	(help.<parsed-spec>-sealed? spec))
-
-       (OPAQUE?
-	(help.<parsed-spec>-opaque? spec))
-
-       (((CONCRETE-FIELD-SPEC ...) ...)
-	(help.<parsed-spec>-concrete-fields-data spec))
-
-       ((CONCRETE-FIELD-NAME ...)
-	(help.<parsed-spec>-concrete-fields-names spec))
-
-       (((IMMUTABLE-FIELD IMMUTABLE-ACCESSOR IMMUTABLE-TAG) ...)
-	(help.<parsed-spec>-immutable-fields-data spec))
-
-       (((MUTABLE-FIELD MUTABLE-ACCESSOR MUTABLE-MUTATOR MUTABLE-TAG) ...)
-	(help.<parsed-spec>-mutable-fields-data spec))
-
-       (((METHOD-NAME METHOD-RV-TAG METHOD-IMPLEMENTATION) ...)
-	(help.<parsed-spec>-methods-table spec))
-
-       ((DEFINITION ...)
-	(help.<parsed-spec>-definitions spec))
-
-       (ACCESSOR-TRANSFORMER
-	(help.<parsed-spec>-accessor-transformer spec))
-
-       (MUTATOR-TRANSFORMER
-	(help.<parsed-spec>-mutator-transformer  spec))
-
-       (MAKER-TRANSFORMER
-	(help.<parsed-spec>-maker-transformer spec))
-
-       (FINALISER-EXPRESSION
-	(help.<parsed-spec>-finaliser-expression spec))
-
-       ((SATISFACTION ...)
-	(help.<parsed-spec>-satisfactions spec))
-       (SATISFACTION-CLAUSES
-	(help.<class-spec>-satisfaction-clauses spec))
-
-       (WRONG-TYPE-ERROR-MESSAGE
-	(string-append "invalid expression result, expected value of type "
-		       (symbol->string (syntax->datum tag-id)))))
-    (define (%compose-parent-rcd-with-proto proto)
-      #`(make-record-constructor-descriptor (record-type-descriptor THE-RECORD-TYPE)
-					    (THE-PARENT :super-constructor-descriptor)
-					    #,proto))
+  (lambda (ctv-retriever)
+    (define spec	(parser-help.parse-class-definition stx #'<top> #'lambda/tags ctv-retriever synner))
+    (define tag-id	(parser-help.<parsed-spec>-name-id spec))
+    (define abstract?	(parser-help.<parsed-spec>-abstract? spec))
     (with-syntax
-	((THE-COMMON-CONSTRUCTOR-EXPR
-	  ;;The common  protocol is the default  one to be used  when no
-	  ;;specialised  protocols  are   defined  by  the  DEFINE-CLASS
-	  ;;clauses.  Abstract classes cannot have a common protocol.
-	  ;;
-	  ;;If the class is concrete  and no protocol is defined, we use
-	  ;;the appropriately  built default protocol;  R6RS states that
-	  ;;when the parent's RCD has a custom protocol, the derived RCD
-	  ;;must have a custom protocol too.
-	  (%compose-parent-rcd-with-proto (cond (abstract?
-						 #'(lambda (make-superclass)
-						     (lambda args
-						       (assertion-violation 'THE-TAG
-							 "attempt to instantiate abstract class"))))
-						((help.<parsed-spec>-common-protocol spec))
-						(else
-						 #'THE-DEFAULT-PROTOCOL))))
+	((THE-TAG				tag-id)
+	 (THE-RECORD-TYPE			(parser-help.<class-spec>-record-type-id spec))
+	 (THE-PREDICATE				(parser-help.<parsed-spec>-public-predicate-id spec))
+	 (THE-PARENT				(parser-help.<parsed-spec>-parent-id spec))
+	 (THE-DEFAULT-PROTOCOL			(parser-help.<class-spec>-default-protocol-id spec))
+	 (THE-FROM-FIELDS-CONSTRUCTOR		(parser-help.<class-spec>-from-fields-constructor-id spec))
+	 (THE-PUBLIC-CONSTRUCTOR		(parser-help.<parsed-spec>-public-constructor-id spec))
+	 (THE-LIST-OF-UIDS			(parser-help.<parsed-spec>-list-of-uids-id spec))
+	 (NONGENERATIVE-UID			(parser-help.<parsed-spec>-nongenerative-uid spec))
+	 (ABSTRACT?				abstract?)
+	 (SEALED?				(parser-help.<parsed-spec>-sealed? spec))
+	 (OPAQUE?				(parser-help.<parsed-spec>-opaque? spec))
 
-	 (THE-PUBLIC-CONSTRUCTOR-EXPR
-	  ;;The public protocol is to be used by the maker of this class
-	  ;;type; when not defined,  it defaults to the common protocol;
-	  ;;abstract classes cannot have a public protocol.
-	  ;;
-	  ;;If the class is concrete  and no protocol is defined, we use
-	  ;;the appropriately  built default protocol;  R6RS states that
-	  ;;when the parent's RCD has a custom protocol, the derived RCD
-	  ;;must have a custom protocol too.
-	  (let ((proto (help.<parsed-spec>-public-protocol spec)))
-	    (if (or abstract? (not proto))
-		#'the-common-constructor-descriptor
-	      (%compose-parent-rcd-with-proto proto))))
+	 (((CONCRETE-FIELD-SPEC ...) ...)	(parser-help.<parsed-spec>-concrete-fields-data spec))
+	 ((CONCRETE-FIELD-NAME ...)		(parser-help.<parsed-spec>-concrete-fields-names spec))
 
-	 (THE-SUPER-CONSTRUCTOR-EXPR
-	  ;;The  super  protocol is  to  be  used  when instantiating  a
-	  ;;subclass of this class type; when not defined, and the class
-	  ;;is concrete,  it defaults to the  common protocol.  Abstract
-	  ;;classes can have a super protocol.
-	  ;;
-	  ;;If the class is concrete  and no protocol is defined, we use
-	  ;;the appropriately  built default protocol;  R6RS states that
-	  ;;when the parent's RCD has a custom protocol, the derived RCD
-	  ;;must have a custom protocol too.
-	  (let ((proto (help.<parsed-spec>-super-protocol spec)))
-	    (cond (abstract?
-		   (%compose-parent-rcd-with-proto (or proto #'THE-DEFAULT-PROTOCOL)))
-		  (proto
-		   (%compose-parent-rcd-with-proto proto))
-		  (else
-		   #'the-common-constructor-descriptor))))
+	 (((IMMUTABLE-FIELD IMMUTABLE-ACCESSOR IMMUTABLE-TAG) ...)
+	  (parser-help.<parsed-spec>-immutable-fields-data spec))
 
-	 (GETTER-TRANSFORMER
-	  (or (help.<parsed-spec>-getter spec)
-	      #`(lambda (stx)
-	      	  (syntax-case stx ()
-	      	    (?form
-	      	     #'(THE-PARENT :getter #f ?form))))))
+	 (((MUTABLE-FIELD MUTABLE-ACCESSOR MUTABLE-MUTATOR MUTABLE-TAG) ...)
+	  (parser-help.<parsed-spec>-mutable-fields-data spec))
 
-	 (SETTER-TRANSFORMER
-	  (or (help.<parsed-spec>-setter spec)
-	      #`(lambda (stx)
-		  (syntax-case stx ()
-		    (?form
-		     #'(THE-PARENT :setter #f ?form))))))
-	 )
-      #'(begin
+	 (((METHOD-NAME METHOD-RV-TAG METHOD-IMPLEMENTATION) ...)
+	  (parser-help.<parsed-spec>-methods-table spec))
 
-	  (THE-PARENT :insert-parent-clause
-	    (define-record-type (THE-RECORD-TYPE the-automatic-constructor THE-PREDICATE)
-	      (nongenerative NONGENERATIVE-UID)
-	      (sealed SEALED?)
-	      (opaque OPAQUE?)
-	      (fields (CONCRETE-FIELD-SPEC ...)
-		      ...)))
+	 ((DEFINITION ...)
+	  (parser-help.<parsed-spec>-definitions spec))
 
-	  (define (THE-FROM-FIELDS-CONSTRUCTOR . args)
-	    (apply the-automatic-constructor
-		   (THE-TAG :list-of-unique-ids) ;this is the value of the "<top>" field
-		   args))
+	 (ACCESSOR-TRANSFORMER
+	  (syntax-help.make-accessor-transformer spec))
 
-	  (define THE-DEFAULT-PROTOCOL
-	    (THE-PARENT :insert-constructor-fields
-	      (lambda (make-parent)
-		(lambda (CONCRETE-FIELD-NAME ...)
-		  ((make-parent) CONCRETE-FIELD-NAME ...)))))
+	 (MUTATOR-TRANSFORMER
+	  (syntax-help.make-mutator-transformer  spec))
 
-	  (module ()
-	    (cond (FINALISER-EXPRESSION
-		   => (lambda (finaliser)
-			(record-destructor-set! (record-type-descriptor THE-RECORD-TYPE)
-						finaliser)))))
+	 (MAKER-TRANSFORMER
+	  (parser-help.<parsed-spec>-maker-transformer spec))
 
-	  (define THE-LIST-OF-UIDS
-	    (THE-PARENT :append-unique-id (NONGENERATIVE-UID)))
+	 (FINALISER-EXPRESSION
+	  (parser-help.<parsed-spec>-finaliser-expression spec))
 
-	  ;;*NOTE*  (Marco  Maggi;  Thu  May  17, 2012)  Once  a  record
-	  ;;constructor  descriptor  (RCD)  has been  built:  everything
-	  ;;needed  to build  a  record constructor  function is  known;
-	  ;;applying RECORD-CONSTRUCTOR  to the RCD can  return the same
-	  ;;constructor function, memoised in  an internal field.  It is
-	  ;;not   clear   if,  according   to   R6RS,   every  call   to
-	  ;;RECORD-CONSTRUCTOR causes  all the protocol  functions to be
-	  ;;called a new time.
-	  ;;
-	  ;;This   is   the   business    of   the   underlying   Scheme
-	  ;;implementation,    so,   here,    we   shamelessly    invoke
-	  ;;RECORD-CONSTRUCTOR multiple times even  though we known that
-	  ;;all the RCDs may be the same (the common RCD).
+	 ((SATISFACTION ...)
+	  (parser-help.<parsed-spec>-satisfactions spec))
+	 (SATISFACTION-CLAUSES
+	  (parser-help.<class-spec>-satisfaction-clauses spec))
 
-	  (define the-common-constructor-descriptor THE-COMMON-CONSTRUCTOR-EXPR)
-	  ;;This is commented out because unused at present.  The common
-	  ;;constructor  descriptor  is   used  when  other  constructor
-	  ;;descriptors are  not customised, but the  common constructor
-	  ;;function does not need to be defined.
-	  ;;
-	  ;; (define THE-COMMON-CONSTRUCTOR
-	  ;;   (record-constructor the-common-constructor-descriptor))
-
-	  (define the-public-constructor-descriptor THE-PUBLIC-CONSTRUCTOR-EXPR)
-	  (define THE-PUBLIC-CONSTRUCTOR
-	    (let ((constructor (record-constructor the-public-constructor-descriptor)))
-	      (lambda args
-		(receive-and-return (instance)
-		    (apply constructor args)
-		  (<top>-unique-identifiers-set! instance (THE-TAG :list-of-unique-ids))))))
-
-	  (define the-super-constructor-descriptor THE-SUPER-CONSTRUCTOR-EXPR)
-	  ;;This is commented out because  unused at present.  The super
-	  ;;constructor descriptor  is used by subclass  constructors to
-	  ;;build instances  of type THE-TAG, but  the super constructor
-	  ;;function does not need to be defined.
-	  ;;
-	  ;; (define the-super-constructor
-	  ;;   (record-constructor the-super-constructor-descriptor))
-
-	  (define-syntax THE-TAG
-	    ;;Tag  syntax,  all the  operations  involving  this tag  go
-	    ;;through  this   syntax.   The  only   reason  this  syntax
-	    ;;dispatches to sub-syntaxes it to keep the code readable.
+	 (WRONG-TYPE-ERROR-MESSAGE
+	  (string-append "invalid expression result, expected value of type "
+			 (symbol->string (syntax->datum tag-id)))))
+      (define (%compose-parent-rcd-with-proto proto)
+	#`(make-record-constructor-descriptor (record-type-descriptor THE-RECORD-TYPE)
+					      (THE-PARENT :super-constructor-descriptor)
+					      #,proto))
+      (with-syntax
+	  ((THE-COMMON-CONSTRUCTOR-EXPR
+	    ;;The common protocol is the default  one to be used when no
+	    ;;specialised  protocols  are  defined by  the  DEFINE-CLASS
+	    ;;clauses.  Abstract classes cannot have a common protocol.
 	    ;;
-	    ;;??EXPR must  be an expression  to be evaluated  only once;
-	    ;;its result  must be an  instance of the tag  type.  ??EXPR
-	    ;;can  be  an identifier  but  also  the  application of  an
-	    ;;accessor to an instance.
+	    ;;If the  class is concrete  and no protocol is  defined, we
+	    ;;use the appropriately built  default protocol; R6RS states
+	    ;;that  when the  parent's RCD  has a  custom protocol,  the
+	    ;;derived RCD must have a custom protocol too.
+	    (%compose-parent-rcd-with-proto (cond (abstract?
+						   #'(lambda (make-superclass)
+						       (lambda args
+							 (assertion-violation 'THE-TAG
+							   "attempt to instantiate abstract class"))))
+						  ((parser-help.<parsed-spec>-common-protocol spec))
+						  (else
+						   #'THE-DEFAULT-PROTOCOL))))
+
+	   (THE-PUBLIC-CONSTRUCTOR-EXPR
+	    ;;The public  protocol is to  be used  by the maker  of this
+	    ;;class type;  when not defined,  it defaults to  the common
+	    ;;protocol; abstract classes cannot have a public protocol.
 	    ;;
-	    ;;??VAR must be the  identifier bound to the instance syntax
-	    ;;dispatcher.
+	    ;;If the  class is concrete  and no protocol is  defined, we
+	    ;;use the appropriately built  default protocol; R6RS states
+	    ;;that  when the  parent's RCD  has a  custom protocol,  the
+	    ;;derived RCD must have a custom protocol too.
+	    (let ((proto (parser-help.<parsed-spec>-public-protocol spec)))
+	      (if (or abstract? (not proto))
+		  #'the-common-constructor-descriptor
+		(%compose-parent-rcd-with-proto proto))))
+
+	   (THE-SUPER-CONSTRUCTOR-EXPR
+	    ;;The  super protocol  is to  be used  when instantiating  a
+	    ;;subclass of  this class  type; when  not defined,  and the
+	    ;;class  is concrete,  it defaults  to the  common protocol.
+	    ;;Abstract classes can have a super protocol.
 	    ;;
-	    (let ((%the-getter		GETTER-TRANSFORMER)
-		  (%the-setter		SETTER-TRANSFORMER)
-		  (%the-accessor	ACCESSOR-TRANSFORMER)
-		  (%the-mutator		MUTATOR-TRANSFORMER)
-		  (%the-maker		MAKER-TRANSFORMER))
+	    ;;If the  class is concrete  and no protocol is  defined, we
+	    ;;use the appropriately built  default protocol; R6RS states
+	    ;;that  when the  parent's RCD  has a  custom protocol,  the
+	    ;;derived RCD must have a custom protocol too.
+	    (let ((proto (parser-help.<parsed-spec>-super-protocol spec)))
+	      (cond (abstract?
+		     (%compose-parent-rcd-with-proto (or proto #'THE-DEFAULT-PROTOCOL)))
+		    (proto
+		     (%compose-parent-rcd-with-proto proto))
+		    (else
+		     #'the-common-constructor-descriptor))))
 
-	      (lambda (stx)
-		(define (synner message subform)
-		  (syntax-violation 'THE-TAG message stx subform))
+	   (GETTER-TRANSFORMER
+	    ;;If no getter syntax is defined for this label: use the one
+	    ;;of  the parent.   The getter  of "<top>"  raises a  syntax
+	    ;;violation error.
+	    (or (parser-help.<parsed-spec>-getter spec)
+		#'(lambda (stx unused-tag)
+		    #`(THE-PARENT :getter #,stx))))
 
-		(syntax-case stx ( ;;
-				  :define :let :is-a? :make :make-from-fields
-				  :dispatch :accessor :mutator :getter :setter
-				  :insert-parent-clause define-record-type
-				  :insert-constructor-fields
-				  :super-constructor-descriptor lambda
-				  :assert-type-and-return
-				  :assert-procedure-argument :assert-expression-return-value
-				  :append-unique-id :list-of-unique-ids
-				  :predicate-function :accessor-function :mutator-function
-				  aux.<>)
+	   (SETTER-TRANSFORMER
+	    ;;If no setter syntax is defined for this label: use the one
+	    ;;of  the parent.   The setter  of "<top>"  raises a  syntax
+	    ;;violation error.
+	    (or (parser-help.<parsed-spec>-setter spec)
+		#'(lambda (stx unused-tag)
+		    #`(THE-PARENT :setter #,stx)))))
 
-		  ;; private API
+	#'(begin
 
-		  ;;Given  an  R6RS record  type  definition: insert  an
-		  ;;appropriate  PARENT  clause  so  that  the  type  is
-		  ;;derived from this tag's record type.  This is needed
-		  ;;because  only  the tag  identifier  is  part of  the
-		  ;;public interface, but we still need to define record
-		  ;;types derived from this one.
-		  ((_ :insert-parent-clause (define-record-type ??name . ??clauses))
-		   #'(define-record-type ??name (parent THE-RECORD-TYPE) . ??clauses))
+	    (THE-PARENT :insert-parent-clause
+	      (define-record-type (THE-RECORD-TYPE the-automatic-constructor THE-PREDICATE)
+		(nongenerative NONGENERATIVE-UID)
+		(sealed SEALED?)
+		(opaque OPAQUE?)
+		(fields (CONCRETE-FIELD-SPEC ...)
+			...)))
 
-		  ;;Insert the  field names in  the appropriate position
-		  ;;in  the definition  of a  custom  protocol function.
-		  ;;This  is  used  by  subclasses to  build  their  own
-		  ;;default  protocol which  does  not need  to set  the
-		  ;;fields in "<top>".
-		  ((_ :insert-constructor-fields
-		      (lambda (make-parent1)
-			(lambda (V (... ...))
-			  ((make-parent2 W (... ...)) Z (... ...)))))
-		   #'(THE-PARENT :insert-constructor-fields
-		       (lambda (make-parent1)
-			 (lambda (CONCRETE-FIELD-NAME ... V (... ...))
-			   ((make-parent2 CONCRETE-FIELD-NAME ... W (... ...)) Z (... ...))))))
+	    (define (THE-FROM-FIELDS-CONSTRUCTOR . args)
+	      (apply the-automatic-constructor
+		     ;;This is the value of the hidden field in "<top>".
+		     (THE-TAG :list-of-unique-ids)
+		     args))
 
-		  ((_ :super-constructor-descriptor)
-		   #'the-super-constructor-descriptor)
+	    (define THE-DEFAULT-PROTOCOL
+	      (THE-PARENT :insert-constructor-fields
+		(lambda (make-parent)
+		  (lambda (CONCRETE-FIELD-NAME ...)
+		    ((make-parent) CONCRETE-FIELD-NAME ...)))))
 
-		  ((_ :define ??var)
-		   (identifier? #'??var)
-		   #'(begin
-		       (define src-var)
-		       (define-syntax ??var
-			 (help.make-tagged-variable-transformer #'THE-TAG #'src-var))))
+	    (module ()
+	      (cond (FINALISER-EXPRESSION
+		     => (lambda (finaliser)
+			  (record-destructor-set! (record-type-descriptor THE-RECORD-TYPE)
+						  finaliser)))))
 
-		  ((_ :define ??var ??expr)
-		   (identifier? #'??var)
-		   #'(begin
-		       (define src-var (THE-TAG :assert-type-and-return ??expr))
-		       (define-syntax ??var
-			 (help.make-tagged-variable-transformer #'THE-TAG #'src-var))))
+	    (define THE-LIST-OF-UIDS
+	      (THE-PARENT :append-unique-id (NONGENERATIVE-UID)))
 
-		  ((_ :let ??expr ??var ??body0 ??body (... ...))
-		   #'(let ((src-var ??expr))
-		       (let-syntax ((??var (help.make-tagged-variable-transformer #'THE-TAG #'src-var)))
-			 ??body0 ??body (... ...))))
+	    ;;*NOTE*  (Marco Maggi;  Thu  May 17,  2012)  Once a  record
+	    ;;constructor  descriptor (RCD)  has been  built: everything
+	    ;;needed to  build a  record constructor function  is known;
+	    ;;applying RECORD-CONSTRUCTOR to the RCD can return the same
+	    ;;constructor function,  memoised in an internal  field.  It
+	    ;;is  not  clear  if,  according  to  R6RS,  every  call  to
+	    ;;RECORD-CONSTRUCTOR causes all the protocol functions to be
+	    ;;called a new time.
+	    ;;
+	    ;;This   is   the   business  of   the   underlying   Scheme
+	    ;;implementation,   so,   here,    we   shamelessly   invoke
+	    ;;RECORD-CONSTRUCTOR  multiple times  even  though we  known
+	    ;;that all the RCDs may be the same (the common RCD).
 
-		  ;;Try  to match  the tagged-variable  use to  a method
-		  ;;call for  the tag; if  no method name  matches ??ID,
-		  ;;try to match a field name.
-		  ((_ :dispatch ??expr (??var ??id . ??args))
-		   (and (identifier? #'??var)
-			(identifier? #'??id))
-		   (case-symbol (syntax->datum #'??id)
-		     ((METHOD-NAME)
-		      (help.process-method-application #'let/tags #'METHOD-RV-TAG
-						       #'(METHOD-IMPLEMENTATION ??expr . ??args)))
-		     ...
-		     (else
-		      (%the-accessor stx #'??expr #'??var (cons #'??id #'??args)))))
+	    (define the-common-constructor-descriptor THE-COMMON-CONSTRUCTOR-EXPR)
+	    ;;This  is commented  out  because unused  at present.   The
+	    ;;common   constructor  descriptor   is   used  when   other
+	    ;;constructor descriptors are not customised, but the common
+	    ;;constructor function does not need to be defined.
+	    ;;
+	    ;; (define THE-COMMON-CONSTRUCTOR
+	    ;;   (record-constructor the-common-constructor-descriptor))
 
-		  ((_ :accessor ??expr (??var . ??args))
-		   (identifier? #'??var)
-		   (%the-accessor stx #'??expr #'??var #'??args))
+	    (define the-public-constructor-descriptor THE-PUBLIC-CONSTRUCTOR-EXPR)
+	    (define THE-PUBLIC-CONSTRUCTOR
+	      (let ((constructor (record-constructor the-public-constructor-descriptor)))
+		(lambda args
+		  (receive-and-return (instance)
+		      (apply constructor args)
+		    ($record-type-field-set! <top>-record-type unique-identifiers
+					     instance (THE-TAG :list-of-unique-ids))))))
 
-		  ((_ :mutator ??expr ??keys ??value)
-		   (%the-mutator stx #'??expr #'??keys #'??value))
+	    (define the-super-constructor-descriptor THE-SUPER-CONSTRUCTOR-EXPR)
+	    ;;This  is commented  out  because unused  at present.   The
+	    ;;super   constructor  descriptor   is   used  by   subclass
+	    ;;constructors to  build instances of type  THE-TAG, but the
+	    ;;super constructor function does not need to be defined.
+	    ;;
+	    ;; (define the-super-constructor
+	    ;;   (record-constructor the-super-constructor-descriptor))
 
-		  ;;Invoke  the  getter   transformer  function  without
-		  ;;nested member use.
-		  ((_ :getter ??expr (??var ((??key0 (... ...))
-					     (??key (... ...))
-					     (... ...))))
-		   (identifier? #'??var)
-		   (%the-getter #'(??var ((??key0 (... ...))
-					  (??key  (... ...))
-					  (... ...)))))
-		  ;;Invoke the  getter transformer function  with nested
-		  ;;member use.
-		  ((_ :getter ??expr (??var ((??key0 (... ...))
-					     (??key (... ...))
-					     (... ...))
-					    => ?form0 ?form (... ...)))
-		   (identifier? #'??var)
-		   (%the-getter #'(??var ((??key0 (... ...))
-					  (??key  (... ...))
-					  (... ...))
-					 => ?form0 ?form (... ...))))
+	    (define-syntax THE-TAG
+	      ;;Tag  syntax, all  the operations  involving this  tag go
+	      ;;through  this  syntax.   The  only  reason  this  syntax
+	      ;;dispatches to sub-syntaxes it to keep the code readable.
+	      ;;
+	      ;;??EXPR must be an expression  to be evaluated only once;
+	      ;;its result must be an  instance of the tag type.  ??EXPR
+	      ;;can  be an  identifier but  also the  application of  an
+	      ;;accessor to an instance.
+	      ;;
+	      ;;??VAR  must  be the  identifier  bound  to the  instance
+	      ;;syntax dispatcher.
+	      ;;
+	      (let ((%the-getter	(lambda (stx)
+					  (GETTER-TRANSFORMER stx #'THE-TAG)))
+		    (%the-setter	(lambda (stx)
+					  (SETTER-TRANSFORMER stx #'THE-TAG)))
+		    (%the-accessor	ACCESSOR-TRANSFORMER)
+		    (%the-mutator	MUTATOR-TRANSFORMER)
+		    (%the-maker		MAKER-TRANSFORMER))
 
-		  ((_ :setter ??expr (??var ((??key0 (... ...))
-					     (??key (... ...))
-					     (... ...))
-					    ??value))
-		   (identifier? #'??var)
-		   (%the-setter #'(??var ((??key0 (... ...))
-					  (??key (... ...))
-					  (... ...))
-					 ??value)))
+		(let ()
+		  (define (%constructor-maker input-form.stx)
+		    #f)
+		  (define (%accessor-maker field.sym input-form.stx)
+		    #f)
+		  (define (%mutator-maker field.sym input-form.stx)
+		    #f)
+		  (define (%getter-maker keys.stx input-form.stx)
+		    #f)
+		  (define (%setter-maker keys.stx input-form.stx)
+		    #f)
+		  (define %caster-maker #f)
+		  (define (%dispatcher method-sym arg*.stx input-form-stx)
+		    #f)
+		  (define type-spec
+		    (typ.make-object-type-spec #'THE-TAG #'THE-PARENT #'THE-PREDICATE
+					       %constructor-maker
+					       %accessor-maker %mutator-maker
+					       %getter-maker %setter-maker
+					       %caster-maker %dispatcher))
+		  (typ.set-identifier-object-type-spec! #'THE-TAG type-spec))
 
-		  ((_ :assert-type-and-return ??expr)
-		   (if config.validate-tagged-values?
-		       #'(receive-and-return (val)
-			     ??expr
-			   (unless (THE-TAG :is-a? val)
-			     (tagged-binding-violation 'THE-TAG
-			       WRONG-TYPE-ERROR-MESSAGE
-			       '(expression: ??expr)
-			       `(result: ,val))))
-		     #'??expr))
+		(lambda (stx)
+		  (define (synner message subform)
+		    (syntax-violation 'THE-TAG message stx subform))
 
-		  ((_ :assert-procedure-argument ??id)
-		   (identifier? #'??id)
-		   ;;This DOES NOT return the value.
-		   (if config.validate-tagged-values?
-		       #'(unless (THE-TAG :is-a? ??id)
-			   (procedure-argument-violation 'THE-TAG WRONG-TYPE-ERROR-MESSAGE ??id))
-		     #'(void)))
+		  (syntax-case stx ( ;;
+				    :make-from-fields
+				    :dispatch :mutator
+				    :insert-parent-clause define-record-type
+				    :insert-constructor-fields
+				    :super-constructor-descriptor lambda
+				    :append-unique-id
+				    :accessor-function :mutator-function
+				    aux.<>)
 
-		  ((_ :assert-expression-return-value ??expr)
-		   ;;This DOES return the value.
-		   (if config.validate-tagged-values?
-		       #'(receive-and-return (val)
-			     ??expr
-			   (unless (THE-TAG :is-a? val)
-			     (expression-return-value-violation 'THE-TAG WRONG-TYPE-ERROR-MESSAGE val)))
-		     #'??expr))
+		    ;;Given an  R6RS record  type definition:  insert an
+		    ;;appropriate  PARENT clause  so  that  the type  is
+		    ;;derived  from this  tag's  record  type.  This  is
+		    ;;needed because only the  tag identifier is part of
+		    ;;the public interface, but  we still need to define
+		    ;;record types derived from this one.
+		    ((_ :insert-parent-clause (define-record-type ??name . ??clauses))
+		     #'(define-record-type ??name (parent THE-RECORD-TYPE) . ??clauses))
 
-		  ;; public API: auxiliary syntaxes
+		    ;;Insert the field names in the appropriate position
+		    ;;in the  definition of a custom  protocol function.
+		    ;;This  is used  by  subclasses to  build their  own
+		    ;;default protocol  which does  not need to  set the
+		    ;;fields in "<top>".
+		    ((_ :insert-constructor-fields
+			(lambda (make-parent1)
+			  (lambda (V (... ...))
+			    ((make-parent2 W (... ...)) Z (... ...)))))
+		     #'(THE-PARENT :insert-constructor-fields
+			 (lambda (make-parent1)
+			   (lambda (CONCRETE-FIELD-NAME ... V (... ...))
+			     ((make-parent2 CONCRETE-FIELD-NAME ... W (... ...)) Z (... ...))))))
 
-		  ((_ :make . ??args)
-		   #'(THE-PUBLIC-CONSTRUCTOR . ??args))
+		    ((_ :super-constructor-descriptor)
+		     #'the-super-constructor-descriptor)
 
-		  ((_ :make-from-fields . ??args)
-		   #'(THE-FROM-FIELDS-CONSTRUCTOR . ??args))
+		    ;;Try to  match the tagged-variable use  to a method
+		    ;;call  for  the  tag;  if no  method  name  matches
+		    ;;??MEMBER-ID,  try to  match  a field  name; if  no
+		    ;;field name matches ??MEMBER-ID, hand everything to
+		    ;;the parent tag.
+		    ((_ :dispatch (??expr ??member-id . ??args))
+		     (identifier? #'??member-id)
+		     (case (syntax->datum #'??member-id)
+		       ((METHOD-NAME)
+			(syntax-help.process-method-application #'METHOD-RV-TAG #'(METHOD-IMPLEMENTATION ??expr . ??args)))
+		       ...
+		       (else
+			(%the-accessor stx #'??expr #'??member-id #'??args synner))))
 
-		  ((_ :is-a? . ??args)
-		   #'(THE-PREDICATE . ??args))
+		    ;;Invoke the mutator syntax transformer.  The syntax
+		    ;;use:
+		    ;;
+		    ;;   (set!/tags (?var ?field-name) ?new-val)
+		    ;;
+		    ;;is expanded to:
+		    ;;
+		    ;;   (?var :mutator ?field-name ?new-val)
+		    ;;
+		    ;;and then to:
+		    ;;
+		    ;;   (THE-TAG :mutator SRC-VAR ?field-name ?new-val)
+		    ;;
+		    ;;where  SRC-VAR  is  the identifier  bound  to  the
+		    ;;actual  instance.   Then,  depending on  the  ?ARG
+		    ;;forms, the  mutator can expand to:  a simple field
+		    ;;mutator  invocation,  or  to  a  subfield  mutator
+		    ;;invocation, or to a submethod invocation.
+		    ;;
+		    ((_ :mutator ??expr ??field-name ??new-value)
+		     (if (identifier? #'?field-name)
+			 (%the-mutator stx #'??expr #'??field-name #'??new-value)
+		       (synner "expected identifier as field name for mutator" #'??field-name)))
 
-		  ((_ :append-unique-id (??id (... ...)))
-		   #'(THE-PARENT :append-unique-id (??id (... ...) NONGENERATIVE-UID)))
+		    ((_ :make-from-fields . ??args)
+		     #'(THE-FROM-FIELDS-CONSTRUCTOR . ??args))
 
-		  ((_ :list-of-unique-ids)
-		   #'THE-LIST-OF-UIDS)
+		    ((_ :append-unique-id (??id (... ...)))
+		     #'(THE-PARENT :append-unique-id (??id (... ...) NONGENERATIVE-UID)))
 
-		  ((_ :predicate-function)
-		   #'THE-PREDICATE)
+		    ((_ :accessor-function ??field-name)
+		     (if (identifier? #'??field-name)
+			 (case (syntax->datum #'??field-name)
+			   ((IMMUTABLE-FIELD)	#'(lambda (obj) (IMMUTABLE-ACCESSOR obj)))
+			   ...
+			   ((MUTABLE-FIELD)	#'(lambda (obj) (MUTABLE-ACCESSOR   obj)))
+			   ...
+			   (else
+			    #'(THE-PARENT :accessor-function ??field-name)))
+		       (synner "expected identifier as field name for accessor function" #'??field-name)))
 
-		  ((_ :accessor-function ??field-name)
-		   (identifier? #'??field-name)
-		   (case-symbol (syntax->datum #'??field-name)
-		     ((IMMUTABLE-FIELD)	#'(lambda (obj) (IMMUTABLE-ACCESSOR obj))) ...
-		     ((MUTABLE-FIELD)	#'(lambda (obj) (MUTABLE-ACCESSOR   obj))) ...
-		     (else
-		      #'(THE-PARENT :accessor-function ??field-name))))
+		    ((_ :mutator-function ??field-name)
+		     (if (identifier? #'??field-name)
+			 (case (syntax->datum #'??field-name)
+			   ((MUTABLE-FIELD)
+			    #'(lambda (obj val) (MUTABLE-MUTATOR obj val)))
+			   ...
+			   ((IMMUTABLE-FIELD)
+			    (synner "request of mutator function for immutable field" #'IMMUTABLE-FIELD))
+			   ...
+			   (else
+			    #'(THE-PARENT :mutator-function ??field-name)))
+		       (synner "expected identifier as field name for mutator function" #'??field-name)))
 
-		  ((_ :mutator-function ??field-name)
-		   (identifier? #'??field-name)
-		   (case-symbol (syntax->datum #'??field-name)
-		     ((MUTABLE-FIELD)
-		      #'(lambda (obj val) (MUTABLE-MUTATOR obj val)))
-		     ...
-		     ((IMMUTABLE-FIELD)
-		      (synner "request of mutator function for immutable field" #'IMMUTABLE-FIELD))
-		     ...
-		     (else
-		      #'(THE-PARENT :mutator-function ??field-name))))
+		    (_
+		     (syntax-help.tag-private-common-syntax-transformer
+		      stx ABSTRACT? #'THE-PUBLIC-CONSTRUCTOR #'THE-PREDICATE #'THE-LIST-OF-UIDS
+		      %the-getter %the-setter
+		      (lambda ()
+			(syntax-help.tag-public-syntax-transformer stx %the-maker #'set!/tags synner))))))
+		))
 
-		  ;; public API: binding definition
+	    DEFINITION ...
 
-		  ;;Define  an  internal  variable  with  initialisation
-		  ;;expression using the tag constructor.
-		  ((??tag ??var (aux.<> (??arg (... ...))))
-		   (identifier? #'??var)
-		   #'(??tag ??var (??tag (??arg (... ...)))))
+	    (module () (SATISFACTION . SATISFACTION-CLAUSES) ...)
+	    ;;NOTE  Just  in  case  putting  the  satisfactions  into  a
+	    ;;module's body  turns out not to  be right, we can  use the
+	    ;;following  definition instead.   What's important  is that
+	    ;;the  whole  sequence  of  forms  resulting  from  a  class
+	    ;;definition expansion is a sequence of definitions.  (Marco
+	    ;;Maggi; Tue Jul 16, 2013)
+	    ;;
+	    ;; (define dummy-for-satisfactions
+	    ;;   (let ()
+	    ;;     (SATISFACTION . SATISFACTION-CLAUSES) ...
+	    ;;     #f))
 
-		  ;;Internal definition with initialisation expression.
-		  ((_ ??var ??expr)
-		   (identifier? #'??var)
-		   #'(THE-TAG :define ??var ??expr))
-
-		  ;;Internal definition without initialisation expression.
-		  ((_ ??var)
-		   (identifier? #'??var)
-		   #'(THE-TAG :define ??var))
-
-		  ;;Constructor call.
-		  ((_ (??arg (... ...)))
-		   (if %the-maker
-		       (%the-maker stx)
-		     #'(THE-PUBLIC-CONSTRUCTOR ??arg (... ...))))
-
-		  ;;Predicate reference.  It is meant to be used as:
-		  ;;
-		  ;;  ((<vector>) '#()) => #t
-		  ;;  ((<vector>) 1234) => #f
-		  ;;
-		  ((_)
-		   #'THE-PREDICATE)
-
-		  (_
-		   (synner "invalid tag syntax" #f))))))
-
-	  DEFINITION ...
-
-	  (module () (SATISFACTION . SATISFACTION-CLAUSES) ...)
-	  ;;NOTE Just in case putting  the satisfactions into a module's
-	  ;;body turns  out not to  be right,  we can use  the following
-	  ;;definition  instead.  What's  important  is  that the  whole
-	  ;;sequence  of   forms  resulting  from  a   class  definition
-	  ;;expansion is  a sequence of definitions.   (Marco Maggi; Tue
-	  ;;Jul 16, 2013)
-	  ;;
-	  ;; (define dummy-for-satisfactions
-	  ;;   (let ()
-	  ;;     (SATISFACTION . SATISFACTION-CLAUSES) ...
-	  ;;     #f))
-
-	  ))))
+	    )))))
 
 
 ;;;; mixins
@@ -1276,93 +1016,17 @@
 ;;
 ;;mixin clauses are added to the end of the enclosing entity definition.
 ;;
-;;Continuing  with  the  example  above  (and  simplifying  by  removing
-;;processing of the substitution maps) we can imagine that the mixin and
-;;class definitions are first expanded to:
-;;
-;;   (define-syntax <alpha>
-;;     (syntax-rules (:insert-mixin-clauses)
-;;       ((_ :insert-mixin-clauses
-;;           (?definer ?name ?clause ...)
-;;           ())
-;;        (?definer ?name ?clause ... (fields d e f)))
-;;       ((_ :insert-mixin-clauses
-;;           (?definer ?name ?clause ...)
-;;           (?mixin0 ?mixin ...))
-;;        (?mixin0 :insert-mixin-clauses
-;;           (?definer ?name ?clause ... (fields d e f))
-;;           (?mixin ...)))
-;;       ))
-;;
-;;  (<alpha> :insert-mixin-clauses
-;;    (define-class <beta> (fields a b c))
-;;    ())
-;;
-;;from this we can understand how multiple mixin insertion is performed.
-;;
-
-(define-syntax (define-mixin stx)
-  (syntax-case stx ()
-    ((_ ?name ?clause ...)
-     (receive (mixins-clauses other-clauses)
-	 (help.filter-and-validate-mixins-clauses #'(?clause ...) synner)
-       (if (null? mixins-clauses)
-	   #`(define-mixin/after-mixins-processing ?name . #,other-clauses)
-	 (with-syntax ((((MIXIN (FROM TO) ...) MIXIN-SPEC ...) mixins-clauses))
-	   #`(MIXIN :insert-mixin-clauses
-		    (define-mixin/after-mixins-processing ?name . #,other-clauses)
-		    ((FROM TO) ...)
-		    (MIXIN-SPEC ...))))))
-    (_
-     (synner "invalid syntax in mixin definition"))))
-
-(define-syntax (define-mixin/after-mixins-processing stx)
-  (define spec (help.parse-mixin-definition stx #'<top> #'lambda/tags synner))
-  (with-syntax
-      ((MIXIN-ID	(help.<parsed-spec>-name-id spec))
-       (CLAUSES		(help.<mixin-spec>-clauses spec)))
-    #'(define-syntax (MIXIN-ID stx)
-	(define (synner message subform)
-	  (syntax-violation 'MIXIN-ID message stx subform))
-	(syntax-case stx (:insert-mixin-clauses)
-	  ((_ :insert-mixin-clauses
-	      (??definer ??name ??clause (... ...))
-	      ((??from ??to) (... ...))
-	      ())
-	   (receive (entity-id unused-constructor unused-predicate)
-	       (help.parse-tag-name-spec #'??name synner)
-	     (with-syntax
-		 ((SPECIALISED-CLAUSES (help.multi-identifier-subst #`((MIXIN-ID #,entity-id)
-								       (??from ??to)
-								       (... ...))
-								    #'CLAUSES)))
-	       #'(??definer ??name ??clause (... ...) . SPECIALISED-CLAUSES))))
-	  ((_ :insert-mixin-clauses
-	      (??definer ??name ??clause (... ...))
-	      ((??from ??to) (... ...))
-	      ((??next-mixin (??next-from ??next-to) (... ...))
-	       ??mixin-spec
-	       (... ...)))
-	   (receive (entity-id unused-constructor unused-predicate)
-	       (help.parse-tag-name-spec #'??name synner)
-	     (with-syntax
-		 ((SPECIALISED-CLAUSES (help.multi-identifier-subst #`((MIXIN-ID #,entity-id)
-								       (??from ??to)
-								       (... ...))
-								    #'CLAUSES)))
-	       #'(??next-mixin :insert-mixin-clauses
-			       (??definer ??name ??clause (... ...) . SPECIALISED-CLAUSES)
-			       ((??next-from ??next-to) (... ...))
-			       (??mixin-spec (... ...))))))
-	  (_
-	   (synner "invalid syntax in mixin use" #f))
-	  ))
-    ))
+(define-syntax* (define-mixin stx)
+  (lambda (ctv-retriever)
+    (receive (mixin-name-id mixin-ctv)
+	(parser-help.parse-mixin-definition stx #'<top> #'lambda/tags ctv-retriever synner)
+      #`(define-syntax #,mixin-name-id
+	  (make-compile-time-value (quote #,mixin-ctv))))))
 
 
 ;;;; companion syntaxes
 
-(define-syntax (make-from-fields stx)
+(define-syntax* (make-from-fields stx)
   (syntax-case stx ()
     ((_ ?tag . ?args)
      (identifier? #'?tag)
@@ -1370,74 +1034,7 @@
     (_
      (synner "invalid syntax in use of from-fields maker call"))))
 
-;; (define-syntax (make stx)
-;;   (syntax-case stx ()
-;;     ((_ ?tag . ?args)
-;;      (identifier? #'?tag)
-;;      #'(?tag :make . ?args))
-;;     (_
-;;      (synner "invalid syntax in use of public maker call"))))
-
-(define-syntax (is-a? stx)
-  ;;Test if  a given object  matches a class  type using the  :is-a? tag
-  ;;syntax.
-  ;;
-  (syntax-case stx (<top> aux.<>)
-    ;;All the objects are "<top>" instances by definition.
-    ((_ ?obj <top>)
-     (syntax #t))
-
-    ;;Expand to the predicate to be used as standalone function.
-    ((_ aux.<> ?class-name)
-     #'(?class-name :predicate-function))
-
-    ;;Apply the predicate function to the object.
-    ((_ ?obj ?tag)
-     (identifier? #'?tag)
-     #'(?tag :is-a? ?obj))
-
-    (_
-     (synner "invalid syntax in use of tag type predicate"))))
-
-(define-syntax (slot-ref stx)
-  (syntax-case stx (aux.<>)
-    ((_ ?object-expr ?slot-name ?class)
-     (not (identifier? #'?slot-name))
-     (synner "expected identifier as slot name" #'?slot-name))
-
-    ((_ ?object-expr ?slot-name ?class)
-     (not (identifier? #'?class))
-     (synner "expected identifier as class name" #'?class))
-
-    ((_ aux.<> ?slot-name ?class)
-     #'(?class :accessor-function ?slot-name))
-
-    ((_ ?object-expr ?slot-name ?class)
-     #'((?class :accessor-function ?slot-name) ?object-expr))
-
-    (_
-     (synner "invalid syntax in slot-ref form"))))
-
-(define-syntax (slot-set! stx)
-  (syntax-case stx (aux.<>)
-    ((_ ?object-expr ?slot-name ?class ?value-expr)
-     (not (identifier? #'?slot-name))
-     (synner "expected identifier as slot name" #'?slot-name))
-
-    ((_ ?object-expr ?slot-name ?class ?value-expr)
-     (not (identifier? #'?class))
-     (synner "expected identifier as class name" #'?class))
-
-    ((_ aux.<> ?slot-name ?class aux.<>)
-     #'(?class :mutator-function ?slot-name))
-
-    ((_ ?object-expr ?slot-name ?class ?value-expr)
-     #'((?class :mutator-function ?slot-name) ?object-expr ?value-expr))
-
-    (_
-     (synner "invalid syntax in slot-set! form"))))
-
-(define-syntax (tag-unique-identifiers stx)
+(define-syntax* (tag-unique-identifiers stx)
   (syntax-case stx ()
     ((_ ?tag)
      (identifier? #'?tag)
@@ -1445,7 +1042,7 @@
     (_
      (synner "invalid syntax in use of tag list of UIDs"))))
 
-(define-syntax (with-label-shadowing stx)
+(define-syntax* (with-label-shadowing stx)
   (syntax-case stx (:process-shadowed-identifier)
     ((_ () ?body0 ?body ...)
      #'(begin ?body0 ?body ...))
@@ -1458,69 +1055,99 @@
      (synner "invalid syntax in request for labels shadowing"))))
 
 
-(define-syntax (set!/tags stx)
+(define-syntax* (set!/tags stx)
   (syntax-case stx ()
 
     ;;Main syntax to invoke the setter  for the tag of ?VAR; it supports
-    ;;multiple sets of keys for nested setter invocations.
-    ((_ (?var (?key0 ...) (?key ...) ...) ?value)
+    ;;multiple sets of keys for nested setter invocations.  For example:
+    ;;
+    ;;   (define {V <vector>} '#(1 2 3))
+    ;;   (set!/tags (V [1]) #\B)
+    ;;   (V [1]) => #\B
+    ;;
+    ((_ (?var (?key0 ...) (?key ...) ...) ?new-value)
      (identifier? #'?var)
-     #'(?var :setter ((?key0 ...) (?key ...) ...) ?value))
+     #'(?var :setter ((?key0 ...) (?key ...) ...) ?new-value))
 
-    ;;Alternative syntax  to invoke the setter  for the tag  of ?VAR; it
-    ;;supports multiple sets of keys for nested setter invocations.
-    ((_ ?var (?key0 ...) (?key ...) ... ?value)
+    ;;Alternative syntax  to invoke the setter  for the tag of  ?VAR; it
+    ;;supports multiple sets of keys for nested setter invocations.  For
+    ;;example:
+    ;;
+    ;;   (define {V <vector>} '#(1 2 3))
+    ;;   (set!/tags V[1] #\B)
+    ;;   (V [1]) => #\B
+    ;;
+    ((_ ?var (?key0 ...) (?key ...) ... ?new-value)
      (identifier? #'?var)
-     #'(?var :setter ((?key0 ...) (?key ...) ...) ?value))
+     #'(?var :setter ((?key0 ...) (?key ...) ...) ?new-value))
 
-    ;;Syntax to  invoke the field mutator  for the tag  of ?VAR.  Notice
-    ;;that this may also be a nested setter invocation, as in:
+    ;;Syntax to invoke  the getter of a value  resulting from evaluating
+    ;;?EXPR.  For example:
     ;;
-    ;;   (set!/tags (O a b c[777]) 999)
+    ;;   (define-class <alpha>
+    ;;     (fields (mutable {vec <vector>})))
+    ;;   (define {A <alpha>} (<alpha> (#(1 2 3))))
+    ;;   (set!/tags ((A V) [1]) #\B)
+    ;;   ((A V) [1]) => #\B
     ;;
-    ;;for this reason we do not validate ?ARG in any way.
+    ((_ (?expr (?key0 ...) (?key ...) ...) ?new-value)
+     (not (identifier? #'?expr))
+     #'(?expr :setter ((?key0 ...) (?key ...) ...) ?new-value))
+    ((_ ?expr (?key0 ...) (?key ...) ... ?new-value)
+     (not (identifier? #'?expr))
+     #'(?expr :setter ((?key0 ...) (?key ...) ...) ?new-value))
+
+    ;;Syntax to invoke a field mutator.
     ;;
-    ((_ (?var ?field-name ?arg ...) ?val)
+    ((_ (?var ?field-name) ?new-value)
      (and (identifier? #'?var)
 	  (identifier? #'?field-name))
-     #'(?var :mutator (?field-name ?arg ...) ?val))
+     #'(?var :mutator ?field-name ?new-value))
+
+    ;;Syntax to invoke the field mutator  for the tagged return value of
+    ;;an expression.
+    ;;
+    ((_ (?expr ?field-name) ?new-value)
+     (and (not (identifier? #'?expr))
+	  (identifier? #'?field-name))
+     #'(?expr :mutator ?field-name ?new-value))
 
     ;;Syntax to mutate a binding with R6RS's SET!.
-    ((_ ?var ?val)
+    ((_ ?var ?new-value)
      (identifier? #'?var)
-     #'(set! ?var ?val))
+     #'(set! ?var ?new-value))
     ))
 
 
-(define-syntax (with-tagged-arguments-validation stx)
+(define-syntax* (with-tagged-arguments-validation stx)
   ;;Transform:
   ;;
   ;;  (with-tagged-arguments-validation (who)
-  ;;       ((<fixnum>  X)
-  ;;        (<integer> Y))
+  ;;      ((<fixnum>  X)
+  ;;       (<integer> Y))
   ;;    (do-this)
   ;;    (do-that))
   ;;
   ;;into:
   ;;
-  ;;  (if ((<fixnum>) X)
-  ;;      (if ((<integer>) Y)
-  ;;          (begin
-  ;;            (do-this)
-  ;;            (do-that))
-  ;;        (procedure-argument-violation who "invalid tagged argument" '<integer> Y))
-  ;;    (procedure-argument-violation who "invalid tagged argument" '<fixnum> X))
+  ;;  (begin
+  ;;    (<fixnum> :assert-procedure-argument X)
+  ;;    (begin
+  ;;      (<integer> :assert-procedure-argument Y)
+  ;;      (let ()
+  ;;        (do-this)
+  ;;        (do-that))))
   ;;
   ;;As a special case:
   ;;
   ;;  (with-tagged-arguments-validation (who)
-  ;;       ((<top>  X))
+  ;;      ((<top>  X))
   ;;    (do-this)
   ;;    (do-that))
   ;;
   ;;expands to:
   ;;
-  ;;  (begin
+  ;;  (let ()
   ;;    (do-this)
   ;;    (do-that))
   ;;
@@ -1528,7 +1155,7 @@
     (syntax-case stx ()
       ((_ (?who) ((?validator ?arg) ...) . ?body)
        (identifier? #'?who)
-       (let* ((body		#'(begin . ?body))
+       (let* ((body		#'(let () . ?body))
 	      (output-form	(%build-output-form #'?who
 						    #'(?validator ...)
 						    (syntax->list #'(?arg ...))
@@ -1542,7 +1169,7 @@
   (define (%build-output-form who validators args body)
     (syntax-case validators (<top>)
       (()
-       #`(let () #,body))
+       body)
 
       ;;Accept "<top>" as special validator meaning "always valid".
       ((<top> . ?other-validators)
@@ -1568,7 +1195,7 @@
 
 ;;;; tagged return value
 
-(define-syntax (begin/tags stx)
+(define-syntax* (begin/tags stx)
   (syntax-case stx (aux.<-)
     ((_ (aux.<- ?tag) ?body0 ?body ...)
      (identifier? #'?tag)
@@ -1597,10 +1224,10 @@
     ))
 
 
-;;;; convenience syntaxes with tags: LAMBDA
+;;;; convenience syntaxes with tags: LAMBDA, CASE-LAMBDA
 
-(define-syntax (lambda/tags stx)
-  (syntax-case stx ()
+(define-syntax* (lambda/tags stx)
+  (syntax-case stx (brace)
 
     ;;Thunk definition.
     ;;
@@ -1608,129 +1235,110 @@
      #'(lambda () ?body0 ?body ...))
 
     ;;Function with tagged return values.
-    ((_ ((?who ?rv-tag0 ?rv-tag ...) . ?formals) ?body0 ?body ...)
+    ((_ ((brace ?who ?rv-tag0 ?rv-tag ...) . ?formals) ?body0 ?body ...)
      (and (all-identifiers? #'(?who ?rv-tag0 ?rv-tag ...))
-	  (identifier=symbol? #'?who '_))
+	  (free-identifier=? #'?who #'_))
      #'(lambda/tags ?formals (begin/tags (aux.<- ?rv-tag0 ?rv-tag ...) ?body0 ?body ...)))
 
     ;;Function with untagged args argument.
     ;;
-    ((_ ?formals ?body0 ?body ...)
-     (identifier? #'?formals)
-     #'(lambda ?formals ?body0 ?body ...))
+    ((_ ?args ?body0 ?body ...)
+     (identifier? #'?args)
+     #'(lambda ?args ?body0 ?body ...))
 
     ;;Function with tagged args argument.
     ;;
-    ((_ #(?args-id ?tag-id) ?body0 ?body ...)
+    ((_ (brace ?args-id ?tag-id) ?body0 ?body ...)
      (and (identifier? #'?args-id)
 	  (identifier? #'?tag-id))
      (with-syntax ((((FORMAL) VALIDATIONS (SYNTAX-BINDING ...))
-		    (help.parse-formals-bindings #'(#(?args-id ?tag-id)) #'<top> synner)))
+		    (syntax-help.parse-formals-bindings #'((brace ?args-id ?tag-id)) #'<top> synner)))
        #`(lambda FORMAL
-	   (define who 'lambda/tags)
-	   (with-tagged-arguments-validation (who)
-	       VALIDATIONS
-	     (let-syntax (SYNTAX-BINDING ...)
-	       ?body0 ?body ...)))))
+	   (fluid-let-syntax ((__who__ (identifier-syntax 'lambda/tags)))
+	     (with-tagged-arguments-validation (__who__)
+		 VALIDATIONS
+	       (let-syntax (SYNTAX-BINDING ...)
+		 ?body0 ?body ...))))))
+
+    ;;Mandatory arguments and tagged rest argument.
+    ;;
+    ((_ (?var0 ?var ... . (brace ?rest-id ?tag-id)) ?body0 ?body ...)
+     (and (identifier? #'?rest-id)
+	  (identifier? #'?tag-id))
+     (with-syntax (((FORMALS VALIDATIONS (SYNTAX-BINDING ...))
+		    (syntax-help.parse-formals-bindings #'(?var0 ?var ... . (brace ?rest-id ?tag-id)) #'<top> synner)))
+       #`(lambda FORMALS
+	   (fluid-let-syntax ((__who__ (identifier-syntax 'lambda/tags)))
+	     (with-tagged-arguments-validation (__who__)
+		 VALIDATIONS
+	       (let-syntax (SYNTAX-BINDING ...)
+		 ?body0 ?body ...))))))
 
     ;;Mandatory arguments and untagged rest argument.
     ;;
     ((_ (?var0 ?var ... . ?args) ?body0 ?body ...)
      (identifier? #'?args)
      (with-syntax (((FORMALS VALIDATIONS (SYNTAX-BINDING ...))
-		    (help.parse-formals-bindings #'(?var0 ?var ... . ?args) #'<top> synner)))
+		    (syntax-help.parse-formals-bindings #'(?var0 ?var ... . ?args) #'<top> synner)))
        #`(lambda FORMALS
-	   (define who 'lambda/tags)
-	   (with-tagged-arguments-validation (who)
-	       VALIDATIONS
-	     (let-syntax (SYNTAX-BINDING ...)
-	       ?body0 ?body ...)))))
-
-    ;;Mandatory arguments and tagged rest argument.
-    ;;
-    ((_ (?var0 ?var ... . #(?args-id ?tag-id)) ?body0 ?body ...)
-     (and (identifier? #'?args)
-	  (identifier? #'?tag))
-     (with-syntax (((FORMALS VALIDATIONS (SYNTAX-BINDING ...))
-		    (help.parse-formals-bindings #'(?var0 ?var ... . #(?args-id ?tag-id)) #'<top> synner)))
-       #`(lambda FORMALS
-	   (define who 'lambda/tags)
-	   (with-tagged-arguments-validation (who)
-	       VALIDATIONS
-	     (let-syntax (SYNTAX-BINDING ...)
-	       ?body0 ?body ...)))))
+	   (fluid-let-syntax ((__who__ (identifier-syntax 'lambda/tags)))
+	     (with-tagged-arguments-validation (__who__)
+		 VALIDATIONS
+	       (let-syntax (SYNTAX-BINDING ...)
+		 ?body0 ?body ...))))))
 
     ;;Mandatory arguments and no rest argument.
     ;;
     ((_ (?var0 ?var ...) ?body0 ?body ...)
      (with-syntax (((FORMALS VALIDATIONS (SYNTAX-BINDING ...))
-		    (help.parse-formals-bindings #'(?var0 ?var ...) #'<top> synner)))
+		    (syntax-help.parse-formals-bindings #'(?var0 ?var ...) #'<top> synner)))
        #`(lambda FORMALS
-	   (define who 'lambda/tags)
-	   (with-tagged-arguments-validation (who)
-	       VALIDATIONS
-	     (let-syntax (SYNTAX-BINDING ...)
-	       ?body0 ?body ...)))))
+	   (fluid-let-syntax ((__who__ (identifier-syntax 'lambda/tags)))
+	     (with-tagged-arguments-validation (__who__)
+		 VALIDATIONS
+	       (let-syntax (SYNTAX-BINDING ...)
+		 ?body0 ?body ...))))))
 
     (_
      (synner "syntax error in LAMBDA/TAGS"))))
 
-(define-syntax (case-lambda/tags stx)
+(define-syntax* (case-lambda/tags stx)
+  (define (%process-clause clause-stx)
+    (syntax-case clause-stx (brace)
+      ;;Clause with tagged return values.
+      ((((brace ?who ?rv-tag0 ?rv-tag ...) . ?formals) ?body0 ?body ...)
+       (and (all-identifiers? #'(?who ?rv-tag0 ?rv-tag ...))
+	    (free-identifier=? #'?who #'_))
+       (%process-clause #'(?formals
+			   (begin/tags (aux.<- ?rv-tag0 ?rv-tag ...) ?body0 ?body ...))))
+      ;;Clause with UNtagged return values.
+      ((?formals ?body0 ?body ...)
+       (with-syntax (((FORMALS VALIDATIONS (SYNTAX-BINDING ...))
+		      (syntax-help.parse-formals-bindings #'?formals #'<top> synner)))
+	 #'(FORMALS
+	    (define who 'case-lambda/tags)
+	    (with-tagged-arguments-validation (who)
+		VALIDATIONS
+	      (let-syntax (SYNTAX-BINDING ...)
+		?body0 ?body ...)))))
+      (_
+       (synner "invalid clause syntax" clause-stx))))
   (syntax-case stx ()
     ((_)
      #'(case-lambda))
 
     ((_ ?clause ...)
-     (let loop ((in-clauses #'(?clause ...))
-		(ou-clauses '()))
-       (syntax-case in-clauses ()
-	 (()
-	  (cons #'case-lambda (reverse ou-clauses)))
-
-	 ;;Function with tagged return values.
-	 (((((?who ?rv-tag0 ?rv-tag ...) . ?formals) ?body0 ?body ...) . ?other-clauses)
-	  (and (all-identifiers? #'(?who ?rv-tag0 ?rv-tag ...))
-	       (identifier=symbol? #'?who '_))
-	  (loop #'((?formals
-		    (begin/tags (aux.<- ?rv-tag0 ?rv-tag ...) ?body0 ?body ...))
-		   . ?other-clauses)
-		ou-clauses))
-
-	 (((?formals ?body0 ?body ...) . ?other-clauses)
-	  (begin
-	    (with-syntax (((FORMALS VALIDATIONS (SYNTAX-BINDING ...))
-			   (help.parse-formals-bindings #'?formals #'<top> synner)))
-	      (loop #'?other-clauses
-		    (cons #'(FORMALS
-			     (define who 'case-lambda/tags)
-			     (with-tagged-arguments-validation (who)
-				 VALIDATIONS
-			       (let-syntax (SYNTAX-BINDING ...)
-				 ?body0 ?body ...)))
-			  ou-clauses)))))
-
-	 ((?clause . ?other-clauses)
-	  (synner "invalid clause syntax" #'?clause)))))
+     (cons #'case-lambda
+	   (map %process-clause (syntax->list #'(?clause ...)))))
 
     (_
      (synner "invalid syntax in case-lambda definition"))))
 
-(define-syntax (case-define/tags stx)
-  (syntax-case stx ()
-    ((_ ?who (?formals ?body0 ?body ...) ...)
-     (identifier? #'?who)
-     (with-syntax
-	 ((WHO (datum->syntax #'?who '__who__)))
-       #'(define ?who
-	   (let-constants ((WHO '?who))
-	     (case-lambda/tags
-	       (?formals ?body0 ?body ...) ...)))))))
-
 
-;;;; convenience syntaxes with tags: DEFINE and LAMBDA
+;;;; convenience syntaxes with tags: DEFINE, DEFINE-VALUES, CASE-DEFINE
 
-(define-syntax (define/tags stx)
-  (syntax-case stx ()
+(define-syntax* (define/tags stx)
+  (syntax-case stx (brace)
 
     ;;Untagged, uninitialised variable.
     ;;
@@ -1740,7 +1348,7 @@
 
     ;;Tagged, uninitialised variable.
     ;;
-    ((_ #(?who ?tag))
+    ((_ (brace ?who ?tag))
      (and (identifier? #'?who)
 	  (identifier? #'?tag))
      #'(?tag ?who))
@@ -1753,37 +1361,59 @@
 
     ;;Tagged, initialised variable.
     ;;
-    ((_ #(?who ?tag) ?expr)
+    ((_ (brace ?who ?tag) ?expr)
      (and (identifier? #'?who)
 	  (identifier? #'?tag))
      #'(?tag ?who ?expr))
 
-    ;;Function definition with tagged return values through tagged who.
+    ;;Function definition with tagged single return value through tagged
+    ;;who.
     ;;
-    ((_ ((?who ?tag0 ?tag ...) . ?formals) ?body0 ?body ...)
-     (all-identifiers? #'(?who ?tag0 ?tag ...))
+    ((_ ((brace ?who ?rv-tag) . ?formals) ?body0 ?body ...)
+     (all-identifiers? #'(?who ?rv-tag))
      (with-syntax
-	 ((WHO (datum->syntax #'?who '__who__)))
-       #'(define ?who
-	   (lambda/tags ((_ ?tag0 ?tag ...) . ?formals)
-	     (let-constants ((WHO '?who))
-	       ?body0 ?body ...)))))
+	 ((FUN (identifier-prefix "the-" #'?who)))
+       #'(module (?who)
+	   (define FUN
+	     (lambda/tags ((brace _ ?rv-tag) . ?formals)
+	       (fluid-let-syntax
+		   ((__who__ (identifier-syntax (quote ?who))))
+		 ?body0 ?body ...)))
+	   (define-syntax* (?who stx)
+	     (syntax-case stx ()
+	       (?id
+		(identifier? #'?id)
+		#'FUN)
+	       ((_ ?arg (... ...))
+		#'(?rv-tag #:nested-oopp-syntax (FUN ?arg (... ...))))
+	       ))
+	   #| end of module |# )))
+
+    ;;Function  definition with  tagged multiple  return values  through
+    ;;tagged who.
+    ;;
+    ((_ ((brace ?who ?rv-tag0 ?rv-tag ...) . ?formals) ?body0 ?body ...)
+     (all-identifiers? #'(?who ?rv-tag0 ?rv-tag ...))
+     #'(define ?who
+	 (lambda/tags ((brace _ ?rv-tag0 ?rv-tag ...) . ?formals)
+	   (fluid-let-syntax
+	       ((__who__ (identifier-syntax (quote ?who))))
+	     ?body0 ?body ...))))
 
     ;;Function definition.
     ;;
     ((_ (?who . ?formals) ?body0 ?body ...)
      (identifier? #'?who)
-     (with-syntax
-	 ((WHO (datum->syntax #'?who '__who__)))
-       #'(define ?who
-	   (lambda/tags ?formals
-	     (let-constants ((WHO '?who))
-	       ?body0 ?body ...)))))
+     #'(define ?who
+	 (lambda/tags ?formals
+	   (fluid-let-syntax
+	       ((__who__ (identifier-syntax (quote ?who))))
+	     ?body0 ?body ...))))
 
     (_
      (synner "syntax error in DEFINE/TAGS"))))
 
-(define-syntax (define-values/tags stx)
+(define-syntax* (define-values/tags stx)
   (define who 'define-values/tags)
 
   (define (%main stx)
@@ -1791,11 +1421,10 @@
       ((_ (?var ... ?var0) ?form ... ?form0)
        (let ((vars-stx #'(?var ... ?var0)))
 	 (with-syntax
-	     (((VAR ... VAR0) (%process-vars vars-stx (lambda (id tag) (vector id tag))))
+	     (((VAR ... VAR0) (%process-vars vars-stx (lambda (id tag) #`(brace #,id #,tag))))
 	      ((ID  ... ID0)  (%process-vars vars-stx (lambda (id tag) id)))
 	      ((TMP ...)      (generate-temporaries #'(?var ...))))
 	   #'(begin
-	       ;;We must make sure that the ?FORMs do not capture the ?VARs.
 	       (define (return-multiple-values)
 		 ?form ... ?form0)
 	       (define/tags VAR)
@@ -1809,12 +1438,12 @@
 		     TMP0)))))))))
 
   (define (%process-vars vars-stx maker)
-    (syntax-case vars-stx ()
+    (syntax-case vars-stx (brace)
       (() '())
       ((?id ?var ...)
        (identifier? #'?id)
        (cons (maker #'?id #'<top>) (%process-vars #'(?var ...) maker)))
-      (((?id ?tag) ?var ...)
+      (((brace ?id ?tag) ?var ...)
        (and (identifier? #'?id)
 	    (identifier? #'?tag))
        (cons (maker #'?id #'?tag) (%process-vars #'(?var ...) maker)))
@@ -1823,20 +1452,31 @@
 
   (%main stx))
 
+(define-syntax* (case-define/tags stx)
+  (syntax-case stx ()
+    ((_ ?who (?formals ?body0 ?body ...) ...)
+     (identifier? #'?who)
+     #'(define ?who
+	 (fluid-let-syntax
+	     ((__who__ (identifier-syntax (quote ?who))))
+	   (case-lambda/tags
+	     (?formals ?body0 ?body ...) ...))))
+    ))
+
 
 ;;;; convenience syntaxes with tags: LET and similar
 
-(define-syntax (with-tags stx)
+(define-syntax* (with-tags stx)
   (syntax-case stx ()
     ((_ (?var ...) ?body0 ?body ...)
      (with-syntax
 	 ((((VAR ...) (TAG ...) (SYNTAX-BINDING ...))
-	   (help.parse-with-tags-bindings #'(?var ...) synner)))
+	   (syntax-help.parse-with-tags-bindings #'(?var ...) synner)))
        #`(let-syntax (SYNTAX-BINDING ...) ?body0 ?body ...)))
     (_
      (synner "syntax error"))))
 
-(define-syntax (let/tags stx)
+(define-syntax* (let/tags stx)
   (syntax-case stx ()
     ;; no bindings
     ((_ () ?body0 ?body ...)
@@ -1846,7 +1486,7 @@
     ((_ ((?var ?init) ...) ?body0 ?body ...)
      (with-syntax
 	 ((((VAR ...) (TAG ...) (SYNTAX-BINDING ...))
-	   (help.parse-let-bindings #'(?var ...) #'<top> synner)))
+	   (syntax-help.parse-let-bindings #'(?var ...) #'<top> synner)))
        #`(let ((VAR (TAG :assert-type-and-return ?init)) ...)
 	   (let-syntax (SYNTAX-BINDING ...) ?body0 ?body ...))))
 
@@ -1860,14 +1500,14 @@
      (identifier? #'?name)
      (with-syntax
 	 ((((VAR ...) (TAG ...) (SYNTAX-BINDING ...))
-	   (help.parse-let-bindings #'(?var ...) #'<top> synner)))
+	   (syntax-help.parse-let-bindings #'(?var ...) #'<top> synner)))
        #`(let ?name ((VAR (TAG :assert-type-and-return ?init)) ...)
 	   (let-syntax (SYNTAX-BINDING ...) ?body0 ?body ...))))
 
     (_
      (synner "syntax error"))))
 
-(define-syntax (let*/tags stx)
+(define-syntax* (let*/tags stx)
   (syntax-case stx ()
     ((_ () ?body0 ?body ...)
      #'(let () ?body0 ?body ...))
@@ -1880,7 +1520,7 @@
     (_
      (syntax-violation 'let*/tags "syntax error in let*/tags input form" stx #f))))
 
-(define-syntax (letrec/tags stx)
+(define-syntax* (letrec/tags stx)
   (syntax-case stx ()
     ((_ () ?body0 ?body ...)
      #'(let () ?body0 ?body ...))
@@ -1890,7 +1530,7 @@
 	 (((TMP ...)
 	   (generate-temporaries #'(?var ...)))
 	  (((VAR ...) (TAG ...) (SYNTAX-BINDING ...))
-	   (help.parse-let-bindings #'(?var ...) #'<top> synner)))
+	   (syntax-help.parse-let-bindings #'(?var ...) #'<top> synner)))
        #`(let ((VAR #f) ...)
 	   (let-syntax (SYNTAX-BINDING ...)
 	     ;;Do not enforce the order of evaluation of ?INIT.
@@ -1901,7 +1541,7 @@
     (_
      (syntax-violation 'letrec/tags "syntax error in letrec/tags input form" stx #f))))
 
-(define-syntax (letrec*/tags stx)
+(define-syntax* (letrec*/tags stx)
   (syntax-case stx ()
     ((_ () ?body0 ?body ...)
      #'(let () ?body0 ?body ...))
@@ -1909,7 +1549,7 @@
     ((_ ((?var ?init) ...) ?body0 ?body ...)
      (with-syntax
 	 ((((VAR ...) (TAG ...) (SYNTAX-BINDING ...))
-	   (help.parse-let-bindings #'(?var ...) #'<top> synner)))
+	   (syntax-help.parse-let-bindings #'(?var ...) #'<top> synner)))
        #`(let ((VAR #f) ...)
 	   (let-syntax (SYNTAX-BINDING ...)
 	     ;;do enforce the order of evaluation of ?INIT
@@ -1923,19 +1563,19 @@
 
 ;;;; convenience syntaxes with tags: LET-VALUES and similar
 
-(define-syntax receive/tags
+(define-syntax* receive/tags
   (syntax-rules ()
     ((_ ?formals ?expression ?body0 ?body ...)
      (call-with-values
 	 (lambda () ?expression)
        (lambda/tags ?formals ?body0 ?body ...)))))
 
-(define-syntax (receive-and-return/tags stx)
+(define-syntax* (receive-and-return/tags stx)
   (syntax-case stx ()
     ((_ ?vars ?inits ?body0 ?body ...)
      (with-syntax
 	 ((((VARS) (BINDING ...))
-	   (help.parse-let-values-bindings #'(?vars) #'<top> synner)))
+	   (syntax-help.parse-let-values-bindings #'(?vars) #'<top> synner)))
        (if (identifier? #'VARS)
 	   #`(let-values ((VARS ?inits))
 	       (let-syntax (BINDING ...) ?body0 ?body ... (apply values VARS)))
@@ -1943,7 +1583,7 @@
 	     (let-syntax (BINDING ...) ?body0 ?body ... (values . VARS))))))
     ))
 
-(define-syntax (let-values/tags stx)
+(define-syntax* (let-values/tags stx)
   (syntax-case stx ()
     ((_ () ?body0 ?body ...)
      #'(let () ?body0 ?body ...))
@@ -1951,7 +1591,7 @@
     ((_ ((?vars ?inits) ...) ?body0 ?body ...)
      (with-syntax
 	 ((((VARS ...) (BINDING ...))
-	   (help.parse-let-values-bindings #'(?vars ...) #'<top> synner)))
+	   (syntax-help.parse-let-values-bindings #'(?vars ...) #'<top> synner)))
        #`(let-values ((VARS ?inits) ...)
 	   (let-syntax (BINDING ...) ?body0 ?body ...))))
 
@@ -1960,7 +1600,7 @@
     (_
      (synner "syntax error"))))
 
-(define-syntax (let*-values/tags stx)
+(define-syntax* (let*-values/tags stx)
   (syntax-case stx ()
     ((_ () ?body0 ?body ...)
      #'(let () ?body0 ?body ...))
@@ -1978,7 +1618,7 @@
 
 ;;;; convenience syntaxes with tags: DO and similar
 
-(define-syntax do/tags
+(define-syntax* do/tags
   (syntax-rules ()
     ((_ ((?var ?init ?step ...) ...)
 	(?test ?expr ...)
@@ -2004,14 +1644,14 @@
 		     ?form ...
 		     (loop (the-step ?var ?step ...) ...))))))))
 
-(define-syntax (do*/tags stx)
+(define-syntax* (do*/tags stx)
   (define (%parse-var stx)
-    (syntax-case stx ()
+    (syntax-case stx (brace)
       (?id
        (identifier? #'?id)
        #'?id)
-      ((?id ?tag ...)
-       (all-identifiers? #'(?id ?tag ...))
+      ((brace ?id ?tag)
+       (all-identifiers? #'(?id ?tag))
        #'?id)
       (_
        (synner "invalid binding declaration"))))
@@ -2044,17 +1684,47 @@
        ))))
 
 
+;;;; other syntaxes
+
+(define-syntax tag-case
+  (syntax-rules (else)
+    ((_ ?expr
+	((?tag0 ?tag ...)
+	 ?tag-body0 ?tag-body ...)
+	...
+	(else
+	 ?else-body0 ?else-body ...))
+     (let ((E ?expr))
+       (cond ((or (?tag0 :is-a? E)
+		  (?tag :is-a? E)
+		  ...)
+	      ?tag-body0 ?tag-body ...)
+	     ...
+	     (else
+	      ?else-body0 ?else-body ...))))
+    ((_ ?expr
+	((?tag0 ?tag ...)
+	 ?tag-body0 ?tag-body ...)
+	...)
+     (let ((tag ?expr))
+       (cond ((or (?tag0 :is-a? E)
+		  (?tag :is-a? E)
+		  ...)
+	      ?tag-body0 ?tag-body ...)
+	     ...)))
+    ))
+
+
 ;;;; done
 
 )
 
 ;;; end of file
 ;; Local Variables:
-;; eval: (put 'rnrs.define-syntax 'scheme-indent-function 1)
+;; eval: (put 'rnrs.define-syntax* 'scheme-indent-function 1)
 ;; eval: (put 'aux.method-syntax 'scheme-indent-function 1)
 ;; eval: (put 'aux.method 'scheme-indent-function 1)
-;; eval: (put 'case-symbol 'scheme-indent-function 1)
-;; eval: (put 'case-identifier 'scheme-indent-function 1)
 ;; eval: (put 'THE-PARENT 'scheme-indent-function 1)
 ;; eval: (put 'receive-and-return/tags 'scheme-indent-function 2)
+;; eval: (put 'typ.set-identifier-object-type-spec! 'scheme-indent-function 1)
 ;; End:

@@ -8,7 +8,7 @@
 ;;;
 ;;;
 ;;;
-;;;Copyright (C) 2012, 2013 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (C) 2012, 2013, 2014 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
 ;;;it under the terms of the  GNU General Public License as published by
@@ -27,7 +27,7 @@
 
 #!r6rs
 (import (vicare)
-  (ikarus system $fx)
+  (vicare system $fx)
   (vicare language-extensions syntaxes)
   (only (vicare platform words)
 	case-word-size)
@@ -63,6 +63,17 @@
     => (case-word-size
 	((32)	30)
 	((64)	61)))
+
+  #t)
+
+
+(parametrise ((check-test-name	'compar))
+
+  (check-for-true	(fx!=? 1 2))
+  (check-for-false	(fx!=? 1 1))
+
+  (check-for-true	(fx!= 1 2))
+  (check-for-false	(fx!= 1 1))
 
   #t)
 
@@ -217,6 +228,20 @@
   (check ($fxmodulo +12 -20)	=> -8)
   (check ($fxmodulo -12 +20)	=> +8)
   (check ($fxmodulo -12 -20)	=> -12)
+
+  #t)
+
+
+(parametrise ((check-test-name	'conversion))
+
+  (check (fixnum->char 65)	=> #\A)
+  (check (fixnum->char 66)	=> #\B)
+
+  (check (char->fixnum #\A)	=> 65)
+  (check (char->fixnum #\B)	=> 66)
+
+  (check (fixnum->string 65)	=> "65")
+  (check (fixnum->string 66)	=> "66")
 
   #t)
 

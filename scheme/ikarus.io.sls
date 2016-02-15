@@ -21,7 +21,7 @@
 ;;;	allocated as a  vector whose first word is  tagged with the port
 ;;;	tag.
 ;;;
-;;;Copyright (c) 2011-2013 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (c) 2011-2015 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;Copyright (c) 2006,2007,2008  Abdulaziz Ghuloum
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
@@ -391,6 +391,9 @@
     ;; predicates
     port? input-port? output-port? input/output-port?
     textual-port? binary-port?
+    binary-input-port?			textual-input-port?
+    binary-output-port?			textual-output-port?
+    binary-input/output-port?		textual-input/output-port?
     port-eof?
 
     ;; generic port functions
@@ -507,7 +510,7 @@
     make-textual-socket-output-port*
     make-textual-socket-input/output-port
     make-textual-socket-input/output-port*)
-  (import (except (ikarus)
+  (import (except (vicare)
 
 		  ;; would block object
 		  would-block-object			would-block-object?
@@ -524,6 +527,9 @@
 		  ;; predicates
 		  port? input-port? output-port? input/output-port?
 		  textual-port? binary-port?
+		  binary-input-port?			textual-input-port?
+		  binary-output-port?			textual-output-port?
+		  binary-input/output-port?		textual-input/output-port?
 		  port-eof?
 
 		  ;; generic port functions
@@ -640,12 +646,12 @@
 		  make-textual-socket-output-port*
 		  make-textual-socket-input/output-port
 		  make-textual-socket-input/output-port*)
-    (only (vicare options)
+    (only (ikarus.options)
 	  strict-r6rs)
     ;;This internal  library is  the one exporting:  $MAKE-PORT, $PORT-*
     ;;and $SET-PORT-* bindings.
-    (ikarus system $io)
-    (prefix (only (ikarus) port?) primop.)
+    (vicare system $io)
+    (prefix (only (vicare) port?) primop.)
     (vicare language-extensions syntaxes)
     (vicare unsafe operations)
     (prefix (vicare unsafe capi)
@@ -1026,7 +1032,7 @@
       (define (%unsupported-by-latin-1)
 	(assertion-violation who
 	  "EOL style conversion unsupported by Latin-1 codec" style))
-      (case-symbols style
+      (case style
 	((none)		0)
 	((lf)		EOL-LINEFEED-TAG)
 	((cr)		EOL-CARRIAGE-RETURN-TAG)
@@ -1521,6 +1527,16 @@
 	     ...
 	     (else
 	      (assertion-violation #f "unknown errno code" errno)))))
+    ))
+
+(define-syntax ($case-fixnums stx)
+  (syntax-case stx (else)
+    ((_ ?id ((?fx) . ?body) ...)
+     (identifier? #'?id)
+     #'(cond (($fx= ?fx ?id) . ?body) ...))
+    ((_ ?id ((?fx) . ?body) ... (else . ?else-body))
+     (identifier? #'?id)
+     #'(cond (($fx= ?fx ?id) . ?body) ...  (else . ?else-body)))
     ))
 
 
@@ -2231,6 +2247,34 @@
        (let ((flags ($port-tag x)))
 	 (or ($fx= ($fxand flags OUTPUT-PORT-TAG) OUTPUT-PORT-TAG)
 	     ($fx= ($fxand flags INPUT/OUTPUT-PORT-TAG) INPUT/OUTPUT-PORT-TAG)))))
+
+;;; --------------------------------------------------------------------
+
+(define (binary-input-port? obj)
+  (and (input-port? obj)
+       ($fx= ($fxand ($port-tag obj) BINARY-PORT-TAG) BINARY-PORT-TAG)))
+
+(define (textual-input-port? obj)
+  (and (input-port?  obj)
+       ($fx= ($fxand ($port-tag obj) TEXTUAL-PORT-TAG) TEXTUAL-PORT-TAG)))
+
+(define (binary-output-port? obj)
+  (and (output-port? obj)
+       ($fx= ($fxand ($port-tag obj) BINARY-PORT-TAG) BINARY-PORT-TAG)))
+
+(define (textual-output-port? obj)
+  (and (output-port?  obj)
+       ($fx= ($fxand ($port-tag obj) TEXTUAL-PORT-TAG) TEXTUAL-PORT-TAG)))
+
+(define (binary-input/output-port? obj)
+  (and (input/output-port? obj)
+       ($fx= ($fxand ($port-tag obj) BINARY-PORT-TAG) BINARY-PORT-TAG)))
+
+(define (textual-input/output-port? obj)
+  (and (input/output-port?  obj)
+       ($fx= ($fxand ($port-tag obj) TEXTUAL-PORT-TAG) TEXTUAL-PORT-TAG)))
+
+;;; --------------------------------------------------------------------
 
 ;;The following predicates have to be used after the argument has
 ;;been validated as  port value.  They are *not*  affected by the
@@ -5892,7 +5936,9 @@
 	   ;;object, else return the number of characters read.
 	   ((would-block-object? ch)
 	    (if (strict-r6rs)
-		(read-next-char)
+		;;In R6RS  mode we ignore the  would-block condition and
+		;;just insist reading with the same destination index.
+		(read-next-char dst.index)
 	      (if ($fx= dst.index dst.start)
 		  ;;Return the would-block object.
 		  ch
@@ -5929,7 +5975,10 @@
 	       ;;another character will be available.
 	       ((would-block-object? ch2)
 		(if (strict-r6rs)
-		    (read-next-char)
+		    ;;In R6RS  mode we ignore the  would-block condition
+		    ;;and just insist reading  with the same destination
+		    ;;index.
+		    (read-next-char dst.index)
 		  (if ($fx= dst.index dst.start)
 		      ;;Return the would-block object.
 		      ch
@@ -6921,7 +6970,7 @@
 		    (case mode
 		      ((ignore)
 		       ;;To ignore means jump to the next.
-		       (recurse))
+		       (recurse port.buffer.index))
 		      ((replace)
 		       #\xFFFD)
 		      ((raise)
@@ -7791,9 +7840,10 @@
   ;;string FILENAME.  If an error occurs: raise an exception.
   ;;
   (let* ((opts (if (enum-set? file-options)
-		   ($fxior (if (enum-set-member? 'no-create   file-options) #b001 0)
-				  (if (enum-set-member? 'no-fail     file-options) #b010 0)
-				  (if (enum-set-member? 'no-truncate file-options) #b100 0))
+		   ($fxior (if (enum-set-member? 'no-create   file-options) #b0001 0)
+			   (if (enum-set-member? 'no-fail     file-options) #b0010 0)
+			   (if (enum-set-member? 'no-truncate file-options) #b0100 0)
+			   (if (enum-set-member? 'executable  file-options) #b1000 0))
 		 (assertion-violation who "file-options is not an enum set" file-options)))
 	 (fd (capi.platform-open-output-fd ((string->filename-func) filename) opts)))
     (if (fx< fd 0)
@@ -8664,10 +8714,9 @@
 ;;;; standard, console and current ports
 
 (define (standard-input-port)
-  ;;Defined by R6RS.  Return a new binary input port connected to
-  ;;standard input.  Whether  the port supports the PORT-POSITION
-  ;;and   SET-PORT-POSITION!     operations   is   implementation
-  ;;dependent.
+  ;;Defined by  R6RS.  Return a  new binary input  port connected to  standard input.
+  ;;Whether the port supports the PORT-POSITION and SET-PORT-POSITION!  operations is
+  ;;implementation dependent.
   ;;
   (let ((who		'standard-input-port)
 	(fd		0)
@@ -8679,31 +8728,29 @@
     (%file-descriptor->input-port fd attributes port-id buffer.size transcoder close who)))
 
 (define (standard-output-port)
-  ;;Defined by  R6RS.  Return a new binary  output port connected
-  ;;to  the  standard  output.   Whether the  port  supports  the
-  ;;PORT-POSITION    and   SET-PORT-POSITION!     operations   is
-  ;;implementation dependent.
+  ;;Defined  by R6RS.   Return a  new binary  output port  connected to  the standard
+  ;;output.   Whether  the port  supports  the  PORT-POSITION and  SET-PORT-POSITION!
+  ;;operations is implementation dependent.
   ;;
   (%file-descriptor->output-port 1 0
 				 "*stdout*" (output-file-buffer-size) #f #f 'standard-output-port))
 
 (define (standard-error-port)
-  ;;Defined by  R6RS.  Return a new binary  output port connected
-  ;;to  the  standard  error.   Whether  the  port  supports  the
-  ;;PORT-POSITION    and   SET-PORT-POSITION!     operations   is
-  ;;implementation dependent.
+  ;;Defined  by R6RS.   Return a  new binary  output port  connected to  the standard
+  ;;error.   Whether  the  port  supports the  PORT-POSITION  and  SET-PORT-POSITION!
+  ;;operations is implementation dependent.
   ;;
   (%file-descriptor->output-port 2 0
 				 "*stderr*" (output-file-buffer-size) #f #f 'standard-error-port))
 
+;;; --------------------------------------------------------------------
+
 (define current-input-port
-  ;;Defined by  R6RS.  Return a  default textual port  for input.
-  ;;Normally,  this  default  port  is associated  with  standard
-  ;;input,   but  can   be  dynamically   reassigned   using  the
-  ;;WITH-INPUT-FROM-FILE procedure from  the (rnrs io simple (6))
-  ;;library.   The  port  may  or  may  not  have  an  associated
-  ;;transcoder;  if  it does,  the  transcoder is  implementation
-  ;;dependent.
+  ;;Defined  by R6RS.   Return  a default  textual port  for  input.  Normally,  this
+  ;;default port is associated with standard input, but can be dynamically reassigned
+  ;;using the WITH-INPUT-FROM-FILE  procedure from the (rnrs io  simple (6)) library.
+  ;;The port may or may not have an associated transcoder; if it does, the transcoder
+  ;;is implementation dependent.
   (make-parameter
       (transcoded-port (standard-input-port) (native-transcoder))
     (lambda (x)
@@ -8714,14 +8761,12 @@
 	x))))
 
 (define current-output-port
-  ;;Defined by  R6RS.  Hold the default textual  port for regular
-  ;;output.   Normally,  this  default  port is  associated  with
-  ;;standard output.
+  ;;Defined by  R6RS.  Hold the default  textual port for regular  output.  Normally,
+  ;;this default port is associated with standard output.
   ;;
-  ;;The  return value of  CURRENT-OUTPUT-PORT can  be dynamically
-  ;;reassigned using  the WITH-OUTPUT-TO-FILE procedure  from the
-  ;;(rnrs  io  simple (6))  library.   A  port  returned by  this
-  ;;procedure may or may not have an associated transcoder; if it
+  ;;The return value  of CURRENT-OUTPUT-PORT can be dynamically  reassigned using the
+  ;;WITH-OUTPUT-TO-FILE  procedure from  the (rnrs  io simple  (6)) library.   A port
+  ;;returned by this  procedure may or may  not have an associated  transcoder; if it
   ;;does, the transcoder is implementation dependent.
   ;;
   (make-parameter
@@ -8734,20 +8779,18 @@
 	x))))
 
 (define current-error-port
-  ;;Defined  by R6RS.  Hold  the default  textual port  for error
-  ;;output.   Normally,  this  default  port is  associated  with
-  ;;standard error.
+  ;;Defined by R6RS.  Hold the default textual port for error output.  Normally, this
+  ;;default port is associated with standard error.
   ;;
-  ;;The  return value  of CURRENT-ERROR-PORT  can  be dynamically
-  ;;reassigned using  the WITH-OUTPUT-TO-FILE procedure  from the
-  ;;(rnrs  io  simple (6))  library.   A  port  returned by  this
-  ;;procedure may or may not have an associated transcoder; if it
+  ;;The return  value of CURRENT-ERROR-PORT  can be dynamically reassigned  using the
+  ;;WITH-OUTPUT-TO-FILE  procedure from  the (rnrs  io simple  (6)) library.   A port
+  ;;returned by this  procedure may or may  not have an associated  transcoder; if it
   ;;does, the transcoder is implementation dependent.
   ;;
   (make-parameter
-      (let ((port (transcoded-port (standard-error-port) (native-transcoder))))
-	(set-port-buffer-mode! port (buffer-mode line))
-	port)
+      (receive-and-return (port)
+	  (transcoded-port (standard-error-port) (native-transcoder))
+	(set-port-buffer-mode! port (buffer-mode line)))
     (lambda (x)
       (define who 'current-error-port)
       (with-arguments-validation (who)
@@ -8755,26 +8798,45 @@
 	   ($textual-port	x))
 	x))))
 
+;;; --------------------------------------------------------------------
+
 (define console-output-port
-  ;;Defined by Ikarus.  Return a default textual port for output;
-  ;;each call returns the same port.
+  ;;Defined by Ikarus.  Return the default  textual output port: the default value of
+  ;;the parameter CURRENT-OUTPUT-PORT; each call returns the same port.  When applied
+  ;;to an argument:  the argument must be  a textual output port and  it replaces the
+  ;;old value; the old port is left untouched (it is not closed).
   ;;
   (let ((port (current-output-port)))
-    (lambda () port)))
+    (case-lambda*
+     (() port)
+     (({P textual-output-port?})
+      (set! port P)))))
 
 (define console-error-port
-  ;;Defined by Ikarus.  Return  a default textual port for error;
-  ;;each call returns the same port.
+  ;;Defined by Ikarus.   Return the default textual error port:  the default value of
+  ;;the parameter CURRENT-ERROR-PORT; each call  returns the same port.  When applied
+  ;;to an argument:  the argument must be  a textual output port and  it replaces the
+  ;;old value; the old port is left untouched (it is not closed).
   ;;
   (let ((port (current-error-port)))
-    (lambda () port)))
+    (case-lambda*
+     (() port)
+     (({P textual-output-port?})
+      (set! port P)))))
 
 (define console-input-port
-  ;;Defined by Ikarus.  Return  a default textual port for input;
-  ;;each call returns the same port.
+  ;;Defined by Ikarus.   Return the default textual error port:  the default value of
+  ;;the parameter CURRENT-INPUT-PORT; each call  returns the same port.  When applied
+  ;;to an argument:  the argument must be  a textual output port and  it replaces the
+  ;;old value; the old port is left untouched (it is not closed).
   ;;
   (let ((port (current-input-port)))
-    (lambda () port)))
+    (case-lambda*
+     (() port)
+     (({P textual-input-port?})
+      (set! port P)))))
+
+;;; --------------------------------------------------------------------
 
 (define stdin
   (console-input-port))
@@ -8790,12 +8852,11 @@
 
 (post-gc-hooks (cons %close-garbage-collected-ports (post-gc-hooks)))
 
-)
+#| end of library |# )
 
 ;;; end of file
 ;;; Local Variables:
 ;;; coding: utf-8-unix
-;;; fill-column: 72
 ;;; eval: (put 'case-errno				'scheme-indent-function 1)
 ;;; eval: (put 'with-port				'scheme-indent-function 1)
 ;;; eval: (put 'with-port-having-bytevector-buffer	'scheme-indent-function 1)

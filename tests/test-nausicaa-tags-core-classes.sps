@@ -7,7 +7,7 @@
 ;;;
 ;;;
 ;;;
-;;;Copyright (C) 2012, 2013 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (C) 2012, 2013, 2014 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
 ;;;it under the terms of the  GNU General Public License as published by
@@ -24,8 +24,8 @@
 ;;;
 
 
-#!r6rs
-(import (nausicaa)
+#!vicare
+(import (nausicaa (0 4))
   (vicare numerics constants)
   (only (vicare language-extensions)
 	define-inline
@@ -67,20 +67,20 @@
 	  (mutable b)
 	  (immutable c))
 
-  (getter (lambda (stx)
+  (getter (lambda (stx tag)
 	    (syntax-case stx ()
 	      ((?var (()))
 	       #'(?var a)))))
 
-  (setter (lambda (stx)
+  (setter (lambda (stx tag)
 	    (syntax-case stx ()
 	      ((?var (()) ?value)
 	       #'(set! (?var a) ?value)))))
 
-  (method (incr-a (O <alpha>))
+  (method (incr-a {O <alpha>})
     (+ 1 (O a)))
 
-  (method (incr-b (O <alpha>))
+  (method (incr-b {O <alpha>})
     (+ 1 (O b))))
 
 
@@ -89,33 +89,33 @@
   (check	;access to binding
       (let ()
   	(<alpha> O (<alpha> (1 2 3)))
-        ((<alpha>) O))
+        ((<alpha> #:predicate) O))
     => #t)
 
   (check	;access to binding
       (let ()
   	(<alpha> O (<alpha> (1 2 3)))
-        ((<alpha>) O))
+        ((<alpha> #:predicate) O))
     => #t)
 
   (check	;internal definition syntax
       (let ()
   	(<alpha> O (<> (1 2 3)))
-        ((<alpha>) O))
+        ((<alpha> #:predicate) O))
     => #t)
 
   (check	;mutation of binding
       (let ()
   	(<alpha> O (<alpha> (1 2 3)))
   	(set! O (<alpha> (4 5 6)))
-	((<alpha>) O))
+	((<alpha> #:predicate) O))
     => #t)
 
   (check	;mutation of binding
       (let ()
   	(<alpha> O (<alpha> (1 2 3)))
   	(set! O (<alpha> (4 5 6)))
-	((<alpha>) O))
+	((<alpha> #:predicate) O))
     => #t)
 
   (check	;access to fields
@@ -176,51 +176,51 @@
 (parametrise ((check-test-name	'let-style-bindings))
 
   (check	;access to binding
-      (let (((O <alpha>) (<alpha> (1 2 3))))
-	((<alpha>) O))
+      (let (({O <alpha>} (<alpha> (1 2 3))))
+	((<alpha> #:predicate) O))
     => #t)
 
   (check	;mutation of binding
-      (let (((O <alpha>) (<alpha> (1 2 3))))
+      (let (({O <alpha>} (<alpha> (1 2 3))))
 	(set! O (<alpha> (4 5 6)))
-	((<alpha>) O))
+	((<alpha> #:predicate) O))
     => #t)
 
   (check	;access to fields
-      (let (((O <alpha>) (<alpha> (1 2 3))))
+      (let (({O <alpha>} (<alpha> (1 2 3))))
 	(vector (O a) (O b) (O c)))
     => '#(1 2 3))
 
   (check	;field mutation
-      (let (((O <alpha>) (<alpha> (1 2 3))))
+      (let (({O <alpha>} (<alpha> (1 2 3))))
 	(set! (O a) 99)
 	(set! (O b) 88)
 	(list (O a) (O b)))
     => '(99 88))
 
   (check	;method call
-      (let (((O <alpha>) (<alpha> (1 2 3))))
+      (let (({O <alpha>} (<alpha> (1 2 3))))
 	(O incr-b))
     => 3)
 
   (check	;method call
-      (let (((O <alpha>) (<alpha> (1 2 3))))
+      (let (({O <alpha>} (<alpha> (1 2 3))))
 	(O incr-a))
     => 2)
 
   (check	;getter
-      (let (((O <alpha>) (<alpha> (1 2 3))))
+      (let (({O <alpha>} (<alpha> (1 2 3))))
 	(O[]))
     => 1)
 
   (check	;setter, syntax 1
-      (let (((O <alpha>) (<alpha> (1 2 3))))
+      (let (({O <alpha>} (<alpha> (1 2 3))))
 	(set! (O[]) 99)
 	(O[]))
     => 99)
 
   (check	;setter, syntax 2
-      (let (((O <alpha>) (<alpha> (1 2 3))))
+      (let (({O <alpha>} (<alpha> (1 2 3))))
 	(set! O[] 99)
 	(O[]))
     => 99)
@@ -236,8 +236,8 @@
       (fields a b))
 
     (check
-	(let (((o <alpha>) (<alpha> (1 2))))
-	  ((<alpha>) o))
+	(let (({o <alpha>} (<alpha> (1 2))))
+	  ((<alpha> #:predicate) o))
       => #t)
 
     #f)
@@ -251,8 +251,8 @@
       (fields a b))
 
     (check
-	(let (((o <alpha>) (<alpha> (1 2))))
-	  ((<alpha>) o))
+	(let (({o <alpha>} (<alpha> (1 2))))
+	  ((<alpha> #:predicate) o))
       => #t)
 
     #f)
@@ -267,8 +267,8 @@
       (fields c d))
 
     (check
-	(let (((o <beta>) (<beta> (1 2 3 4))))
-	  ((<beta>) o))
+	(let (({o <beta>} (<beta> (1 2 3 4))))
+	  (<beta> #:is-a? o))
       => #t)
 
     #f)
@@ -289,8 +289,8 @@
       (fields c d))
 
     (check
-	(let (((o <beta>) (<beta> (1 2 3 4))))
-	  ((<beta>) o))
+	(let (({o <beta>} (<beta> (1 2 3 4))))
+	  (<beta> #:is-a? o))
       => #t)
 
     #f)
@@ -452,7 +452,7 @@
       (mixins <ab-stuff>))
 
     (check
-	(let (((o <abc>) (<abc> (1 #;c 2 #;a 3 #;b))))
+	(let (({o <abc>} (<abc> (1 #;c 2 #;a 3 #;b))))
 	  (vector (o a) (o b) (o c)))
       => '#(2 3 1))
 
@@ -471,7 +471,7 @@
       (mixins <a-stuff> <b-stuff>))
 
     (check
-	(let (((o <abc>) (<abc> (1 #;c 2 #;a 3 #;b))))
+	(let (({o <abc>} (<abc> (1 #;c 2 #;a 3 #;b))))
 	  (vector (o a) (o b) (o c)))
       => '#(2 3 1))
 
@@ -491,7 +491,7 @@
       (mixins <ab-stuff>))
 
     (check
-	(let (((o <abc>) (<abc> (1 #;c 2 #;b 3 #;a))))
+	(let (({o <abc>} (<abc> (1 #;c 2 #;b 3 #;a))))
 	  (vector (o a) (o b) (o c)))
       => '#(3 2 1))
 
@@ -514,7 +514,7 @@
       (mixins <ab-stuff>))
 
     (check
-	(let (((o <abc>) (<abc> (1 #;c 2 #;a 3 #;b))))
+	(let (({o <abc>} (<abc> (1 #;c 2 #;a 3 #;b))))
 	  (vector (o a) (o b) (o c)))
       => '#(2 3 1))
 
@@ -529,7 +529,7 @@
 
     (define-class <alpha>
       (virtual-fields a)
-      (getter (lambda (stx)
+      (getter (lambda (stx tag)
 		(syntax-case stx ()
 		  ((?var ((?key)))
 		   #'123))))
@@ -537,28 +537,28 @@
 	(cons 456 n)))
 
     (define-class <beta>
-      (virtual-fields (b <alpha>)))
+      (virtual-fields {b <alpha>}))
 
     (define-class <gamma>
-      (virtual-fields (c <beta>)))
+      (virtual-fields {c <beta>}))
 
     (define (<alpha>-a o) 'a)
     (define (<beta>-b  o) 'b)
     (define (<gamma>-c o) 'c)
 
     (check
-	(let (((O <gamma>) (<gamma> ())))
-	  (list (O c b a) (O c b) (O c)))
+	(let (({O <gamma>} (<gamma> ())))
+	  (list (((O c) b) a) ((O c) b) (O c)))
       => '(a b c))
 
     (check
-	(let (((O <gamma>) (<gamma> ())))
-	  (O c b[99]))
+	(let (({O <gamma>} (<gamma> ())))
+	  (((O c) b)[99]))
       => 123)
 
     (check
-	(let (((O <gamma>) (<gamma> ())))
-	  (O c b doit 99))
+	(let (({O <gamma>} (<gamma> ())))
+	  (((O c) b) doit 99))
       => '(456 . 99))
 
     #f)
@@ -567,7 +567,7 @@
 
     (define-class <base>
       (virtual-fields a)
-      (getter (lambda (stx)
+      (getter (lambda (stx tag)
 		(syntax-case stx ()
 		  ((?var ((?key)))
 		   #'123))))
@@ -578,28 +578,28 @@
       (parent <base>))
 
     (define-class <beta>
-      (virtual-fields (b <alpha>)))
+      (virtual-fields {b <alpha>}))
 
     (define-class <gamma>
-      (virtual-fields (c <beta>)))
+      (virtual-fields {c <beta>}))
 
     (define (<base>-a  o) 'a)
     (define (<beta>-b  o) 'b)
     (define (<gamma>-c o) 'c)
 
     (check
-	(let (((O <gamma>) (<gamma> ())))
-	  (list (O c b a) (O c b) (O c)))
+	(let (({O <gamma>} (<gamma> ())))
+	  (list (((O c) b) a) ((O c) b) (O c)))
       => '(a b c))
 
     (check
-	(let (((O <gamma>) (<gamma> ())))
-	  (O c b[99]))
+	(let (({O <gamma>} (<gamma> ())))
+	  (((O c) b)[99]))
       => 123)
 
     (check
-	(let (((O <gamma>) (<gamma> ())))
-	  (O c b doit 99))
+	(let (({O <gamma>} (<gamma> ())))
+	  (((O c) b) doit 99))
       => '(456 . 99))
 
     #f)
@@ -613,16 +613,16 @@
 
     (define-class <alpha>
       (virtual-fields (mutable a))
-      (setter (lambda (stx)
+      (setter (lambda (stx tag)
 		(syntax-case stx ()
 		  ((?var ((?key)) ?val)
 		   #'(list 123 ?key ?val))))))
 
     (define-class <beta>
-      (virtual-fields (mutable (b <alpha>))))
+      (virtual-fields (mutable {b <alpha>})))
 
     (define-class <gamma>
-      (virtual-fields (mutable (c <beta>))))
+      (virtual-fields (mutable {c <beta>})))
 
     (define (<alpha>-a o) 'a)
     (define (<beta>-b  o) 'b)
@@ -632,15 +632,15 @@
     (define (<gamma>-c-set! o v) 'C)
 
     (check
-	(let (((O <gamma>) (<gamma> ())))
-	  (list (set! (O c b a) 1)
-		(set! (O c b)   (<alpha> ()))
-		(set! (O c)     (<beta>  ()))))
+	(let (({O <gamma>} (<gamma> ())))
+	  (list (set! (((O c) b) a) 1)
+		(set! ((O c) b)     (<alpha> ()))
+		(set! (O c)         (<beta>  ()))))
       => '(A B C))
 
     (check
-	(let (((O <gamma>) (<gamma> ())))
-	  (set! (O c b[777]) 999))
+	(let (({O <gamma>} (<gamma> ())))
+	  (set! (((O c) b)[777]) 999))
       => '(123 777 999))
 
     #f)
@@ -649,7 +649,7 @@
 
     (define-class <base>
       (virtual-fields (mutable a))
-      (setter (lambda (stx)
+      (setter (lambda (stx tag)
 		(syntax-case stx ()
 		  ((?var ((?key)) ?val)
 		   #'(list 123 ?key ?val))))))
@@ -658,10 +658,10 @@
       (parent <base>))
 
     (define-class <beta>
-      (virtual-fields (mutable (b <alpha>))))
+      (virtual-fields (mutable {b <alpha>})))
 
     (define-class <gamma>
-      (virtual-fields (mutable (c <beta>))))
+      (virtual-fields (mutable {c <beta>})))
 
     (define (<base>-a o) 'a)
     (define (<beta>-b  o) 'b)
@@ -671,15 +671,20 @@
     (define (<gamma>-c-set! o v) 'C)
 
     (check
-	(let (((O <gamma>) (<gamma> ())))
-	  (list (set! (O c b a) 1)
-		(set! (O c b)   (<alpha> ()))
-		(set! (O c)     (<beta>  ()))))
+	(let (({O <gamma>} (<gamma> ())))
+	  (list (set! (((O c) b) a) 1)
+		(set! ((O c) b  )   (<alpha> ()))
+		(set! (O c)         (<beta>  ()))))
       => '(A B C))
 
     (check
-	(let (((O <gamma>) (<gamma> ())))
-	  (set! (O c b[777]) 999))
+	(let (({O <gamma>} (<gamma> ())))
+	  (set! (((O c) b)[777]) 999))
+      => '(123 777 999))
+
+    (check
+	(let (({O <gamma>} (<gamma> ())))
+	  (set! ((O c) b) [777] 999))
       => '(123 777 999))
 
     #f)
@@ -699,13 +704,17 @@
       (fields a b))
 
     (check
-	(let (((o <alpha>) (<alpha> (1 2))))
+	(let (({o <alpha>} (<alpha> (1 2))))
 	  (o a))
       => 1)
 
     (check
-	(let (((o <alpha>) (<alpha> (1 2))))
+	(let (({o <alpha>} (<alpha> (1 2))))
 	  (o b))
+      => 2)
+
+    (check	;nested
+	((<alpha> (1 2)) b)
       => 2)
 
     #f)
@@ -753,11 +762,11 @@
   (let ()	;with inline accessor and mutator expressions
 
     (define-class <angle>
-      (fields (mutable (radians <real>)))
-      (virtual-fields (mutable (degrees <real>)
-			       (lambda ((A <angle>))
+      (fields (mutable {radians <real>}))
+      (virtual-fields (mutable {degrees <real>}
+			       (lambda ({A <angle>})
 				 (* (/ 180.0 greek-pi) (A radians)))
-			       (lambda ((A <angle>) (deg <real>))
+			       (lambda ({A <angle>} {deg <real>})
 				 (set! (A radians) (* (/ greek-pi 180.0) deg))))))
 
     (check
@@ -784,13 +793,13 @@
   (let ()	;with accessor and mutator functions
 
     (define-class <angle>
-      (fields (mutable (radians <real>)))
-      (virtual-fields (mutable (degrees <real>))))
+      (fields (mutable {radians <real>}))
+      (virtual-fields (mutable {degrees <real>})))
 
-    (define (<angle>-degrees (A <angle>))
+    (define (<angle>-degrees {A <angle>})
       (* (/ 180.0 greek-pi) (A radians)))
 
-    (define (<angle>-degrees-set! (A <angle>) (deg <real>))
+    (define (<angle>-degrees-set! {A <angle>} {deg <real>})
       (set! (A radians) (* (/ greek-pi 180.0) deg)))
 
     (check
@@ -817,16 +826,16 @@
   (let ()	;with accessor and mutator syntaxes
 
     (define-class <angle>
-      (fields (mutable (radians <real>)))
-      (virtual-fields (mutable (degrees <real>))))
+      (fields (mutable {radians <real>}))
+      (virtual-fields (mutable {degrees <real>})))
 
     (define-inline (<angle>-degrees A)
-      (let (((A <angle>) A))
+      (let (({A <angle>} A))
 	(* (/ 180.0 greek-pi) (A radians))))
 
     (define-inline (<angle>-degrees-set! A deg)
-      (let (((A <angle>)  A)
-	    ((deg <real>) deg))
+      (let (({A <angle>}  A)
+	    ({deg <real>} deg))
 	(set! (A radians) (* (/ greek-pi 180.0) deg))))
 
     (check
@@ -859,7 +868,7 @@
 
     (define-class <stuff>
       (fields a b)
-      (method (sum (S <stuff>))
+      (method (sum {S <stuff>})
 	(+ (S a) (S b))))
 
     (check
@@ -875,7 +884,7 @@
     (define-class <stuff>
       (fields a b)
       (method sum
-	(lambda ((S <stuff>))
+	(lambda ({S <stuff>})
 	  (+ (S a) (S b)))))
 
     (check
@@ -894,7 +903,7 @@
 	(lambda (stx)
 	  (syntax-case stx ()
 	    ((_ ?instance)
-	     #'(let (((S <stuff>) ?instance))
+	     #'(let (({S <stuff>} ?instance))
 		 (+ (S a) (S b))))))))
 
     (check
@@ -911,7 +920,7 @@
       (fields a b)
       (methods (sum <stuff>-sum)))
 
-    (define (<stuff>-sum (S <stuff>))
+    (define (<stuff>-sum {S <stuff>})
       (+ (S a) (S b)))
 
     (check
@@ -930,7 +939,7 @@
       (fields a b)
       (methods sum))
 
-    (define/tags (<stuff>-sum (S <stuff>))
+    (define/tags (<stuff>-sum {S <stuff>})
       (+ (S a) (S b)))
 
     (check
@@ -947,7 +956,7 @@
       (fields a b)
       (methods (sum <stuff>-sum)))
 
-    (define/tags (<stuff>-sum (S <stuff>))
+    (define/tags (<stuff>-sum {S <stuff>})
       (+ (S a) (S b)))
 
     (check
@@ -968,7 +977,7 @@
       (lambda (stx)
 	(syntax-case stx ()
 	  ((_ ?instance)
-	   #'(let (((S <stuff>) ?instance))
+	   #'(let (({S <stuff>} ?instance))
 	       (+ (S a) (S b)))))))
 
     (check
@@ -1046,10 +1055,10 @@
     (opaque #t)
     (sealed #t)
     (nongenerative the-uid-of-<class-with-everything>)
-    (fields (mutable (a <a-tag>) a-accessor a-mutator)
-	    (immutable (b <b-tag>) b-accessor))
-    (virtual-fields (mutable (c <a-tag>) c-accessor c-mutator)
-		    (immutable (d <d-tag>) d-accessor))
+    (fields (mutable {a <a-tag>} a-accessor a-mutator)
+	    (immutable {b <b-tag>} b-accessor))
+    (virtual-fields (mutable {c <a-tag>} c-accessor c-mutator)
+		    (immutable {d <d-tag>} d-accessor))
     (setter (lambda args #f))
     (getter (lambda args #f))
     (method (doit obj)

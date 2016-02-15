@@ -8,7 +8,7 @@
 ;;;
 ;;;
 ;;;
-;;;Copyright (c) 2010-2011, 2013 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (c) 2010-2011, 2013, 2014 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
 ;;;it under the terms of the  GNU General Public License as published by
@@ -27,6 +27,7 @@
 
 #!vicare
 (library (nausicaa parser-tools uri)
+  (options visit-upon-loading)
   (export
 
     ;; condition objects and error raisers
@@ -203,13 +204,12 @@
   ;;the RFC.  OBJ can be either a character or an integer representing a
   ;;character according to CHAR->INTEGER.
   ;;
-  (define who 'unreserved-char?)
   (cond ((char? obj)
 	 ($ascii-uri-unreserved? ($char->fixnum obj)))
 	((fixnum? obj)
 	 ($ascii-uri-unreserved? obj))
 	(else
-	 (assertion-violation who "expected char or fixnum as argument" obj))))
+	 (assertion-violation __who__ "expected char or fixnum as argument" obj))))
 
 (define (not-unreserved-char? obj)
   (not (unreserved-char? obj)))
@@ -310,8 +310,7 @@
   ;;We assume that  IN-STR is composed by characters  in the valid range
   ;;for URIs.
   ;;
-  (define who 'normalise-percent-encoded-string)
-  (with-arguments-validation (who)
+  (with-arguments-validation (__who__)
       ((string	in-str))
     (receive (port getter)
 	(open-string-output-port)
@@ -327,7 +326,7 @@
 		;;Beware of  out of  bounds string  indexes: do  not use
 		;;unsafe bindings to increment "i" by 2.
 		(unless (< (+ 2 i) ($string-length in-str))
-		  (assertion-violation who
+		  (assertion-violation __who__
 		    "invalid percent-encoded string, not enough bytes after percent char"
 		    in-str))
 		(let* ((pc ($substring in-str ($fxadd1 i) ($fx+ 3 i)))
@@ -349,8 +348,7 @@
   ;;We  assume  that  IN-BV  is  composed by  integer  corresponding  to
   ;;characters in the valid range for URIs.
   ;;
-  (define who 'normalise-percent-encoded-bytevector)
-  (with-arguments-validation (who)
+  (with-arguments-validation (__who__)
       ((bytevector	in-bv))
     (receive (port getter)
 	(open-bytevector-output-port)
@@ -365,7 +363,7 @@
 		;;Beware of out of bounds bytevector indexes: do not use
 		;;unsafe bindings to increment "i" by 2.
 		(unless (< (+ 2 i) ($bytevector-length in-bv))
-		  (assertion-violation who
+		  (assertion-violation __who__
 		    "invalid percent-encoded bytevector, not enough bytes after percent char"
 		    in-bv))
 		(set! i ($fxadd1 i))
@@ -732,7 +730,7 @@
       (try
 	  (values bv (ip.parse-ipv4-address-only (ascii->string bv)))
 	(catch E
-	  (ip.&ipv4-address-parser-error
+	  ((ip.&ipv4-address-parser-error)
 	   (%error))
 	  (else
 	   (raise E)))))))
@@ -772,7 +770,7 @@
       (try
 	  (values bv (ip.parse-ipv6-address-only (ascii->string bv)))
 	(catch E
-	  (ip.&ipv6-address-parser-error
+	  ((ip.&ipv6-address-parser-error)
 	   (%error))
 	  (else
 	   (raise E)))))))

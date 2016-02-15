@@ -8,7 +8,7 @@
 ;;;
 ;;;
 ;;;
-;;;Copyright (C) 2013 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (C) 2013, 2014 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
 ;;;it under the terms of the  GNU General Public License as published by
@@ -25,8 +25,9 @@
 ;;;
 
 
-#!r6rs
+#!vicare
 (library (nausicaa parser-tools ipv4-addresses)
+  (options visit-upon-loading)
   (export
     ;; conditions
     &ipv4-address-parser-error
@@ -63,13 +64,13 @@
    ((who irritants)
     (make-ipv4-address-parser-error-handler who irritants make-error))
    ((who irritants condition-maker)
-    (lambda ((message <string>) (token lt.<lexical-token>))
+    (lambda ({message <string>} {token lt.<lexical-token>})
       (raise
        (condition (make-ipv4-address-parser-error-condition)
 		  (condition-maker)
 		  (make-who-condition who)
 		  (make-message-condition (string-append "invalid IPv4 address input at column "
-							 (token location column string) ": " message))
+							 (((token location) column) string) ": " message))
 		  (make-irritants-condition (cons (token value) irritants))))))))
 
 
@@ -110,27 +111,24 @@
 	 parse-ipv4-address)
 
   (define (parse-ipv4-address-only the-string)
-    (define who 'parse-ipv4-address-only)
     (let* ((lexer	(make-ipv4-address-lexer (lex.string: the-string)))
-	   (parser	(%make-ipv4-address-parser who lexer the-string))
+	   (parser	(%make-ipv4-address-parser __who__ lexer the-string))
 	   (addr	(list->vector (parser))))
       (if ($fx= 4 ($vector-length addr))
 	  addr
-	(%raise-parser-error who the-string))))
+	(%raise-parser-error __who__ the-string))))
 
   (define (parse-ipv4-address-prefix the-string)
-    (define who 'parse-ipv4-address-prefix)
     (let* ((lexer	(make-ipv4-address-lexer (lex.string: the-string)))
-	   (parser	(%make-ipv4-address-parser who lexer the-string))
+	   (parser	(%make-ipv4-address-parser __who__ lexer the-string))
 	   (addr	(list->vector (parser))))
       (if ($fx= 5 ($vector-length addr))
 	  (values ($subvector addr 0 4) ($car ($vector-ref addr 4)))
-	(%raise-parser-error who the-string))))
+	(%raise-parser-error __who__ the-string))))
 
   (define (parse-ipv4-address the-string)
-    (define who 'parse-ipv4-address)
     (let* ((lexer	(make-ipv4-address-lexer (lex.string: the-string)))
-	   (parser	(%make-ipv4-address-parser who lexer the-string)))
+	   (parser	(%make-ipv4-address-parser __who__ lexer the-string)))
       (list->vector (parser))))
 
 ;;; --------------------------------------------------------------------

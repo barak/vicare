@@ -7,7 +7,7 @@
 ;;;
 ;;;
 ;;;
-;;;Copyright (c) 2009, 2010, 2013 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (c) 2009, 2010, 2013, 2014 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
 ;;;it under the terms of the  GNU General Public License as published by
@@ -24,8 +24,9 @@
 ;;;
 
 
-#!r6rs
+#!vicare
 (library (nausicaa containers queues)
+  (options visit-upon-loading)
   (export
     <queue>
     (rename (queue.vicare-arguments-validation
@@ -38,12 +39,12 @@
     (protocol (lambda () make-queue))
     (predicate queue?)
     (virtual-fields
-     (immutable (empty?		<boolean>)	queue-empty?)
-     (immutable ($empty?	<boolean>)	$queue-empty?)
-     (immutable (not-empty?	<boolean>)	queue-not-empty?)
-     (immutable ($not-empty?	<boolean>)	$queue-not-empty?)
-     (immutable (size		<integer>)	queue-size)
-     (immutable ($size		<integer>)	$queue-size))
+     (immutable {empty?		<boolean>}	queue-empty?)
+     (immutable {$empty?	<boolean>}	$queue-empty?)
+     (immutable {not-empty?	<boolean>}	queue-not-empty?)
+     (immutable {$not-empty?	<boolean>}	$queue-not-empty?)
+     (immutable {size		<integer>}	queue-size)
+     (immutable {$size		<integer>}	$queue-size))
     (methods
      (hash		queue-hash)
      ($hash		$queue-hash)

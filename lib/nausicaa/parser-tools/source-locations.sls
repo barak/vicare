@@ -11,7 +11,7 @@
 ;;;	parser.   It is meant  to be  used by  all the  parser libraries
 ;;;	distributed with Vicare.
 ;;;
-;;;Copyright (c) 2009-2011, 2013 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (c) 2009-2011, 2013, 2014 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;Copyright (c) 2005-2008 Dominique Boucher
 ;;;
 ;;;Original  code  by  Dominique  Boucher.   Port  to  R6RS  and  Vicare
@@ -32,8 +32,9 @@
 ;;;
 
 
-#!r6rs
+#!vicare
 (library (nausicaa parser-tools source-locations)
+  (options visit-upon-loading)
   (export
     <source-location>
 
@@ -64,20 +65,20 @@
 
 (define-class <source-location>
   (nongenerative nausicaa:parser-tools:lexical-tokens:<source-location>)
-  (fields (immutable (specified?	<boolean>))
-	  (immutable (line		<positive-fixnum>))
-	  (immutable (column		<positive-fixnum>))
-	  (immutable (offset		<nonnegative-fixnum>)))
+  (fields (immutable {specified?	<boolean>})
+	  (immutable {line		<positive-fixnum>})
+	  (immutable {column		<positive-fixnum>})
+	  (immutable {offset		<nonnegative-fixnum>}))
 
   (virtual-fields
-   (immutable (unspecified?	<boolean>)
-	      (lambda ((O <source-location>))
+   (immutable {unspecified?	<boolean>}
+	      (lambda ({O <source-location>})
 		(not (O $specified?)))))
 
   (protocol (lambda (make-top)
-	      (lambda ((_ <source-location>) (specified? <boolean>)
-		  (line <positive-fixnum>) (column <positive-fixnum>)
-		  (offset <nonnegative-fixnum>))
+	      (lambda ({_ <source-location>} {specified? <boolean>}
+		  {line <positive-fixnum>} {column <positive-fixnum>}
+		  {offset <nonnegative-fixnum>})
 		((make-top) specified? line column offset))))
 
   (maker (lambda (stx)
@@ -91,12 +92,12 @@
 
 ;;; --------------------------------------------------------------------
 
-  (method (start? (L <source-location>))
+  (method (start? {L <source-location>})
     (and (L $specified?)
 	 ($fx= 1 (L $line))
 	 ($fx= 1 (L $column))))
 
-  (method ((string <string>) (L <source-location>))
+  (method ({string <string>} {L <source-location>})
     ;;If  the line  and  column numbers  are  non-positive: this  object
     ;;represents an unspecified source location.
     ;;
@@ -108,27 +109,27 @@
 
 ;;; --------------------------------------------------------------------
 
-  (method (= (A <source-location>) (B <source-location>))
+  (method (= {A <source-location>} {B <source-location>})
     (and (A $specified?)
 	 (B $specified?)
 	 ($fx= (A $offset) (B $offset))))
 
-  (method (< (A <source-location>) (B <source-location>))
+  (method (< {A <source-location>} {B <source-location>})
     (and (A $specified?)
 	 (B $specified?)
 	 ($fx< (A $offset) (B $offset))))
 
-  (method (> (A <source-location>) (B <source-location>))
+  (method (> {A <source-location>} {B <source-location>})
     (and (A $specified?)
 	 (B $specified?)
 	 ($fx> (A $offset) (B $offset))))
 
-  (method (<= (A <source-location>) (B <source-location>))
+  (method (<= {A <source-location>} {B <source-location>})
     (and (A $specified?)
 	 (B $specified?)
 	 ($fx<= (A $offset) (B $offset))))
 
-  (method (>= (A <source-location>) (B <source-location>))
+  (method (>= {A <source-location>} {B <source-location>})
     (and (A $specified?)
 	 (B $specified?)
 	 ($fx>= (A $offset) (B $offset))))
@@ -155,14 +156,14 @@
 
 (define-generic source-location-update (location delta))
 
-(define-method ((source-location-update <source-location>) (L <source-location>) (offset-delta <nonnegative-fixnum>))
+(define-method ({source-location-update <source-location>} {L <source-location>} {offset-delta <nonnegative-fixnum>})
   (if (L $specified?)
       (<source-location> ((line:   (L $line))
 			  (column: (+ offset-delta (L $column)))
 			  (offset: (+ offset-delta (L $offset)))))
     (unspecified-source-location)))
 
-(define-method ((source-location-update <source-location>) (L <source-location>) (char <char>))
+(define-method ({source-location-update <source-location>} {L <source-location>} {char <char>})
   (if (L $specified?)
       (let ((new-offset (fx+ 1 (L $offset))))
 	(case char

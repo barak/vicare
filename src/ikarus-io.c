@@ -75,13 +75,14 @@ ikrt_open_output_fd (ikptr pathname_bv, ikptr ikopts /*, ikpcb* pcb */)
    * File options:
    *
    *   (file-options)                                    => 0
-   *   (file-options no-create)                          => #b001 = 1
-   *   (file-options no-fail)                            => #b010 = 2
-   *   (file-options no-create no-fail)                  => #b011 = 3
-   *   (file-options no-truncate)                        => #b100 = 4
-   *   (file-options no-create no-truncate)              => #b101 = 5
-   *   (file-options no-fail no-truncate)                => #b110 = 6
-   *   (file-options no-create no-fail no-truncate)      => #b111 = 7
+   *   (file-options no-create)                          => #b0001 = 1
+   *   (file-options no-fail)                            => #b0010 = 2
+   *   (file-options no-create no-fail)                  => #b0011 = 3
+   *   (file-options no-truncate)                        => #b0100 = 4
+   *   (file-options no-create no-truncate)              => #b0101 = 5
+   *   (file-options no-fail no-truncate)                => #b0110 = 6
+   *   (file-options no-create no-fail no-truncate)      => #b0111 = 7
+   *   (file-options executable)			 => #b1000 = 8
    *
    * According to R6RS:
    *
@@ -102,7 +103,7 @@ ikrt_open_output_fd (ikptr pathname_bv, ikptr ikopts /*, ikpcb* pcb */)
    * O_TRUNC
    *   Truncate the file to zero length.
    */
-  switch (opts){
+  switch (opts & 7){
   case 0: flags = O_WRONLY | O_CREAT | O_EXCL ; /* (file-options) */
     break;
   case 1: flags = O_WRONLY | O_TRUNC          ; /* (file-options no-create) */
@@ -119,6 +120,9 @@ ikrt_open_output_fd (ikptr pathname_bv, ikptr ikopts /*, ikpcb* pcb */)
     break;
   case 7: flags = O_WRONLY                    ; /* (file-options no-create no-fail no-truncate) */
     break;
+  }
+  if (8 == (opts & 8)) {
+    mode |= S_IXUSR | S_IXGRP | S_IXOTH;
   }
   pathname = IK_BYTEVECTOR_DATA_CHARP(pathname_bv);
   errno    = 0;
@@ -169,7 +173,7 @@ ikrt_read_fd (ikptr fd, ikptr buffer_bv, ikptr buffer_offset, ikptr requested_co
 {
   ssize_t       rv;
   uint8_t *     buffer;
-  buffer = IK_BYTEVECTOR_DATA_VOIDP(buffer_bv) + IK_UNFIX(buffer_offset);
+  buffer = ((uint8_t *)IK_BYTEVECTOR_DATA_VOIDP(buffer_bv)) + IK_UNFIX(buffer_offset);
   errno  = 0;
   rv     = read(IK_NUM_TO_FD(fd), buffer, IK_UNFIX(requested_count));
   return (0 <= rv)? IK_FIX(rv) : ik_errno_to_code();
@@ -179,7 +183,7 @@ ikrt_write_fd (ikptr fd, ikptr buffer_bv, ikptr buffer_offset, ikptr requested_c
 {
   ssize_t       rv;
   uint8_t *     buffer;
-  buffer = IK_BYTEVECTOR_DATA_VOIDP(buffer_bv) + IK_UNFIX(buffer_offset);
+  buffer = ((uint8_t*)IK_BYTEVECTOR_DATA_VOIDP(buffer_bv)) + IK_UNFIX(buffer_offset);
   errno  = 0;
   rv     = write(IK_NUM_TO_FD(fd), buffer, IK_UNFIX(requested_count));
   return (0 <= rv)? IK_FIX(rv) : ik_errno_to_code();

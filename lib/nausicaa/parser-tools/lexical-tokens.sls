@@ -9,7 +9,7 @@
 ;;;	lexer and consumed  by a parser.  It is meant to  be used by all
 ;;;	the parser libraries distributed with Vicare.
 ;;;
-;;;Copyright (c) 2009-2011, 2013 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (c) 2009-2011, 2013, 2014 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;Copyright (c) 2005-2008 Dominique Boucher
 ;;;
 ;;;Original  code  by  Dominique  Boucher.   Port  to  R6RS  and  Vicare
@@ -30,8 +30,9 @@
 ;;;
 
 
-#!r6rs
+#!vicare
 (library (nausicaa parser-tools lexical-tokens)
+  (options visit-upon-loading)
   (export
     <lexical-token>
     <end-of-input>
@@ -63,14 +64,14 @@
   (define-class <lexical-token>
     (nongenerative nausicaa:parser-tools:lexical-tokens:<lexical-token>)
 
-    (fields (immutable (category	<symbol>))
-	    (immutable (location	sl.<source-location>))
+    (fields (immutable {category	<symbol>})
+	    (immutable {location	sl.<source-location>})
 	    (immutable value)
-	    (immutable (length		<nonnegative-fixnum>)))
+	    (immutable {length		<nonnegative-fixnum>}))
 
     (protocol
      (lambda (make-top)
-       (lambda ((category <symbol>) (location sl.<source-location>) value (length <nonnegative-fixnum>))
+       (lambda ({category <symbol>} {location sl.<source-location>} value {length <nonnegative-fixnum>})
 	 ((make-top) category location value length))))
 
     (maker
@@ -79,14 +80,14 @@
 	 ((_ (?clause ...))
 	  #'(%make-lexical-token ?clause ...)))))
 
-    (method (special? (O <lexical-token>))
+    (method (special? {O <lexical-token>})
       (or (eq? '*eoi*         (O $category))
 	  (eq? '*lexer-error* (O $category))))
 
-    (method (end-of-input? (O <lexical-token>))
+    (method (end-of-input? {O <lexical-token>})
       (eq? '*eoi* (O $category)))
 
-    (method (lexer-error? (O <lexical-token>))
+    (method (lexer-error? {O <lexical-token>})
       (eq? '*lexer-error* (O $category)))
 
     #| end of class definition |# )
@@ -105,7 +106,7 @@
 
   (define-label <end-of-input>
     (parent <lexical-token>)
-    (predicate (lambda ((O <lexical-token>))
+    (predicate (lambda ({O <lexical-token>})
 		 (eq? '*eoi* (O $category))))
     (protocol (lambda ()
 		(lambda (location)
@@ -133,7 +134,7 @@
   (define-class <lexer-error>
     (parent <lexical-token>)
     (nongenerative nausicaa:parser-tools:lexical-tokens:<lexer-error>)
-    (fields (immutable (message <string>)))
+    (fields (immutable {message <string>}))
 
     (maker
      (lambda (stx)
@@ -143,7 +144,7 @@
 
     (protocol
      (lambda (make-lexical-token)
-       (lambda (location (error-message <string>))
+       (lambda (location {error-message <string>})
 	 ((make-lexical-token '*lexer-error* location #f 0) error-message))))
 
     #| end of class definition |# )

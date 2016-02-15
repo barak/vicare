@@ -37,7 +37,7 @@
 ;;;          nausicaa:builtin:<top>))   ;third argument
 ;;;
 ;;;
-;;;Copyright (c) 2010-2013 Marco Maggi <marco.maggi-ipsu@poste.it>
+;;;Copyright (c) 2010-2014 Marco Maggi <marco.maggi-ipsu@poste.it>
 ;;;Copyright (c) 1996 Dorai Sitaram
 ;;;
 ;;;This program is free software:  you can redistribute it and/or modify
@@ -56,7 +56,7 @@
 
 
 #!r6rs
-(library (nausicaa language multimethods)
+(library (nausicaa language multimethods (0 4))
   (export
     define-generic-definer	define-generic*-definer
     define-method		add-method
@@ -71,14 +71,11 @@
 	       aux.:before
 	       aux.:after)
 	      aux.))
-  (import (for (vicare)
+  (import (for (vicare (0 4))
 	    run expand (meta 2))
     ;;See the source file for the customisable interface to types.
-    (prefix (nausicaa language multimethods types) type.)
-    (prefix (nausicaa language multimethods methods-table) mt.)
-    (for (prefix (nausicaa language multimethods helpers-for-expand)
-		 help.)
-      expand)
+    (prefix (nausicaa language multimethods types (0 4)) type.)
+    (prefix (nausicaa language multimethods methods-table (0 4)) mt.)
     (prefix (only (nausicaa language auxiliary-syntaxes)
 		  argument-type-inspector
 		  reverse-before-methods?
@@ -86,7 +83,7 @@
 		  :primary :before :after :around
 		  <-)
 	    aux.)
-    (nausicaa language multimethods auxiliary-syntaxes))
+    (nausicaa language multimethods auxiliary-syntaxes (0 4)))
 
 
 ;;;; next method implementation
@@ -642,7 +639,7 @@
     (let loop ((formals		formals-stx)
 	       (arg-ids		'())
 	       (type-ids	'()))
-      (syntax-case formals ()
+      (syntax-case formals (brace)
 	(()
 	 (syntax-case generic-function-spec ()
 	   ;;Untagged return values.
@@ -651,29 +648,29 @@
 	    (with-syntax ((TABLE-KEY	table-key)
 			  ((ARG ...)	(reverse arg-ids))
 			  ((TYPE ...)	(reverse type-ids))
-			  (BODY		body-stx)
-			  (WHO		(datum->syntax #'?generic-function-id '__who__)))
+			  (BODY		body-stx))
 	      #'(define dummy ;to make it a definition
 		  (add-method ?generic-function-id TABLE-KEY (TYPE ...)
-			      (type.method-lambda ((ARG TYPE) ...)
-						  (let-constants ((WHO '?generic-function-id))
+			      (type.method-lambda ((brace ARG TYPE) ...)
+						  (fluid-let-syntax
+						      ((__who__ (identifier-syntax (quote ?generic-function-id))))
 						    . BODY))))))
 
 	   ;;Tagged return values.
-	   ((?generic-function-id ?rv-tag0 ?rv-tag ...)
+	   ((brace ?generic-function-id ?rv-tag0 ?rv-tag ...)
 	    (all-identifiers? #'(?generic-function-id ?rv-tag0 ?rv-tag ...))
 	    (with-syntax ((TABLE-KEY	table-key)
 			  ((ARG ...)	(reverse arg-ids))
 			  ((TYPE ...)	(reverse type-ids))
-			  (BODY		body-stx)
-			  (WHO		(datum->syntax #'?generic-function-id '__who__)))
+			  (BODY		body-stx))
 	      #'(define dummy ;to make it a definition
 		  (add-method ?generic-function-id TABLE-KEY (TYPE ...)
-			      (type.method-lambda ((_ ?rv-tag0 ?rv-tag ...) (ARG TYPE) ...)
-						  (let-constants ((WHO '?generic-function-id))
+			      (type.method-lambda ((brace _ ?rv-tag0 ?rv-tag ...) (brace ARG TYPE) ...)
+						  (fluid-let-syntax
+						      ((__who__ (identifier-syntax (quote ?generic-function-id))))
 						    . BODY))))))
 	   ))
-	(((?arg ?type) . ?formals)
+	(((brace ?arg ?type) . ?formals)
 	 (loop #'?formals (cons #'?arg arg-ids) (cons #'?type    type-ids)))
 	((?arg . ?formals)
 	 (loop #'?formals (cons #'?arg arg-ids) (cons #'type.top type-ids)))
@@ -734,7 +731,7 @@
   (syntax-case stx ()
     ((_ ?generic-function ?keyword (?type-id ...) ?closure)
      (all-identifiers? #'(?generic-function ?keyword ?type-id ...))
-     #`(?generic-function #,(help.case-identifier #'?keyword
+     #`(?generic-function #,(case-identifiers #'?keyword
 			      ((aux.:primary)	#':primary-method-add)
 			      ((aux.:before)	#':before-method-add)
 			      ((aux.:after)	#':after-method-add)
@@ -758,6 +755,5 @@
 
 ;;; end of file
 ;;Local Variables:
-;; coding: utf-8
-;;eval: (put 'help.case-identifier 'scheme-indent-function 1)
+;;coding: utf-8
 ;;End:
