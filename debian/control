@@ -9,7 +9,7 @@ Build-Depends: debhelper (>= 9),
 	       libffi-dev
 Standards-Version: 3.9.7
 Homepage: http://marcomaggi.github.com/vicare.html
-Vcs-Git: git://github.com/barak/vicare
+Vcs-Git: https://github.com/barak/vicare
 Vcs-Browser: http://github.com/barak/vicare
 
 Package: vicare-scheme
